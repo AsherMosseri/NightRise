@@ -98,3 +98,17 @@ export const PACING_COPY = {
   over: { label: 'Over budget', hint: 'More to do than time left. Rain check something?' },
   past: { label: 'Past bedtime', hint: 'You are running late. Bank what you can.' },
 };
+
+export const CURFEW_LEAD_MINUTES = 30;
+
+/**
+ * True once we are inside the half hour before bedtime (and until the night
+ * rolls). The shop, star map, history and insights are four browsing surfaces
+ * with a currency attached; one tap away at 12:10am they are the same product
+ * NightCheck is supposed to be rescuing you from.
+ */
+export function inCurfew(key, bedtime, now = new Date()) {
+  const minutesLeft = minutesUntilBedtime(key, bedtime, now);
+  if (minutesLeft === null) return false;
+  return minutesLeft <= CURFEW_LEAD_MINUTES;
+}

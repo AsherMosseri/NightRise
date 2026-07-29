@@ -3,7 +3,20 @@
 
 import { clamp } from './util.js';
 
-export const COMBO_WINDOW_MS = 90 * 1000;
+/**
+ * Momentum, not speed.
+ *
+ * The original combo paid its biggest multiplier for checking seven boxes
+ * inside 90 seconds — i.e. for standing in the bathroom tapping the phone
+ * rather than doing the things. That is exactly backwards for an app whose
+ * whole purpose is getting you off the phone and into bed.
+ *
+ * Momentum instead rises when the gap between check-offs looks like you
+ * actually went and did it: longer than a token tap, shorter than a drift into
+ * scrolling. Both failure modes reset it to x1.
+ */
+export const MOMENTUM_MIN_GAP_MS = 20 * 1000;
+export const MOMENTUM_GRACE_MS = 3 * 60 * 1000;
 export const COMBO_STEP = 0.25;
 export const COMBO_MAX = 2.5;
 export const BASE_TASK_XP = 10;
@@ -120,7 +133,14 @@ export function checkBadges(state, stats) {
   return earned;
 }
 
-/** Grant XP (and optional stardust). Returns the levels crossed. */
+/**
+ * Grant XP (and optional stardust). Returns the levels crossed.
+ *
+ * Level-up stardust is paid against a high-water mark. Without it, crossing a
+ * level boundary, un-checking the task and re-checking it paid the level bonus
+ * again every time — the level is recomputed from XP, so the same boundary can
+ * be crossed all night.
+ */
 export function grantXp(state, xp, dust = 0) {
   const { profile } = state;
   const before = profile.level;
@@ -131,14 +151,30 @@ export function grantXp(state, xp, dust = 0) {
   const levelsGained = [];
   for (let lvl = before + 1; lvl <= after; lvl += 1) {
     levelsGained.push(lvl);
-    profile.stardust += levelUpDust(lvl);
+    if (lvl > (profile.maxLevelRewarded || 1)) {
+      profile.stardust += levelUpDust(lvl);
+      profile.maxLevelRewarded = lvl;
+    }
   }
   return levelsGained;
 }
 
-/** Current chain length given the last completion time. */
-export function chainLengthFor(night, at) {
-  if (!night.lastDoneAt || at - night.lastDoneAt > COMBO_WINDOW_MS) return 1;
+/** How long a task claiming `minutes` may reasonably take before you have drifted. */
+export function momentumWindow(minutes) {
+  const expected = Math.max(0, minutes || 0) * 60 * 1000;
+  return clamp(expected * 2.5, 4 * 60 * 1000, 25 * 60 * 1000) + MOMENTUM_GRACE_MS;
+}
+
+/**
+ * The chain length this completion earns. 1 means the chain restarted: either
+ * the tap came too fast to be real work, or too long after the last one.
+ */
+export function chainLengthFor(night, at, lastMinutes = 0) {
+  const last = night.lastDoneAt;
+  if (!last) return 1;
+  const gap = at - last;
+  if (gap < MOMENTUM_MIN_GAP_MS) return 1;
+  if (gap > momentumWindow(lastMinutes)) return 1;
   return Math.round((night.combo - 1) / COMBO_STEP) + 2;
 }
 
@@ -148,20 +184,33 @@ export function chainLengthFor(night, at) {
  */
 export function applyTaskCompletion(state, task, at = Date.now()) {
   const night = state.night;
-  const chain = chainLengthFor(night, at);
+  const chain = chainLengthFor(night, at, night.lastMinutes || 0);
   const multiplier = comboMultiplier(chain);
   const xp = taskXp(task.minutes, multiplier);
   const dust = stardustFor(xp);
 
   night.done[task.id] = at;
   delete night.skipped[task.id];
-  night.awards[task.id] = { xp, dust, multiplier };
+  // Remember the chain state this completion replaced so un-checking can put
+  // it back; otherwise re-checking one task ratchets the combo upward forever.
+  night.awards[task.id] = {
+    xp, dust, multiplier, at, prevCombo: night.combo, prevLastDoneAt: night.lastDoneAt,
+  };
+  night.awards[task.id].prevMinutes = night.lastMinutes || 0;
   night.combo = multiplier;
   night.maxCombo = Math.max(night.maxCombo || 1, multiplier);
   night.lastDoneAt = at;
+  night.lastMinutes = Math.max(0, task.minutes || 0);
 
   const levels = grantXp(state, xp, dust);
   return { xp, dust, multiplier, chain, levels };
+}
+
+/** Take back an exact amount, keeping the level in step. */
+export function revokeGrant(state, xp, dust) {
+  state.profile.xp = Math.max(0, state.profile.xp - (xp || 0));
+  state.profile.stardust = Math.max(0, state.profile.stardust - (dust || 0));
+  state.profile.level = levelFromXp(state.profile.xp).level;
 }
 
 export function revokeTaskCompletion(state, taskId) {
@@ -170,9 +219,13 @@ export function revokeTaskCompletion(state, taskId) {
   delete night.done[taskId];
   delete night.awards[taskId];
   if (!award) return null;
-  state.profile.xp = Math.max(0, state.profile.xp - award.xp);
-  state.profile.stardust = Math.max(0, state.profile.stardust - award.dust);
-  state.profile.level = levelFromXp(state.profile.xp).level;
+  revokeGrant(state, award.xp, award.dust);
+  // Only the most recent completion owns the current chain.
+  if (award.at !== undefined && night.lastDoneAt === award.at) {
+    night.combo = award.prevCombo ?? 1;
+    night.lastDoneAt = award.prevLastDoneAt ?? 0;
+    night.lastMinutes = award.prevMinutes ?? 0;
+  }
   return award;
 }
 

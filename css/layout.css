@@ -198,6 +198,39 @@
 .pacing--over, .pacing--past { border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
 .pacing--over .pacing__label, .pacing--past .pacing__label { color: var(--bad); }
 
+/* quest — full card on desktop, one tappable line on a phone */
+.quest-compact { display: none; }
+.quest-compact {
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  text-align: left;
+}
+.quest-compact__name { font-size: 13.5px; font-weight: 650; color: var(--text); }
+.quest-compact__progress { margin-left: auto; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.quest-compact--claim {
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: #0a0c1c;
+}
+.quest-compact--claim .quest-compact__name,
+.quest-compact--claim .quest-compact__progress { color: #0a0c1c; }
+.quest-compact__cta {
+  margin-left: 0;
+  font-size: 12.5px;
+  font-weight: 750;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(10, 12, 28, 0.22);
+}
+.quest-compact--claimed { opacity: 0.6; }
+
 /* quest */
 .quest {
   padding: 12px 14px;
@@ -264,11 +297,33 @@
   .topbar__brand { grid-area: brand; }
   .topbar__actions { grid-area: actions; justify-self: end; flex-wrap: wrap; justify-content: flex-end; }
   .topbar__stats { grid-area: stats; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); overflow: visible; }
+  /* Thumb-sized targets in the bar you tap in the dark. */
+  .topbar__actions .icon-btn { width: 40px; height: 40px; }
+}
+
+/* On a phone the panel used to be 533px tall, pushing every task below the
+   fold. You open this app to check things off, so the list comes first. */
+@media (max-width: 640px) {
+  .app { gap: var(--sp-3); padding: var(--sp-3) var(--sp-3) var(--sp-7); }
+  .tonight { padding: 14px; gap: 12px; border-radius: var(--r-lg); }
+  .tonight__main { gap: 14px; align-items: center; }
+  .tonight__eyebrow { display: none; }
+  .tonight__date { font-size: 19px; }
+  .tonight__summary { font-size: 13px; }
+  .tonight__side { gap: 8px; }
+  .dial { width: 76px; height: 76px; }
+  .dial__pct { font-size: 19px; }
+  .dial__sub { font-size: 10.5px; }
+  .pacing, .quest { padding: 10px 12px; }
+  .pacing__count { font-size: 14px; }
+  .quest__desc { font-size: 12px; }
+  .quick-add input { padding: 12px 14px; }
+  .quest--full { display: none; }
+  .quest-compact { display: flex; }
 }
 
 @media (max-width: 560px) {
-  .tonight__main { flex-direction: column; align-items: flex-start; }
-  .dial { width: 96px; height: 96px; }
+  .dial { width: 76px; height: 76px; }
   .stat { padding: 5px 10px; }
   .stat__label { display: none; }
   .level__meta { min-width: 88px; }

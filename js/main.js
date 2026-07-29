@@ -2,21 +2,25 @@
    and keep the night ticking over. */
 
 import { $, icon } from './dom.js';
-import { getState, subscribe, update, on } from './state.js';
+import { getState, subscribe, update, on, hydrateState } from './state.js';
 import { addSection, addTask, setSetting } from './actions.js';
 import { computeStats, rolloverIfNeeded } from './night.js';
-import { nightKeyOf, formatNightLabel } from './time.js';
+import { nightKeyOf, formatNightLabel, inCurfew, CURFEW_LEAD_MINUTES } from './time.js';
 import { initChecklist, renderChecklist, floatXp } from './render/checklist.js';
 import { initHeader, renderHeader, renderTonight } from './render/header.js';
 import { initModals, openModal, closeModal } from './render/modals.js';
+import { initSheet, openSheet } from './render/sheet.js';
+import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
 import { initToasts, toast, celebrate } from './toast.js';
 import { initSky, setMoonFill, setTrail, setConstellations, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations } from './constellations.js';
 import { initKeys, parseQuickAdd } from './keys.js';
 import { badgeById, titleForLevel } from './game.js';
 import * as audio from './audio.js';
-import { storageAvailable } from './storage.js';
+import { storageAvailable, flushPersist, STORAGE_KEY, normalizeState } from './storage.js';
 import { plural } from './util.js';
+
+const TOPBAR_ICON_SIZE = 18;
 
 const motionQuery = typeof window.matchMedia === 'function'
   ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -138,6 +142,17 @@ function wireEffects() {
     toast('Not yet', { tone: 'warn', iconName: 'star', detail: reason });
   });
 
+  on('envelope', ({ drop, amount }) => {
+    audio.play('buy');
+    shootingStar();
+    celebrate(drop.label, drop.detail(amount));
+  });
+
+  on('lightsout', ({ reward, onTime }) => {
+    if (reward) audio.play('complete');
+    if (onTime) celebrateBurst();
+  });
+
   on('equip', () => applyCosmetics());
   on('star:lit', () => audio.play('star'));
   on('constellation:complete', () => { applyCosmetics(); celebrateBurst(); });
@@ -149,6 +164,7 @@ function wireEffects() {
 /* ---------------------------------------------------------------- render */
 
 function renderAll() {
+  if (isGoodnightOpen() && getState().night.lightsOutAt === null) dismissGoodnight({ reopened: false });
   renderChecklist();
   renderHeader();
   syncSky();
@@ -190,14 +206,48 @@ function checkRollover() {
 function boot() {
   initToasts($('#toasts'));
   initChecklist($('#sections'));
-  initHeader({ stats: $('#topstats'), tonight: $('#tonight'), companion: $('#companion') });
+  initHeader({
+    stats: $('#topstats'),
+    tonight: $('#tonight'),
+    companion: $('#companion'),
+    nightEnd: $('#nightend'),
+  });
   initModals($('#modal'));
+  initSheet($('#sheet'));
+  initGoodnight($('#goodnight'));
   initSky($('#sky'), { reduceMotion: reducedMotionActive(getState()) });
   initQuickAdd($('#quick-add-input'), $('#quick-add-button'));
   wireEffects();
 
+  // One icon source, one size: fill every declarative [data-icon] slot in the shell.
+  for (const slot of document.querySelectorAll('[data-icon]')) {
+    slot.prepend(icon(slot.dataset.icon, { size: TOPBAR_ICON_SIZE }));
+  }
+
+  // Curfew: the four browsing panels close half an hour before bedtime. You can
+  // still get in, but it takes a second, deliberate tap.
+  const BROWSING = new Set(['shop', 'starmap', 'history', 'insights']);
+  const openPanel = (name) => {
+    const state = getState();
+    const gated = BROWSING.has(name)
+      && state.profile.settings.curfew
+      && inCurfew(state.night.key, state.profile.settings.bedtime);
+    if (!gated) {
+      openModal(name);
+      return;
+    }
+    openSheet({
+      title: 'The market is closed',
+      subtitle: `It shuts ${CURFEW_LEAD_MINUTES} minutes before bedtime. It will all still be here in the morning.`,
+      items: [
+        { icon: 'moon', label: 'Fair enough', hint: 'Back to the list', onClick: () => {} },
+        { icon: 'bag', label: 'Open it anyway', hint: 'Just this once', onClick: () => openModal(name) },
+      ],
+    });
+  };
+
   for (const button of document.querySelectorAll('[data-open]')) {
-    button.addEventListener('click', () => openModal(button.dataset.open));
+    button.addEventListener('click', () => openPanel(button.dataset.open));
   }
 
   const muteButton = $('#toggle-sound');
@@ -206,7 +256,7 @@ function boot() {
     const { settings } = getState().profile;
     muteButton.setAttribute('aria-pressed', settings.muted ? 'false' : 'true');
     muteButton.title = settings.muted ? 'Sounds are off' : 'Sounds are on';
-    muteButton.replaceChildren(icon(settings.muted ? 'mute' : 'volume', { size: 16 }));
+    muteButton.replaceChildren(icon(settings.muted ? 'mute' : 'volume', { size: TOPBAR_ICON_SIZE }));
     dimButton.setAttribute('aria-pressed', settings.dim ? 'true' : 'false');
     dimButton.title = settings.dim ? 'Sleep-safe dim is on' : 'Sleep-safe dim is off';
   };
@@ -230,10 +280,10 @@ function boot() {
       node?.focus();
     },
     onQuickAdd: () => $('#quick-add-input').focus(),
-    onShop: () => openModal('shop'),
-    onStarMap: () => openModal('starmap'),
-    onHistory: () => openModal('history'),
-    onInsights: () => openModal('insights'),
+    onShop: () => openPanel('shop'),
+    onStarMap: () => openPanel('starmap'),
+    onHistory: () => openPanel('history'),
+    onInsights: () => openPanel('insights'),
     onSettings: () => openModal('settings'),
     onHelp: () => openModal('help'),
     onToggleMute: () => { muteButton.click(); },
@@ -266,7 +316,25 @@ function boot() {
     if (!checkRollover()) renderTonight();
   }, 30000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !checkRollover()) renderTonight();
+    // Commit before the OS can suspend us; a lost check-off is unforgivable.
+    if (document.hidden) flushPersist();
+    else if (!checkRollover()) renderTonight();
+  });
+  window.addEventListener('pagehide', flushPersist);
+
+  // Two tabs (or a phone and a laptop on the same browser) used to clobber each
+  // other silently — last writer won and the other tab's night vanished on its
+  // next save. Adopt whatever the other tab wrote instead of overwriting it.
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    try {
+      hydrateState(normalizeState(JSON.parse(event.newValue)));
+      renderAll();
+      applyCosmetics();
+      toast('Synced from another tab', { tone: 'info', iconName: 'undo', duration: 3000 });
+    } catch (err) {
+      console.warn('NightCheck: could not adopt another tab\'s state', err);
+    }
   });
   motionQuery.addEventListener?.('change', () => applyCosmetics());
 

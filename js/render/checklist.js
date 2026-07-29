@@ -10,6 +10,7 @@ import {
 } from '../actions.js';
 import { initDragAndDrop } from '../dnd.js';
 import { toast } from '../toast.js';
+import { openSheet } from './sheet.js';
 import { plural } from '../util.js';
 
 let root = null;
@@ -34,8 +35,11 @@ function beginInlineEdit(labelNode, currentValue, onCommit) {
     if (settled) return;
     settled = true;
     const value = input.value.trim();
+    const owner = input.closest('[data-focus]');
     input.replaceWith(labelNode);
+    if (owner) focusNext(owner.dataset.focus);
     if (save && value && value !== currentValue) onCommit(value);
+    else if (owner) restorePendingFocus();
   };
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') { event.preventDefault(); commit(true); }
@@ -78,19 +82,65 @@ function editMinutes(chip, task) {
 
 /* ------------------------------------------------------------- xp floater */
 
+/**
+ * Floats "+12 XP" off the row you just checked. It lives in a body-level layer
+ * rather than inside the row: the state change that earns the XP rebuilds the
+ * whole checklist in the same tick, so anything parented to the row was
+ * destroyed before it ever painted.
+ */
 export function floatXp(taskId, text) {
   const row = root?.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`);
   if (!row) return;
-  const float = h('span', { class: 'xp-float' }, text);
-  row.appendChild(float);
+  const rect = row.getBoundingClientRect();
+  const float = h('span', {
+    class: 'xp-float',
+    style: {
+      left: `${Math.round(rect.right - 92)}px`,
+      top: `${Math.round(rect.top + 2)}px`,
+    },
+  }, text);
+  document.body.appendChild(float);
   setTimeout(() => float.remove(), 1100);
 }
 
 /* -------------------------------------------------------------- task rows */
 
+/** Rename by id rather than by node, so it survives a re-render in between. */
+function startRenameTask(taskId) {
+  const task = getState().template.tasks[taskId];
+  const node = root?.querySelector(`[data-task-id="${CSS.escape(taskId)}"] .task__title`);
+  if (task && node) beginInlineEdit(node, task.title, (value) => renameTask(taskId, value));
+}
+
+function rainCheck(taskId) {
+  const result = toggleSkip(taskId);
+  if (result?.blocked) {
+    toast('No rain checks left', { tone: 'warn', iconName: 'skip', detail: 'Buy more in the Night Market.' });
+  }
+}
+
+/** One definition of what you can do to a task, shared by the row and the sheet. */
+function taskActions(state, task) {
+  const skipped = Boolean(state.night.skipped[task.id]);
+  return [
+    {
+      key: 'skip',
+      icon: 'skip',
+      label: skipped ? 'Undo rain check' : 'Rain check',
+      hint: skipped ? 'Count it against tonight again' : 'Excuse it from tonight’s percentage',
+      run: () => rainCheck(task.id),
+    },
+    { key: 'edit', icon: 'pencil', label: 'Rename', run: () => startRenameTask(task.id) },
+    { key: 'up', icon: 'up', label: 'Move up', run: () => { focusNext(`task:${task.id}`); moveTaskByStep(task.id, -1); } },
+    { key: 'down', icon: 'down', label: 'Move down', run: () => { focusNext(`task:${task.id}`); moveTaskByStep(task.id, 1); } },
+    { key: 'del', icon: 'trash', label: 'Delete', danger: true, run: () => removeTask(task.id) },
+  ];
+}
+
 function taskRow(state, task, index) {
   const done = state.night.done[task.id] !== undefined;
   const skipped = Boolean(state.night.skipped[task.id]);
+  const actions = taskActions(state, task);
 
   const title = h('span', { class: 'task__title' }, task.title);
   const minutesChip = h('button', {
@@ -101,12 +151,32 @@ function taskRow(state, task, index) {
     onClick: (event) => { event.stopPropagation(); editMinutes(minutesChip, task); },
   }, `${task.minutes}m`);
 
+  const menuButton = iconButton('more', `More actions for ${task.title}`, (event) => {
+    event.stopPropagation();
+    openSheet({
+      title: task.title,
+      subtitle: `${plural(task.minutes, 'minute', 'minutes')}${done ? ' · done' : ''}${skipped ? ' · rain-checked' : ''}`,
+      invoker: menuButton,
+      items: actions.map((a) => ({ icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, onClick: a.run })),
+    });
+  }, { class: 'task__menu', dataset: { focus: `task-menu:${task.id}` } });
+
+  // A focusable row needs a name and a declared key contract — a nameless tab
+  // stop tells a screen reader nothing about what it is or what it can do.
+  const rowLabel = [
+    task.title,
+    plural(task.minutes, 'minute', 'minutes'),
+    done ? 'done' : null,
+    skipped ? 'rain-checked' : null,
+  ].filter(Boolean).join(', ');
+
   const row = h('li', {
     class: ['task', done && 'task--done', skipped && 'task--skipped'].filter(Boolean).join(' '),
     dataset: { taskId: task.id, index, focus: `task:${task.id}` },
     draggable: 'true',
     tabIndex: 0,
-    role: 'listitem',
+    'aria-label': rowLabel,
+    'aria-keyshortcuts': 'Space E X Delete Alt+ArrowUp Alt+ArrowDown',
   },
   h('button', {
     type: 'button',
@@ -120,37 +190,59 @@ function taskRow(state, task, index) {
     skipped ? h('span', { class: 'task__flag' }, 'rain check') : null),
   minutesChip,
   h('div', { class: 'task__actions' },
-    iconButton('skip', skipped ? 'Undo rain check' : 'Rain check (excuse tonight)', (event) => {
+    ...actions.map((a) => iconButton(a.icon, a.key === 'skip' ? a.label : `${a.label} task`, (event) => {
       event.stopPropagation();
-      const result = toggleSkip(task.id);
-      if (result?.blocked) {
-        toast('No rain checks left', { tone: 'warn', iconName: 'skip', detail: 'Buy more in the Night Market.' });
-      }
-    }, { dataset: { focus: `task-skip:${task.id}` } }),
-    iconButton('pencil', 'Rename task', (event) => { event.stopPropagation(); beginInlineEdit(title, task.title, (v) => renameTask(task.id, v)); },
-      { dataset: { focus: `task-edit:${task.id}` } }),
-    iconButton('up', 'Move up', (event) => { event.stopPropagation(); focusNext(`task:${task.id}`); moveTaskByStep(task.id, -1); },
-      { dataset: { focus: `task-up:${task.id}` } }),
-    iconButton('down', 'Move down', (event) => { event.stopPropagation(); focusNext(`task:${task.id}`); moveTaskByStep(task.id, 1); },
-      { dataset: { focus: `task-down:${task.id}` } }),
-    iconButton('trash', 'Delete task', (event) => { event.stopPropagation(); removeTask(task.id); },
-      { class: 'icon-btn--danger', dataset: { focus: `task-del:${task.id}` } }),
-  ),
+      a.run();
+    }, { class: a.danger ? 'icon-btn--danger' : '', dataset: { focus: `task-${a.key}:${task.id}` } }))),
+  menuButton,
   h('span', { class: 'task__grip', 'aria-hidden': 'true' }, icon('grip', { size: 14 })));
 
   row.addEventListener('keydown', (event) => rowKeys(event, task));
-  row.addEventListener('dblclick', () => beginInlineEdit(title, task.title, (v) => renameTask(task.id, v)));
+  row.addEventListener('dblclick', () => startRenameTask(task.id));
   return row;
 }
 
+/** The row that should take focus once `id` disappears. */
+function neighbourFocusKey(id) {
+  const rows = $$('[data-task-id]', root);
+  const index = rows.findIndex((row) => row.dataset.taskId === id);
+  const next = rows[index + 1] || rows[index - 1];
+  if (next) return `task:${next.dataset.taskId}`;
+  const section = rows[index]?.closest('[data-section-id]');
+  return section ? `section:${section.dataset.sectionId}` : 'add-section';
+}
+
 function removeTask(id) {
-  const task = deleteTask(id);
-  if (!task) return;
-  toast(`Deleted “${task.title}”`, {
+  focusNext(neighbourFocusKey(id)); // otherwise focus falls to <body>
+  const result = deleteTask(id);
+  if (!result) return;
+  toast(`Deleted “${result.task.title}”`, {
     tone: 'info',
     iconName: 'trash',
-    action: { label: 'Undo', onClick: () => undo() },
+    action: { label: 'Undo', onClick: () => undo(result.undoId) },
   });
+}
+
+function startRenameSection(sectionId) {
+  const section = getState().template.sections[sectionId];
+  const node = root?.querySelector(`[data-section-id="${CSS.escape(sectionId)}"] .section__title`);
+  if (section && node) beginInlineEdit(node, section.title, (value) => renameSection(sectionId, value));
+}
+
+/** One definition of what you can do to a section, shared by the header and the sheet. */
+function sectionActions(section, addInput) {
+  return [
+    {
+      key: 'plus',
+      icon: 'plus',
+      label: 'Add a task here',
+      run: () => { focusNext(`section-add:${section.id}`); addInput.focus(); },
+    },
+    { key: 'edit', icon: 'pencil', label: 'Rename section', run: () => startRenameSection(section.id) },
+    { key: 'up', icon: 'up', label: 'Move section up', run: () => { focusNext(`section:${section.id}`); moveSection(section.id, -1); } },
+    { key: 'down', icon: 'down', label: 'Move section down', run: () => { focusNext(`section:${section.id}`); moveSection(section.id, 1); } },
+    { key: 'del', icon: 'trash', label: 'Delete section', danger: true, run: () => removeSection(section.id) },
+  ];
 }
 
 function removeSection(id) {
@@ -158,6 +250,11 @@ function removeSection(id) {
   const section = state.template.sections[id];
   if (!section) return;
   const count = section.taskIds.length;
+  const order = state.template.order;
+  const at = order.indexOf(id);
+  const neighbour = order[at + 1] || order[at - 1];
+  focusNext(neighbour ? `section:${neighbour}` : 'add-section');
+
   const removed = deleteSection(id);
   if (!removed) return;
   toast(`Deleted “${section.title}”`, {
@@ -165,7 +262,7 @@ function removeSection(id) {
     iconName: 'trash',
     detail: count ? `${plural(count, 'task', 'tasks')} went with it.` : null,
     duration: count ? 7000 : 4200,
-    action: { label: 'Undo', onClick: () => undo() },
+    action: { label: 'Undo', onClick: () => undo(removed.undoId) },
   });
 }
 
@@ -196,7 +293,7 @@ function rowKeys(event, task) {
     }
   } else if (key.toLowerCase() === 'e') {
     event.preventDefault();
-    beginInlineEdit(row.querySelector('.task__title'), task.title, (v) => renameTask(task.id, v));
+    startRenameTask(task.id);
   } else if (key === 'Delete' || key === 'Backspace') {
     event.preventDefault();
     removeTask(task.id);
@@ -230,9 +327,11 @@ function sectionNode(state, section, index) {
     const value = addInput.value.trim();
     if (!value) return;
     const parsed = parseInlineTask(value);
-    addTask(section.id, parsed.title, parsed.minutes ?? 5);
     addInput.value = '';
+    // Armed before the mutation: arming it afterwards left a stale key that
+    // hijacked focus on the next unrelated re-render.
     focusNext(`section-add:${section.id}`);
+    addTask(section.id, parsed.title, parsed.minutes ?? 5);
   };
 
   addInput.addEventListener('keydown', (event) => {
@@ -240,6 +339,18 @@ function sectionNode(state, section, index) {
     if (event.key === 'Escape') { addInput.value = ''; addInput.blur(); }
     event.stopPropagation();
   });
+
+  const sectionMenu = iconButton('more', `More actions for ${section.title}`, (event) => {
+    event.stopPropagation();
+    openSheet({
+      title: section.title,
+      subtitle: `Section · ${stats.done}/${stats.total} done`,
+      invoker: sectionMenu,
+      items: sectionActions(section, addInput).map((a) => ({
+        icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, onClick: a.run,
+      })),
+    });
+  }, { class: 'section__menu', dataset: { focus: `section-menu:${section.id}` } });
 
   const header = h('header', {
     class: 'section__head',
@@ -260,18 +371,11 @@ function sectionNode(state, section, index) {
   h('span', { class: 'section__bar', 'aria-hidden': 'true' },
     h('span', { class: 'section__bar-fill', style: { width: `${pct}%` } })),
   h('div', { class: 'section__actions' },
-    iconButton('plus', 'Add task here', () => { focusNext(`section-add:${section.id}`); addInput.focus(); },
-      { dataset: { focus: `section-plus:${section.id}` } }),
-    iconButton('pencil', 'Rename section', () => beginInlineEdit(title, section.title, (v) => renameSection(section.id, v)),
-      { dataset: { focus: `section-edit:${section.id}` } }),
-    iconButton('up', 'Move section up', () => { focusNext(`section:${section.id}`); moveSection(section.id, -1); },
-      { dataset: { focus: `section-up:${section.id}` } }),
-    iconButton('down', 'Move section down', () => { focusNext(`section:${section.id}`); moveSection(section.id, 1); },
-      { dataset: { focus: `section-down:${section.id}` } }),
-    iconButton('trash', 'Delete section', () => removeSection(section.id),
-      { class: 'icon-btn--danger', dataset: { focus: `section-del:${section.id}` } })));
+    ...sectionActions(section, addInput).map((a) => iconButton(a.icon, a.label, () => a.run(),
+      { class: a.danger ? 'icon-btn--danger' : '', dataset: { focus: `section-${a.key}:${section.id}` } }))),
+  sectionMenu);
 
-  header.addEventListener('dblclick', () => beginInlineEdit(title, section.title, (v) => renameSection(section.id, v)));
+  header.addEventListener('dblclick', () => startRenameSection(section.id));
   header.addEventListener('keydown', (event) => {
     if (event.target !== header) return;
     const key = event.key;
@@ -282,7 +386,7 @@ function sectionNode(state, section, index) {
       moveSection(section.id, key === 'ArrowDown' ? 1 : -1);
     } else if (key.toLowerCase() === 'e') {
       event.preventDefault();
-      beginInlineEdit(title, section.title, (v) => renameSection(section.id, v));
+      startRenameSection(section.id);
     } else if (key === 'Delete' || key === 'Backspace') {
       event.preventDefault();
       removeSection(section.id);
@@ -367,12 +471,25 @@ function playFlip(previous) {
   }
 }
 
+function focusByKey(key) {
+  if (!key || !root) return false;
+  const node = root.querySelector(`[data-focus="${CSS.escape(key)}"]`);
+  if (!node) return false;
+  node.focus({ preventScroll: true });
+  return true;
+}
+
+/** Consume a pending focus without waiting for a render (nothing changed). */
+function restorePendingFocus() {
+  const key = pendingFocus;
+  pendingFocus = null;
+  focusByKey(key);
+}
+
 function restoreFocus(previousKey) {
   const key = pendingFocus || previousKey;
   pendingFocus = null;
-  if (!key) return;
-  const node = root.querySelector(`[data-focus="${CSS.escape(key)}"]`);
-  if (node) node.focus({ preventScroll: true });
+  focusByKey(key);
 }
 
 export function initChecklist(node) {

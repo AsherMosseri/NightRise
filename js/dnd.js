@@ -80,7 +80,9 @@ export function initDragAndDrop(root, handlers) {
         return;
       }
       const list = event.target.closest('[data-drop-list]');
-      if (list) {
+      // Dropping a task back onto itself is a cancelled drag, not a request to
+      // send it to the bottom of its own section.
+      if (list && !(row && row.dataset.taskId === current.id)) {
         const count = list.querySelectorAll('[data-task-id]').length;
         handlers.onDropTask(current.id, list.dataset.sectionId, count);
       }

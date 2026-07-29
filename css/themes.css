@@ -173,6 +173,18 @@
 }
 .is-dim #dim-veil { opacity: 1; }
 
+/* The veil cannot cover the dialog (top layer) or the fixed sheet/toast layers,
+   so those surfaces are warmed directly — otherwise the brightest things on the
+   screen were exactly the ones sleep-safe mode missed. */
+.is-dim #modal,
+.is-dim .sheet,
+.is-dim .sheet-scrim,
+.is-dim .toast,
+.is-dim .companion {
+  filter: sepia(0.35) brightness(0.62) saturate(0.85);
+}
+.is-dim #modal::backdrop { background: rgba(2, 3, 10, 0.78); }
+
 /* Shop swatches mirror each pack so you can see what you are buying. */
 .swatch { height: 56px; border-radius: var(--r-md); border: 1px solid var(--border); }
 

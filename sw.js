@@ -34,7 +34,10 @@ const ASSETS = [
   './js/render/checklist.js',
   './js/render/header.js',
   './js/render/modals.js',
+  './js/render/sheet.js',
   './assets/icon.svg',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -67,7 +70,13 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => cached || caches.match('./index.html'));
+        .catch(() => {
+          if (cached) return cached;
+          // Only a navigation may fall back to the shell. Handing index.html to a
+          // failed module request produced an HTML/MIME error and a dead app.
+          if (request.mode === 'navigate') return caches.match('./index.html');
+          return Response.error();
+        });
       return cached || network;
     }),
   );

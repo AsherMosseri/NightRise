@@ -27,7 +27,13 @@ export function createNight(key) {
     combo: 1,
     maxCombo: 1,
     lastDoneAt: 0,
+    lastMinutes: 0, // what the last completed task claimed, for momentum
     celebrated: false,
+    bonus: null, // what the completion bonus paid, so it can be taken back exactly
+    lightsOutAt: null, // when you actually stopped for the night
+    lightsOutOnTime: false,
+    reopenedAfterLightsOut: false,
+    envelope: null, // { opened: ms|null } — tonight's unconditional reward
     quest: rollQuest(key),
   };
 }
@@ -36,6 +42,7 @@ export function createProfile() {
   return {
     xp: 0,
     level: 1,
+    maxLevelRewarded: 1, // level-up stardust is paid once per level, ever
     stardust: 0,
     streak: 0,
     bestStreak: 0,
@@ -57,6 +64,7 @@ export function createProfile() {
       companion: null,
     },
     tokens: { freeze: 1, raincheck: 2 },
+    lightsOut: { streak: 0, best: 0, lastKey: null },
     companion: { type: null, name: '', tier: 1, fed: 0 },
     constellations: {},
     taskStats: {},
@@ -64,6 +72,7 @@ export function createProfile() {
       bedtime: '23:30',
       dim: false,
       muted: true,
+      curfew: true,
       motion: 'auto',
       hideCompleted: false,
     },

@@ -4,6 +4,7 @@
 import { h, svg, icon, clear, replace } from '../dom.js';
 import { getState } from '../state.js';
 import { computeStats } from '../night.js';
+import { momentumWindow } from '../game.js';
 import { evaluateQuest } from '../quests.js';
 import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
 import {
@@ -12,20 +13,33 @@ import {
 import { formatDuration, formatNumber, plural } from '../util.js';
 import { topNudge } from '../insights.js';
 import { claimQuest } from '../actions.js';
+import { openEnvelope, envelopeWaiting, dropById } from '../envelope.js';
+import { lightsOut } from './goodnight.js';
+import { update, emit } from '../state.js';
 import { companionSvg, TIER_NAMES, feedsToNextTier } from '../companion.js';
 import { toast } from '../toast.js';
+import { openSheet } from './sheet.js';
 
 let statsHost = null;
 let tonightHost = null;
 let companionHost = null;
+let nightEndHost = null;
 
-export function initHeader({ stats, tonight, companion }) {
+export function initHeader({ stats, tonight, companion, nightEnd }) {
   statsHost = stats;
   tonightHost = tonight;
   companionHost = companion;
+  nightEndHost = nightEnd;
 }
 
 /* ------------------------------------------------------------- stat chips */
+
+/** True only while the current chain would actually still be honoured. */
+function momentumLive(state) {
+  const { lastDoneAt, lastMinutes } = state.night;
+  if (!lastDoneAt) return false;
+  return Date.now() - lastDoneAt <= momentumWindow(lastMinutes || 0);
+}
 
 function statChip({ iconName, value, label, title, className = '' }) {
   return h('div', { class: `stat ${className}`.trim(), title },
@@ -103,11 +117,47 @@ function progressDial(pct, stats) {
     h('span', { class: 'dial__sub' }, `${stats.done}/${stats.counted || stats.total}`)));
 }
 
+/**
+ * The full card on a wide screen; a one-line chip on a phone that opens the
+ * detail in the bottom sheet. Both are rendered, CSS picks one — the quest is
+ * a bonus, and on a phone it should not push the checklist off the screen.
+ */
+function questCompact(quest) {
+  const claimable = quest.complete && !quest.claimed;
+  const button = h('button', {
+    type: 'button',
+    class: ['quest-compact', claimable && 'quest-compact--claim', quest.claimed && 'quest-compact--claimed'].filter(Boolean).join(' '),
+    onClick: () => {
+      if (claimable) {
+        claimQuest();
+        return;
+      }
+      openSheet({
+        title: quest.name,
+        subtitle: `Tonight's bonus quest · +${quest.def.xp} XP · +${quest.def.dust} stardust`,
+        invoker: button,
+        items: [{
+          icon: 'star',
+          label: quest.claimed ? 'Already claimed' : quest.description,
+          hint: quest.claimed ? 'Come back tomorrow for a new one' : `Progress ${quest.label}`,
+          disabled: true,
+          onClick: () => {},
+        }],
+      });
+    },
+  },
+  icon('star', { size: 14 }),
+  h('span', { class: 'quest-compact__name' }, quest.name),
+  h('span', { class: 'quest-compact__progress' }, quest.claimed ? 'claimed' : quest.label),
+  claimable ? h('span', { class: 'quest-compact__cta' }, 'Claim') : null);
+  return button;
+}
+
 function questCard(state, stats) {
   const quest = evaluateQuest(state, stats);
   if (!quest) return null;
   const pct = Math.round((quest.progress / quest.goal) * 100);
-  return h('div', { class: ['quest', quest.complete && 'quest--done', quest.claimed && 'quest--claimed'].filter(Boolean).join(' ') },
+  return [questCompact(quest), h('div', { class: ['quest', 'quest--full', quest.complete && 'quest--done', quest.claimed && 'quest--claimed'].filter(Boolean).join(' ') },
     h('div', { class: 'quest__head' },
       icon('star', { size: 14 }),
       h('span', { class: 'quest__name' }, quest.name),
@@ -123,7 +173,7 @@ function questCard(state, stats) {
           class: 'btn btn--primary btn--sm',
           disabled: !quest.complete,
           onClick: () => claimQuest(),
-        }, quest.complete ? 'Claim reward' : 'In progress')));
+        }, quest.complete ? 'Claim reward' : 'In progress')))];
 }
 
 function bedtimeChip(state, stats) {
@@ -149,6 +199,48 @@ function bedtimeChip(state, stats) {
         : 'nothing left to do')));
 }
 
+/** Sealed until you tap it; then it is the first thing that happens tonight. */
+function envelopeCard(state) {
+  if (!envelopeWaiting(state)) {
+    const opened = state.night.envelope;
+    const drop = dropById(opened?.id);
+    if (!drop) return null;
+    return h('p', { class: 'envelope envelope--opened' },
+      icon('star', { size: 13 }),
+      h('span', {}, drop.label),
+      h('span', { class: 'muted small' }, drop.detail(opened.amount)));
+  }
+  return h('button', {
+    type: 'button',
+    class: 'envelope envelope--sealed',
+    onClick: () => {
+      const result = update((s) => openEnvelope(s));
+      if (result) emit('envelope', result);
+    },
+  },
+  icon('star', { size: 15 }),
+  h('span', { class: 'envelope__label' }, 'Tonight’s envelope'),
+  h('span', { class: 'envelope__cta' }, 'Open'));
+}
+
+/** The ending. Always available — stopping is the thing being rewarded. */
+function lightsOutButton(state, stats) {
+  if (state.night.lightsOutAt) {
+    return h('p', { class: 'lightsout lightsout--done' },
+      icon('moon', { size: 13 }),
+      `Lights out at ${new Date(state.night.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`);
+  }
+  const done = stats.total > 0 && stats.remaining === 0;
+  return h('button', {
+    type: 'button',
+    class: `lightsout ${done ? 'lightsout--ready' : ''}`.trim(),
+    onClick: () => lightsOut(),
+  },
+  icon('moon', { size: 15 }),
+  h('span', { class: 'lightsout__label' }, 'Lights out'),
+  h('span', { class: 'lightsout__hint' }, done ? 'You’re done' : 'Stop here, keep the points'));
+}
+
 export function renderTonight() {
   if (!tonightHost) return;
   const state = getState();
@@ -169,7 +261,12 @@ export function renderTonight() {
               ? 'Everything is done. Go to bed.'
               : `${plural(stats.remaining, 'task', 'tasks')} to go${stats.skipped ? `, ${stats.skipped} rain-checked` : ''}.`),
         h('div', { class: 'tonight__chips' },
-          combo ? h('span', { class: 'chip chip--combo' }, icon('flame', { size: 13 }), `x${state.night.combo.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} combo`) : null,
+          combo && momentumLive(state)
+            ? h('span', {
+              class: 'chip chip--combo',
+              title: 'Momentum rises when you work through the list at a real pace.',
+            }, icon('flame', { size: 13 }), `x${state.night.combo.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} momentum`)
+            : null,
           h('span', { class: 'chip', title: 'Rain checks excuse a task from tonight\'s percentage' },
             icon('skip', { size: 13 }), `${state.profile.tokens.raincheck} rain ${state.profile.tokens.raincheck === 1 ? 'check' : 'checks'}`),
           h('span', { class: 'chip', title: 'Streak freezes cover a missed night' },
@@ -177,7 +274,10 @@ export function renderTonight() {
         nudge ? h('p', { class: 'tonight__nudge' }, icon('bulb', { size: 13 }), nudge) : null)),
     h('div', { class: 'tonight__side' },
       bedtimeChip(state, stats),
+      envelopeCard(state),
       questCard(state, stats)));
+
+  if (nightEndHost) replace(nightEndHost, lightsOutButton(state, stats));
 }
 
 /* -------------------------------------------------------------- companion */
@@ -226,6 +326,12 @@ export function renderCompanion() {
   h('span', { class: 'companion__name' }, companion.name));
 
   companionHost.appendChild(button);
+}
+
+export function renderNightEnd() {
+  if (!nightEndHost) return;
+  const state = getState();
+  replace(nightEndHost, lightsOutButton(state, computeStats(state)));
 }
 
 export function renderHeader() {

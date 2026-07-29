@@ -40,6 +40,12 @@ export function replaceState(next) {
   notify();
 }
 
+/** Adopt state written by another tab. Deliberately does not write it back. */
+export function hydrateState(next) {
+  state = next;
+  notify();
+}
+
 export function on(event, fn) {
   if (!channels.has(event)) channels.set(event, new Set());
   channels.get(event).add(fn);

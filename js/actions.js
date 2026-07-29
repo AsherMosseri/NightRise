@@ -5,31 +5,54 @@ import { createSection, createTask, DEFAULT_MINUTES } from './model.js';
 import { moveItem, deepClone, clamp } from './util.js';
 import {
   applyTaskCompletion, revokeTaskCompletion, checkBadges, nightCompletionBonus, grantXp,
+  revokeGrant,
 } from './game.js';
 import { computeStats } from './night.js';
 import { evaluateQuest, questById } from './quests.js';
 
 const undoStack = [];
 const UNDO_LIMIT = 25;
+let undoSeq = 0;
 
+/**
+ * Only what a deletion can destroy: the template and the night's per-task
+ * records. Snapshotting the whole night used to rewind `quest.claimed` too,
+ * so claiming the nightly quest and then hitting Undo on an unrelated delete
+ * toast handed the reward back to be claimed again, forever.
+ */
 function snapshot(state) {
   return {
     template: deepClone(state.template),
-    night: deepClone(state.night),
+    done: deepClone(state.night.done),
+    skipped: deepClone(state.night.skipped),
+    awards: deepClone(state.night.awards),
   };
 }
 
 export function pushUndo(label) {
-  undoStack.push({ label, data: snapshot(getState()) });
+  undoSeq += 1;
+  undoStack.push({ id: undoSeq, label, data: snapshot(getState()) });
   if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  return undoSeq;
 }
 
-export function undo() {
-  const entry = undoStack.pop();
-  if (!entry) return null;
+/**
+ * Undo a specific entry. The toast passes the id of the deletion it announced,
+ * so pressing Undo on the "Deleted Floss" toast restores Floss even if you have
+ * deleted something else since — a bare LIFO pop restored the wrong thing.
+ */
+export function undo(id = null) {
+  const index = id === null
+    ? undoStack.length - 1
+    : undoStack.findIndex((entry) => entry.id === id);
+  if (index === -1) return null;
+  const [entry] = undoStack.splice(index, 1);
   update((state) => {
     state.template = entry.data.template;
-    state.night = entry.data.night;
+    state.night.done = entry.data.done;
+    state.night.skipped = entry.data.skipped;
+    state.night.awards = entry.data.awards;
+    afterProgress(state);
   });
   return entry.label;
 }
@@ -52,8 +75,9 @@ export function renameSection(id, title) {
   });
 }
 
+/** Same economy rule as deleteTask: the night's awards go, the profile does not. */
 export function deleteSection(id) {
-  pushUndo('section');
+  const undoId = pushUndo('section');
   return update((state) => {
     const section = state.template.sections[id];
     if (!section) return null;
@@ -65,7 +89,8 @@ export function deleteSection(id) {
     }
     delete state.template.sections[id];
     state.template.order = state.template.order.filter((s) => s !== id);
-    return section;
+    afterProgress(state);
+    return { section, undoId };
   });
 }
 
@@ -129,18 +154,27 @@ export function setTaskMinutes(id, minutes) {
   });
 }
 
+/**
+ * Deleting never touches the economy. XP you earned by actually doing the thing
+ * stays earned, and a spent rain check stays spent — only un-checking takes an
+ * award back. That keeps undo (which restores the template and the night, but
+ * deliberately not your profile) exactly reversible: restore the row, the award
+ * record comes back with it, and un-checking later subtracts it exactly once.
+ */
 export function deleteTask(id) {
-  pushUndo('task');
+  const undoId = pushUndo('task');
   return update((state) => {
     const task = state.template.tasks[id];
     if (!task) return null;
-    revokeTaskCompletion(state, id);
     delete state.template.tasks[id];
+    delete state.night.done[id];
     delete state.night.skipped[id];
+    delete state.night.awards[id];
     for (const section of Object.values(state.template.sections)) {
       section.taskIds = section.taskIds.filter((t) => t !== id);
     }
-    return task;
+    afterProgress(state); // deleting the last unfinished task can finish the night
+    return { task, undoId };
   });
 }
 
@@ -195,18 +229,27 @@ export function moveTaskByStep(taskId, delta) {
 
 /* ---------------------------------------------------------------- progress */
 
+/**
+ * The completion bonus is banked in `night.bonus` so it can be paid once and
+ * taken back exactly if you un-check something. Without the record, re-checking
+ * the last task paid the bonus again every single time.
+ */
 function afterProgress(state) {
   const stats = computeStats(state);
   const badges = checkBadges(state, stats);
   if (badges.length) emit('badge', badges);
 
-  if (stats.total > 0 && stats.remaining === 0 && !state.night.celebrated) {
-    state.night.celebrated = true;
+  const complete = stats.total > 0 && stats.remaining === 0 && stats.counted > 0;
+  if (complete && !state.night.bonus) {
     const bonus = nightCompletionBonus(stats);
     const levels = grantXp(state, bonus.xp, bonus.dust);
+    state.night.bonus = bonus;
+    state.night.celebrated = true;
     emit('night:complete', { stats, bonus, levels });
     if (levels.length) emit('level', levels);
-  } else if (stats.remaining > 0) {
+  } else if (!complete && state.night.bonus) {
+    revokeGrant(state, state.night.bonus.xp, state.night.bonus.dust);
+    state.night.bonus = null;
     state.night.celebrated = false;
   }
   return stats;
@@ -284,11 +327,13 @@ export function setSetting(key, value) {
 }
 
 export function clearAllTasks() {
-  pushUndo('everything');
+  const undoId = pushUndo('everything');
   update((state) => {
     state.template = { order: [], sections: {}, tasks: {} };
     state.night.done = {};
     state.night.skipped = {};
     state.night.awards = {};
+    afterProgress(state);
   });
+  return undoId;
 }

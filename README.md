@@ -14,6 +14,9 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
 - Sections and tasks: add, rename (double-click or `E`), delete (with undo), reorder.
 - Reorder by dragging, with the ↑/↓ buttons, or with `Alt + ↑/↓` — tasks move between
   sections at the edges, so nothing needs a mouse.
+- On a phone every row action lives in a bottom sheet behind `⋯` — thumb-sized targets,
+  and the task title gets the width instead of five buttons. Drag-and-drop is a pointer
+  affordance; touch reordering goes through the sheet.
 - Quick add understands a small syntax: `Floss #wind-down !2` → task "Floss", in the
   Wind Down section, two minutes.
 - Every task carries a minute estimate that drives the bedtime pacing.
@@ -26,13 +29,33 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
 - Hit 60% and your streak grows. Miss a night — including nights you never opened the
   app — and a **Streak Freeze** is spent automatically to cover it, if you have one.
 
+**Getting you off the phone**
+
+These are the parts that exist because the real competitor is not another todo app —
+it's the scroll.
+
+- **The envelope.** One good thing happens the moment you open the app, before you've
+  earned anything: stardust, a rain check, a head start. Every other reward is downstream
+  of doing chores, which does nothing for the night the app stays closed.
+- **Lights out.** A permanent bar at the bottom that ends the night. It stamps when you
+  stopped, pays its biggest reward for stopping *early*, and then fades the screen to
+  black instead of handing you back a lit phone at midnight. It keeps its own streak —
+  nights you went to bed on time, which is the number that actually matters.
+- **Momentum, not speed.** The multiplier rises when the gap between check-offs looks
+  like you went and did the thing: longer than a token tap, shorter than a drift. Tapping
+  through the list in ten seconds earns nothing.
+- **Curfew.** The shop, star map, history and insights close 30 minutes before bedtime.
+  Four browsing surfaces with a currency attached are the same product NightCheck is
+  supposed to be rescuing you from. A deliberate second tap still gets you in.
+
 **The game**
 - XP with a level curve and titles: Dreamer → Night Owl → Star Gazer → Moon Walker →
   Dusk Warden → Void Sailor → Constellation Keeper.
-- A combo multiplier (up to x2.5) for checking things off back to back.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
 - Badges for streaks, perfect nights, late-night finishes and collection milestones.
-- Un-checking a task cleanly reverses its exact award — the numbers can't be farmed.
+- Un-checking a task reverses its exact award, the completion bonus is banked so it can
+  be paid once and taken back precisely, and level-up stardust is paid against a
+  high-water mark. The economy does not move when you fiddle with a checkbox.
 
 **Spending stardust**
 - **Skies** — Midnight, Aurora, Deep Space, City Skyline, Frost, Blood Moon. Each one
@@ -51,8 +74,11 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
 - Bedtime target with a countdown and an on-pace / cutting-it-close / over-budget read.
 - Night history as a heatmap, plus per-task insight — which tasks you actually do, and
   which have quietly slipped six nights running.
-- Sleep-safe dim mode, sound effects (muted by default), full keyboard control, and
-  `prefers-reduced-motion` support throughout.
+- Sleep-safe dim mode (which reaches the dialogs and sheets too), sound effects (muted by
+  default), full keyboard control, and `prefers-reduced-motion` support throughout.
+- Two tabs stay in sync instead of clobbering each other, pending writes are flushed when
+  the tab is backgrounded, and unreadable saved data is preserved under
+  `nightcheck.v1.corrupt` rather than silently discarded.
 - Installable as a PWA and fully offline-capable.
 
 ## Running it locally
@@ -96,7 +122,7 @@ node tools/make-icons.mjs
 index.html            app shell
 css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
-js/render/            checklist, header, modals
+js/render/            checklist, header, modals, bottom sheet, the goodnight screen
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator
 sw.js                 cache-first service worker
@@ -125,3 +151,11 @@ __nightcheck.addStardust(500)
 __nightcheck.addXp(500)
 __nightcheck.openModal('starmap')   // shop | starmap | history | insights | settings | help
 ```
+
+## Known trade-offs
+
+- Everything is per-browser. There is no sync; export/import is the bridge.
+- Nothing can notify you — a static site cannot schedule a notification, and iOS will not
+  run a timer for a page that is closed. The intended cue is your phone's own alarm; the
+  app rewards you for showing up when it goes off.
+- Reordering by drag needs a pointer. On touch, use the `⋯` sheet.

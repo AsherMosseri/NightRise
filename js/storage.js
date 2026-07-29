@@ -89,9 +89,17 @@ function normalizeNight(raw, template, now) {
   for (const id of Object.keys(night.done)) if (!template.tasks[id]) delete night.done[id];
   for (const id of Object.keys(night.skipped)) if (!template.tasks[id]) delete night.skipped[id];
   for (const id of Object.keys(night.awards)) if (!template.tasks[id]) delete night.awards[id];
+  night.bonus = isObject(night.bonus)
+    ? { xp: Number(night.bonus.xp) || 0, dust: Number(night.bonus.dust) || 0 }
+    : null;
   night.combo = Number(night.combo) || 1;
   night.maxCombo = Math.max(Number(night.maxCombo) || 1, night.combo);
   night.lastDoneAt = Number(night.lastDoneAt) || 0;
+  night.lastMinutes = Math.max(0, Number(night.lastMinutes) || 0);
+  night.lightsOutAt = Number(night.lightsOutAt) || null;
+  night.lightsOutOnTime = Boolean(night.lightsOutOnTime);
+  night.reopenedAfterLightsOut = Boolean(night.reopenedAfterLightsOut);
+  night.envelope = isObject(night.envelope) ? night.envelope : null;
   if (!isObject(night.quest)) night.quest = createNight(key).quest;
   return night;
 }
@@ -109,6 +117,8 @@ function normalizeHistory(raw) {
       xp: Number(entry.xp) || 0,
       quest: Boolean(entry.quest),
       frozen: Boolean(entry.frozen),
+      lightsOutAt: Number(entry.lightsOutAt) || null,
+      onTime: Boolean(entry.onTime),
     };
   }
   return history;
@@ -122,6 +132,13 @@ export function normalizeState(raw, now = new Date()) {
   profile.stardust = Math.max(0, Math.round(Number(profile.stardust) || 0));
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
+  profile.maxLevelRewarded = Math.max(1, Number(profile.maxLevelRewarded) || 1);
+  profile.lightsOut = {
+    streak: Math.max(0, Number(profile.lightsOut?.streak) || 0),
+    best: Math.max(0, Number(profile.lightsOut?.best) || 0),
+    lastKey: typeof profile.lightsOut?.lastKey === 'string' ? profile.lightsOut.lastKey : null,
+  };
+  profile.lightsOut.best = Math.max(profile.lightsOut.best, profile.lightsOut.streak);
   profile.badges = Array.isArray(profile.badges) ? profile.badges.filter((b) => typeof b === 'string') : [];
   const defaultInventory = createProfile().inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
@@ -158,9 +175,25 @@ export function loadState(now = new Date()) {
     if (!raw) return createInitialState(now);
     return normalizeState(JSON.parse(raw), now);
   } catch (err) {
+    // A corrupt blob used to mean a silent fresh start — a year of nights gone
+    // with no warning and nothing to recover from. Keep the wreckage.
     console.warn('NightCheck: could not read saved data, starting fresh.', err);
+    try {
+      const raw = store.getItem(STORAGE_KEY);
+      if (raw) store.setItem(`${STORAGE_KEY}.corrupt`, raw);
+      corruptBackupKey = `${STORAGE_KEY}.corrupt`;
+    } catch (nested) {
+      console.warn('NightCheck: could not preserve the unreadable data either.', nested);
+    }
     return createInitialState(now);
   }
+}
+
+let corruptBackupKey = null;
+
+/** Set when the last load found unreadable data and stashed it aside. */
+export function recoveredCorruptData() {
+  return corruptBackupKey;
 }
 
 function writeNow(state) {
@@ -172,7 +205,29 @@ function writeNow(state) {
   }
 }
 
-export const persist = debounce(writeNow, 250);
+/**
+ * Writes are debounced, but iOS Safari can suspend a backgrounded tab without
+ * warning, so the pending state is held here and `flushPersist()` (wired to
+ * pagehide/visibilitychange) commits it synchronously before we lose it.
+ */
+let pendingState = null;
+
+const scheduleWrite = debounce(() => {
+  if (!pendingState) return;
+  writeNow(pendingState);
+  pendingState = null;
+}, 250);
+
+export function persist(state) {
+  pendingState = state;
+  scheduleWrite();
+}
+
+export function flushPersist() {
+  if (!pendingState) return;
+  writeNow(pendingState);
+  pendingState = null;
+}
 
 export function serializeState(state) {
   return JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2);
@@ -185,6 +240,8 @@ export function parseImport(text, now = new Date()) {
   }
   return normalizeState(parsed, now);
 }
+
+export { STORAGE_KEY };
 
 export function clearStorage() {
   if (store) store.removeItem(STORAGE_KEY);

@@ -39,6 +39,15 @@ export function toast(message, options = {}) {
     setTimeout(() => node.remove(), 220);
   }
 
+  // A burst of level-ups and badges could stack toasts over the whole screen
+  // and swallow taps for several seconds. Oldest ones make way.
+  const MAX_VISIBLE = 3;
+  const live = host.querySelectorAll('.toast:not(.toast--out)');
+  for (let i = 0; i <= live.length - MAX_VISIBLE; i += 1) {
+    live[i].classList.add('toast--out');
+    setTimeout(((n) => () => n.remove())(live[i]), 200);
+  }
+
   host.appendChild(node);
   requestAnimationFrame(() => node.classList.add('toast--in'));
   timer = setTimeout(dismiss, duration);

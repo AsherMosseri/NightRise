@@ -1,7 +1,7 @@
 /* The nightly cycle: live stats, rollover, banking, streaks and freezes. */
 
 import { createNight } from './model.js';
-import { nightKeyOf, keyDiffDays } from './time.js';
+import { nightKeyOf, keyDiffDays, shiftKey } from './time.js';
 import { STREAK_THRESHOLD_PCT, checkBadges } from './game.js';
 
 /** Live view of tonight — used by the header, sky, quests and pacing. */
@@ -52,6 +52,8 @@ export function summarizeForHistory(stats, xpEarned) {
     xp: Math.round(xpEarned || 0),
     quest: false,
     frozen: false,
+    lightsOutAt: null,
+    onTime: false,
   };
 }
 
@@ -95,8 +97,17 @@ export function bankNight(state, stats) {
   const result = {
     key: night.key, stats, met, xp,
     streakBefore: profile.streak, streakAfter: profile.streak,
-    frozenUsed: 0, missedNights: 0, badges: [],
+    frozenUsed: 0, missedNights: 0, badges: [], alreadyBanked: false,
   };
+
+  // Banking is idempotent per night key. Without this, "start a fresh night"
+  // followed by the 4am rollover banked the same key twice: the second pass saw
+  // an empty night, overwrote a 100% history entry with 0%, burned a freeze and
+  // reset the streak.
+  if (profile.lastBankedKey === night.key) {
+    result.alreadyBanked = true;
+    return result;
+  }
 
   if (stats.total === 0) return result; // Nothing was ever on the list; don't judge it.
 
@@ -122,6 +133,8 @@ export function bankNight(state, stats) {
 
   const entry = summarizeForHistory(stats, xp);
   entry.quest = Boolean(night.quest?.claimed);
+  entry.lightsOutAt = night.lightsOutAt || null;
+  entry.onTime = Boolean(night.lightsOutOnTime);
   entry.frozen = result.frozenUsed > 0;
   state.history[night.key] = entry;
 
@@ -138,16 +151,23 @@ export function bankNight(state, stats) {
 export function rolloverIfNeeded(state, now = new Date()) {
   const key = nightKeyOf(now);
   if (state.night.key === key) return null;
+  // Only ever roll forward. A clock correction, a timezone hop westward or a
+  // manually-set date could otherwise re-bank an old key and overwrite history.
+  if (keyDiffDays(state.night.key, key) < 0) return null;
   const stats = computeStats(state);
   const result = bankNight(state, stats);
   state.night = createNight(key);
   return result;
 }
 
-/** Manual "start a fresh night" — banks the current one immediately. */
+/**
+ * Manual "start a fresh night" — banks the current one and moves on to the next
+ * key. Re-using the current key left a duplicate night that the 4am rollover
+ * banked a second time, as 0%.
+ */
 export function forceNewNight(state, key) {
   const stats = computeStats(state);
   const result = bankNight(state, stats);
-  state.night = createNight(key || state.night.key);
+  state.night = createNight(key || shiftKey(state.night.key, 1));
   return result;
 }

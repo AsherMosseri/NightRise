@@ -13,11 +13,12 @@ import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../compani
 import { BADGES, levelFromXp, titleForLevel, TITLES } from '../game.js';
 import { taskInsights, reliableTasks, overallRate } from '../insights.js';
 import { forceNewNight } from '../night.js';
-import { shiftKey, keyToDate, formatShortDate, formatNightLabel, nightKeyOf } from '../time.js';
+import { shiftKey, keyToDate, formatShortDate, formatNightLabel } from '../time.js';
 import { serializeState, parseImport, clearStorage } from '../storage.js';
 import { createInitialState } from '../model.js';
 import { SHORTCUTS } from '../keys.js';
 import { previewPack } from '../audio.js';
+import { setSkyPaused } from '../sky.js';
 import { toast } from '../toast.js';
 import { formatNumber, plural } from '../util.js';
 
@@ -45,27 +46,32 @@ const VIEWS = {};
 
 export function openModal(name) {
   if (!dialog || !VIEWS[name]) return;
+  const changed = currentView !== name;
   currentView = name;
-  renderModal();
+  renderModal({ keepScroll: !changed });
   if (!dialog.open) dialog.showModal();
+  setSkyPaused(true);
 }
 
 export function closeModal() {
   currentView = null;
   if (dialog?.open) dialog.close();
+  setSkyPaused(false);
 }
 
 export function refreshModal() {
   if (currentView) renderModal();
 }
 
-function renderModal() {
+function renderModal({ keepScroll = true } = {}) {
   const view = VIEWS[currentView];
   if (!view) return;
+  const offset = bodyHost.scrollTop;
   const built = view();
   titleHost.textContent = built.title;
   replace(bodyHost, built.body);
-  bodyHost.scrollTop = bodyHost.dataset.keepScroll === '1' ? bodyHost.scrollTop : 0;
+  // Buying one thing used to fling the shop back to the top of the list.
+  bodyHost.scrollTop = keepScroll ? offset : 0;
 }
 
 /* -------------------------------------------------------------- shop view */
@@ -287,7 +293,11 @@ VIEWS.history = () => {
   for (let i = 0; i < leadIn; i += 1) days.push(null);
   for (let i = WEEKS * 7 - 1; i >= 0; i -= 1) days.push(shiftKey(today, -i));
 
-  const detail = h('p', { class: 'heatmap__detail muted' }, 'Hover or click a night for detail.');
+  const detail = h('p', {
+    class: 'heatmap__detail muted',
+    role: 'status',
+    'aria-live': 'polite',
+  }, 'Hover or click a night for detail.');
 
   const cells = days.map((key) => {
     if (!key) return h('span', { class: 'heat heat--pad', 'aria-hidden': 'true' });
@@ -302,9 +312,14 @@ VIEWS.history = () => {
       class: `heat heat--l${level} ${isTonight ? 'heat--today' : ''} ${entry?.frozen ? 'heat--frozen' : ''}`.trim(),
       title: label,
       'aria-label': label,
+      // Empty nights are not worth a tab stop; 126 of them buried the panel.
+      tabIndex: entry || isTonight ? 0 : -1,
       onClick: () => {
+        const stopped = entry?.lightsOutAt
+          ? `, lights out ${new Date(entry.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}${entry.onTime ? ' (on time)' : ''}`
+          : '';
         detail.textContent = entry
-          ? `${formatNightLabel(key)} — ${entry.done} of ${entry.total} done, ${entry.pct}%, ${entry.xp} XP${entry.quest ? ', quest claimed' : ''}${entry.frozen ? ', streak freeze used' : ''}.`
+          ? `${formatNightLabel(key)} — ${entry.done} of ${entry.total} done, ${entry.pct}%, ${entry.xp} XP${stopped}${entry.quest ? ', quest claimed' : ''}${entry.frozen ? ', streak freeze used' : ''}.`
           : `${formatNightLabel(key)} — nothing recorded.`;
       },
     });
@@ -320,6 +335,10 @@ VIEWS.history = () => {
       h('div', { class: 'stat-row' },
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.streak)), h('span', {}, 'current streak')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.bestStreak)), h('span', {}, 'best streak')),
+        h('div', {
+          class: 'stat-box',
+          title: 'Nights you called it before your target bedtime — the number this app actually cares about',
+        }, h('strong', {}, String(state.profile.lightsOut?.streak || 0)), h('span', {}, 'to bed on time')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.nightsLogged)), h('span', {}, 'nights logged')),
         h('div', { class: 'stat-box' }, h('strong', {}, `${overallRate(state) ?? 0}%`), h('span', {}, 'average night')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(perfect)), h('span', {}, 'perfect nights'))),
@@ -426,6 +445,15 @@ VIEWS.settings = () => {
     try {
       const text = await file.text();
       const next = parseImport(text);
+      const current = getState();
+      const nights = Object.keys(current.history).length;
+      const warning = nights
+        ? `Importing replaces everything in this browser: ${nights} banked ${nights === 1 ? 'night' : 'nights'}, level ${current.profile.level}, ${current.profile.stardust} stardust and every unlock. Continue?`
+        : 'Importing replaces everything currently in this browser. Continue?';
+      if (!window.confirm(warning)) {
+        importInput.value = '';
+        return;
+      }
       replaceState(next);
       emit('imported', next);
       toast('Backup restored', { tone: 'win', iconName: 'upload' });
@@ -455,7 +483,8 @@ VIEWS.settings = () => {
       h('div', { class: 'field' },
         toggle('dim', 'Sleep-safe dim', 'Warms and dims the whole page for late nights.'),
         toggle('muted', 'Mute sounds', 'Sound effects are off by default.'),
-        toggle('hideCompleted', 'Hide completed tasks', 'They still count — they just get out of the way.')),
+        toggle('hideCompleted', 'Hide completed tasks', 'They still count — they just get out of the way.'),
+        toggle('curfew', 'Close the market before bed', 'The shop, star map, history and insights shut 30 minutes before bedtime, so this app is not the thing keeping you up.')),
       h('h3', { class: 'modal__section' }, 'Your data'),
       h('p', { class: 'muted small' }, 'Everything lives in this browser only. Export if you want it anywhere else.'),
       h('div', { class: 'row' },
@@ -470,7 +499,7 @@ VIEWS.settings = () => {
           type: 'button',
           class: 'btn btn--sm',
           onClick: () => {
-            const result = update((s) => forceNewNight(s, nightKeyOf(new Date())));
+            const result = update((s) => forceNewNight(s));
             emit('rollover', result);
             toast('Started a fresh night', { tone: 'info', iconName: 'moon', detail: 'The last one was banked into your history.' });
             refreshModal();

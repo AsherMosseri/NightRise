@@ -160,6 +160,9 @@ function drawMoon(time) {
 /* ------------------------------------------------------------- meteors */
 
 export function shootingStar(options = {}) {
+  // Reduced motion means no motion: with the rAF loop stopped nothing decays,
+  // so a meteor drawn here would stay frozen across the sky forever.
+  if (reducedMotion) return;
   const startX = options.x ?? width * (0.15 + Math.random() * 0.7);
   const startY = options.y ?? height * (0.02 + Math.random() * 0.25);
   meteors.push({
@@ -172,10 +175,10 @@ export function shootingStar(options = {}) {
     len: 90 + Math.random() * 90,
     hue: options.hue || colors.star,
   });
-  if (reducedMotion) drawFrame(performance.now());
 }
 
 export function celebrateBurst() {
+  if (reducedMotion) return;
   const { x, y } = moonGeometry();
   for (let i = 0; i < 46; i += 1) {
     const angle = (i / 46) * Math.PI * 2;
@@ -190,7 +193,6 @@ export function celebrateBurst() {
     });
   }
   for (let i = 0; i < 3; i += 1) setTimeout(() => shootingStar(), i * 260);
-  if (reducedMotion) drawFrame(performance.now());
 }
 
 /* --------------------------------------------------------------- trails */
@@ -226,23 +228,58 @@ const TRAIL_COLORS = {
 
 /* ---------------------------------------------------------------- render */
 
+/**
+ * Halos are pre-rendered sprites with a soft gradient falloff. Drawing them as
+ * flat discs (the obvious approach) makes the brightest stars read as grey
+ * blobs with a hard edge rather than as glow.
+ */
+const haloCache = new Map();
+
+function haloSprite(color) {
+  if (haloCache.has(color)) return haloCache.get(color);
+  let sprite = null;
+  if (/^#[0-9a-f]{6}$/i.test(color)) {
+    const size = 64;
+    const offscreen = document.createElement('canvas');
+    offscreen.width = size;
+    offscreen.height = size;
+    const octx = offscreen.getContext('2d');
+    const gradient = octx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, `${color}cc`);
+    gradient.addColorStop(0.18, `${color}66`);
+    gradient.addColorStop(0.55, `${color}1a`);
+    gradient.addColorStop(1, `${color}00`);
+    octx.fillStyle = gradient;
+    octx.fillRect(0, 0, size, size);
+    sprite = offscreen;
+  }
+  haloCache.set(color, sprite);
+  return sprite;
+}
+
 function drawStars(time) {
   for (const star of stars) {
     const twinkle = reducedMotion ? 0.75 : 0.55 + 0.45 * Math.sin(time / 900 * star.speed + star.phase);
     const depth = (star.layer + 1) / 3;
     const x = star.x + parallax.x * depth * 14;
     const y = star.y + parallax.y * depth * 10;
-    ctx.globalAlpha = clamp(twinkle * (0.4 + depth * 0.6), 0.05, 1);
-    ctx.fillStyle = star.warm ? colors.accent : star.layer === 2 ? colors.star : colors.starDim;
+    const color = star.warm ? colors.accent : star.layer === 2 ? colors.star : colors.starDim;
+    const alpha = clamp(twinkle * (0.4 + depth * 0.6), 0.05, 1);
+
+    if (star.layer === 2 && star.r > 1.3) {
+      const sprite = haloSprite(color);
+      if (sprite) {
+        const size = star.r * 9;
+        ctx.globalAlpha = alpha * 0.5;
+        ctx.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+      }
+    }
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(x, y, star.r, 0, Math.PI * 2);
     ctx.fill();
-    if (star.layer === 2 && star.r > 1.3) {
-      ctx.globalAlpha *= 0.35;
-      ctx.beginPath();
-      ctx.arc(x, y, star.r * 3.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
   }
   ctx.globalAlpha = 1;
 }
@@ -392,6 +429,8 @@ export function setReducedMotion(value) {
     stop();
     moonFill = moonFillTarget;
     trailParticles = [];
+    meteors = [];
+    bursts = [];
     drawFrame(performance.now());
   } else {
     start();
@@ -406,8 +445,15 @@ export function setMoonFill(pct) {
   }
 }
 
+/** Nothing to animate while a full-screen panel is covering the sky. */
+export function setSkyPaused(paused) {
+  if (paused) stop();
+  else if (!reducedMotion && !document.hidden) start();
+}
+
 export function refreshTheme() {
   readColors();
+  haloCache.clear(); // sprites are tinted per theme colour
   if (reducedMotion || !running) drawFrame(performance.now());
 }
 

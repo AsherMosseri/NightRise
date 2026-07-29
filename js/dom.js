@@ -132,8 +132,67 @@ const ICON_PATHS = {
   flame: 'M12 3s5 4.5 5 9a5 5 0 0 1-10 0c0-1.7 1-3 1-3s.5 2 2 2c0-3 2-5 2-8z',
 };
 
+/**
+ * Measured bounding box of each glyph, [x, y, width, height] in the 24-unit
+ * box. Generated once from the rendered paths; regenerate if a path changes.
+ */
+const ICON_BOX = {
+  plus: [5, 5, 14, 14],
+  trash: [4, 5, 16, 15],
+  pencil: [4, 4, 16, 16],
+  up: [5, 5, 14, 14],
+  down: [5, 5, 14, 14],
+  grip: [9, 6, 6.01, 12],
+  more: [6, 12, 12.01, 0],
+  check: [4, 6, 16, 12],
+  close: [6, 6, 12, 12],
+  moon: [3.32, 4, 16.68, 16.68],
+  star: [3.4, 3.5, 17.2, 16.6],
+  bag: [6, 3, 12, 17],
+  calendar: [4, 3, 16, 17],
+  chart: [5, 4, 14, 16],
+  gear: [4.9, 2.6, 14.2, 18.8],
+  volume: [4, 5.5, 16.69, 13],
+  mute: [4, 5.5, 16.5, 13],
+  bulb: [5.96, 3, 12.08, 18],
+  keyboard: [3, 7, 18, 10],
+  download: [5, 4, 14, 16],
+  upload: [5, 4, 14, 16],
+  skip: [6, 6, 11, 12],
+  undo: [5, 6, 13, 14],
+  map: [3, 4, 18, 15.5],
+  flame: [7, 3, 10, 14],
+};
+
+/** Every glyph is centred and scaled to this optical span, so the set reads
+ *  as one weight rather than as twenty-five drawings of different sizes.
+ *  The measured spread before normalising was 12 to 18.8 units. */
+const OPTICAL_SPAN = 16.8;
+const STROKE = 1.8;
+/** Dot patterns are not glyphs; scaling them just spreads the dots. */
+const UNSCALED = new Set(['more', 'grip']);
+
 export function icon(name, { size = 18, className = '' } = {}) {
   const path = ICON_PATHS[name] || ICON_PATHS.star;
+  const box = ICON_BOX[name];
+
+  let transform = null;
+  let strokeWidth = STROKE;
+  if (box && !UNSCALED.has(name)) {
+    const [x, y, w, h] = box;
+    const span = Math.max(w, h);
+    // Clamped so a deliberately small glyph is nudged, not inflated.
+    const scale = Math.min(1.3, Math.max(0.92, OPTICAL_SPAN / span));
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    if (Math.abs(scale - 1) > 0.01 || Math.abs(cx - 12) > 0.2 || Math.abs(cy - 12) > 0.2) {
+      transform = `translate(${(12 - cx * scale).toFixed(3)} ${(12 - cy * scale).toFixed(3)}) scale(${scale.toFixed(4)})`;
+      // Compensate so the scale cannot change the apparent stroke weight.
+      strokeWidth = +(STROKE / scale).toFixed(3);
+    }
+  }
+
+  const drawn = svg('path', { d: path, 'stroke-width': strokeWidth });
   return svg('svg', {
     class: `icon ${className}`.trim(),
     viewBox: '0 0 24 24',
@@ -141,12 +200,12 @@ export function icon(name, { size = 18, className = '' } = {}) {
     height: size,
     fill: 'none',
     stroke: 'currentColor',
-    'stroke-width': 1.8,
+    'stroke-width': STROKE,
     'stroke-linecap': 'round',
     'stroke-linejoin': 'round',
     'aria-hidden': 'true',
     focusable: 'false',
-  }, svg('path', { d: path }));
+  }, transform ? svg('g', { transform }, drawn) : drawn);
 }
 
 /** Icon-only button with an accessible label + tooltip. */

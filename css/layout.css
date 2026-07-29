@@ -55,21 +55,41 @@
 
 /* ------------------------------------------------------------ level + stats */
 
-.level { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* The badge spans the full height of the title + bar group beside it, so the
+   three edges line up instead of the bar floating under centred text. */
+.level { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
 .level__badge {
-  display: grid;
-  place-items: center;
-  width: 42px; height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 44px;
+  min-height: 40px;
+  padding: 4px 0;
   border-radius: 14px;
   background: linear-gradient(140deg, var(--accent), var(--accent-2));
   color: #0a0c1c;
   box-shadow: 0 6px 20px -8px var(--glow);
   flex-shrink: 0;
 }
-.level__num { font-size: 17px; font-weight: 800; line-height: 1; }
-.level__word { font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; }
-.level__meta { display: flex; flex-direction: column; gap: 5px; min-width: 110px; }
-.level__title { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.level__word {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  opacity: 0.72;
+}
+.level__num { font-size: 19px; font-weight: 800; line-height: 1; }
+.level__meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 110px;
+}
+.level__title { font-size: 13px; font-weight: 600; white-space: nowrap; line-height: 1.1; }
 
 .xpbar {
   height: 6px;
@@ -319,7 +339,7 @@
     gap: 8px 10px;
   }
   .level, .level__meta { display: contents; }
-  .level__badge { grid-area: badge; width: 38px; height: 38px; border-radius: 12px; }
+  .level__badge { grid-area: badge; width: 40px; min-height: 40px; border-radius: 12px; }
   .level__num { font-size: 16px; }
   .level__title { grid-area: title; font-size: 14px; }
   .xpbar { grid-area: bar; width: 100%; min-width: 0; }

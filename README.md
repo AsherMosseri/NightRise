@@ -133,6 +133,10 @@ tools/make-icons.mjs  PWA icon generator
 sw.js                 cache-first service worker
 ```
 
+Icons are one set: every glyph is measured once, then centred and scaled to a common
+optical span with its stroke width compensated, so a dense cog and a sparse bar chart
+read at the same weight.
+
 State flows one way: the UI calls an action, the action mutates the single store in
 `js/state.js`, and subscribers re-render. One-off effects (sounds, shooting stars, toasts)
 ride a small event bus rather than being triggered from render code.

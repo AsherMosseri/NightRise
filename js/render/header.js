@@ -59,9 +59,10 @@ export function renderStats() {
 
   replace(statsHost,
     h('div', { class: 'level' },
+      // Label above value: the small word frames the number before you read it.
       h('div', { class: 'level__badge', title: upcoming ? `${upcoming.name} at level ${upcoming.level}` : 'Maximum title' },
-        h('span', { class: 'level__num' }, String(level.level)),
-        h('span', { class: 'level__word' }, 'lvl')),
+        h('span', { class: 'level__word' }, 'lvl'),
+        h('span', { class: 'level__num' }, String(level.level))),
       h('div', { class: 'level__meta' },
         h('span', { class: 'level__title' }, title),
         h('div', {

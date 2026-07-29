@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#141c4a" />
+      <stop offset="55%" stop-color="#0a1030" />
+      <stop offset="100%" stop-color="#05070f" />
+    </linearGradient>
+    <linearGradient id="moon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7f0dc" />
+      <stop offset="100%" stop-color="#cbb98f" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="42%">
+      <stop offset="0%" stop-color="#7d9bff" stop-opacity=".55" />
+      <stop offset="100%" stop-color="#7d9bff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <circle cx="300" cy="212" r="170" fill="url(#glow)" />
+
+  <path d="M366 250a118 118 0 1 1-134-134 92 92 0 0 0 134 134z" fill="url(#moon)" />
+
+  <g fill="#eaf0ff">
+    <circle cx="106" cy="118" r="7" opacity=".9" />
+    <circle cx="150" cy="72" r="4.5" opacity=".7" />
+    <circle cx="82" cy="196" r="4" opacity=".55" />
+    <circle cx="418" cy="118" r="5" opacity=".6" />
+    <circle cx="392" cy="330" r="4" opacity=".5" />
+  </g>
+
+  <path d="M150 356l52 52 116-124" fill="none" stroke="#7d9bff" stroke-width="34"
+        stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,13 @@
+{
+  "name": "nightcheck",
+  "version": "1.0.0",
+  "description": "A night-themed checklist game: sections, XP, streaks, stardust and a sky that fills as you finish your night.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server -p 8000 -c-1",
+    "test": "node --test \"tests/*.test.js\"",
+    "icons": "node tools/make-icons.mjs"
+  },
+  "license": "MIT"
+}

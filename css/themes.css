@@ -1,0 +1,211 @@
+/* Sky themes. Each one sets the page gradient and the colours the canvas
+   reads back out via getComputedStyle, so the sky always matches the UI. */
+
+:root,
+[data-theme="midnight"] {
+  --sky-1: #05070f;
+  --sky-2: #0a1030;
+  --sky-3: #141c4a;
+  --bg-base: radial-gradient(120% 90% at 78% -10%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%) fixed;
+
+  --text: #e9edff;
+  --muted: #98a5d6;
+  --accent: #7d9bff;
+  --accent-2: #b98bff;
+  --glow: #4a63c8;
+
+  --panel: rgba(16, 22, 52, 0.55);
+  --panel-2: rgba(24, 32, 68, 0.5);
+  --panel-hover: rgba(40, 52, 104, 0.55);
+  --panel-solid: #101634;
+  --border: rgba(148, 168, 255, 0.16);
+  --border-strong: rgba(148, 168, 255, 0.34);
+
+  --sky-star: #eaf0ff;
+  --sky-star-dim: #93a6dd;
+  --moon: #f4ecd6;
+  --moon-shadow: #171d3d;
+  --trail: #b9cbff;
+
+  --good: #67e6b2;
+  --warn: #ffcc6a;
+  --bad: #ff8095;
+}
+
+[data-theme="aurora"] {
+  --sky-1: #030c0c;
+  --sky-2: #05221f;
+  --sky-3: #103a4e;
+  --bg-base:
+    radial-gradient(90% 60% at 20% 0%, rgba(83, 235, 176, 0.22) 0%, transparent 60%),
+    radial-gradient(80% 70% at 80% 10%, rgba(150, 110, 255, 0.22) 0%, transparent 62%),
+    radial-gradient(120% 90% at 50% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%) fixed;
+  --text: #e6fff4;
+  --muted: #8fc4b8;
+  --accent: #56e3b0;
+  --accent-2: #8f7dff;
+  --glow: #2ea886;
+  --panel: rgba(8, 40, 40, 0.5);
+  --panel-2: rgba(12, 52, 52, 0.45);
+  --panel-hover: rgba(20, 74, 72, 0.55);
+  --panel-solid: #08302d;
+  --border: rgba(110, 235, 200, 0.18);
+  --border-strong: rgba(110, 235, 200, 0.36);
+  --sky-star: #eafff8;
+  --sky-star-dim: #7fc6b4;
+  --moon: #eafff2;
+  --moon-shadow: #0a2a2c;
+  --trail: #8bf2cd;
+}
+
+[data-theme="deepspace"] {
+  --sky-1: #05030f;
+  --sky-2: #150a34;
+  --sky-3: #2d1055;
+  --bg-base:
+    radial-gradient(70% 50% at 15% 15%, rgba(255, 106, 213, 0.18) 0%, transparent 60%),
+    radial-gradient(80% 60% at 85% 25%, rgba(94, 128, 255, 0.22) 0%, transparent 62%),
+    radial-gradient(120% 100% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 40%, var(--sky-1) 100%) fixed;
+  --text: #f1e8ff;
+  --muted: #b09ada;
+  --accent: #c07bff;
+  --accent-2: #ff7ad1;
+  --glow: #7a3fd0;
+  --panel: rgba(32, 16, 62, 0.55);
+  --panel-2: rgba(44, 22, 84, 0.5);
+  --panel-hover: rgba(66, 34, 118, 0.6);
+  --panel-solid: #1c0f3c;
+  --border: rgba(196, 140, 255, 0.2);
+  --border-strong: rgba(196, 140, 255, 0.4);
+  --sky-star: #fdf3ff;
+  --sky-star-dim: #b394e0;
+  --moon: #f7e9ff;
+  --moon-shadow: #24123f;
+  --trail: #d7a8ff;
+}
+
+[data-theme="city"] {
+  --sky-1: #120a06;
+  --sky-2: #2a1408;
+  --sky-3: #4b2410;
+  --bg-base:
+    radial-gradient(100% 60% at 50% 110%, rgba(255, 176, 84, 0.28) 0%, transparent 58%),
+    radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 40%, var(--sky-1) 100%) fixed;
+  --text: #ffeedd;
+  --muted: #cfa98a;
+  --accent: #ffab5e;
+  --accent-2: #ff7e6b;
+  --glow: #c86a2a;
+  --panel: rgba(48, 24, 12, 0.55);
+  --panel-2: rgba(62, 32, 16, 0.5);
+  --panel-hover: rgba(92, 48, 22, 0.6);
+  --panel-solid: #2c1710;
+  --border: rgba(255, 178, 108, 0.2);
+  --border-strong: rgba(255, 178, 108, 0.4);
+  --sky-star: #fff3e2;
+  --sky-star-dim: #c79c74;
+  --moon: #ffe6bd;
+  --moon-shadow: #2e1810;
+  --trail: #ffc98a;
+}
+
+[data-theme="frost"] {
+  --sky-1: #040a12;
+  --sky-2: #0a1c30;
+  --sky-3: #16374f;
+  --bg-base:
+    radial-gradient(90% 60% at 70% 0%, rgba(160, 220, 255, 0.2) 0%, transparent 62%),
+    radial-gradient(120% 90% at 30% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%) fixed;
+  --text: #e9f6ff;
+  --muted: #93b6cf;
+  --accent: #7fd4ff;
+  --accent-2: #a5b8ff;
+  --glow: #3f8fc0;
+  --panel: rgba(12, 34, 54, 0.55);
+  --panel-2: rgba(18, 46, 70, 0.5);
+  --panel-hover: rgba(28, 68, 100, 0.6);
+  --panel-solid: #0c2438;
+  --border: rgba(150, 214, 255, 0.18);
+  --border-strong: rgba(150, 214, 255, 0.38);
+  --sky-star: #f2fbff;
+  --sky-star-dim: #8fb8d4;
+  --moon: #e8f7ff;
+  --moon-shadow: #10293e;
+  --trail: #9fe0ff;
+}
+
+[data-theme="bloodmoon"] {
+  --sky-1: #0d0405;
+  --sky-2: #2a0b10;
+  --sky-3: #4a1218;
+  --bg-base:
+    radial-gradient(70% 50% at 80% 8%, rgba(255, 82, 82, 0.24) 0%, transparent 60%),
+    radial-gradient(120% 95% at 40% 100%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%) fixed;
+  --text: #ffe9e6;
+  --muted: #d09a94;
+  --accent: #ff6f6f;
+  --accent-2: #ffa25e;
+  --glow: #b83030;
+  --panel: rgba(56, 14, 18, 0.55);
+  --panel-2: rgba(74, 20, 24, 0.5);
+  --panel-hover: rgba(104, 30, 34, 0.6);
+  --panel-solid: #341014;
+  --border: rgba(255, 130, 120, 0.2);
+  --border-strong: rgba(255, 130, 120, 0.42);
+  --sky-star: #ffeeea;
+  --sky-star-dim: #c68a84;
+  --moon: #ff9d84;
+  --moon-shadow: #340e12;
+  --trail: #ff9d92;
+}
+
+/* Sleep-safe dim: a warm veil over everything, no blue light blast at 1am. */
+#dim-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(255, 138, 40, 0.2);
+  backdrop-filter: sepia(0.35) brightness(0.62) saturate(0.85);
+  -webkit-backdrop-filter: sepia(0.35) brightness(0.62) saturate(0.85);
+  transition: opacity 400ms var(--ease);
+}
+.is-dim #dim-veil { opacity: 1; }
+
+/* Shop swatches mirror each pack so you can see what you are buying. */
+.swatch { height: 56px; border-radius: var(--r-md); border: 1px solid var(--border); }
+
+.swatch--theme.swatch--midnight { background: linear-gradient(135deg, #141c4a, #05070f); }
+.swatch--theme.swatch--aurora { background: linear-gradient(135deg, #53ebb0, #103a4e 60%, #05221f); }
+.swatch--theme.swatch--deepspace { background: linear-gradient(135deg, #ff6ad5, #5e80ff 55%, #150a34); }
+.swatch--theme.swatch--city { background: linear-gradient(135deg, #ffb054, #4b2410 65%, #120a06); }
+.swatch--theme.swatch--frost { background: linear-gradient(135deg, #a0dcff, #16374f 60%, #040a12); }
+.swatch--theme.swatch--bloodmoon { background: linear-gradient(135deg, #ff5252, #4a1218 60%, #0d0405); }
+
+.swatch--sounds.swatch--chime { background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 12px); }
+.swatch--sounds.swatch--crickets { background: repeating-linear-gradient(90deg, var(--good) 0 2px, transparent 2px 7px); }
+.swatch--sounds.swatch--windchime { background: repeating-linear-gradient(90deg, var(--accent-2) 0 4px, transparent 4px 16px); }
+.swatch--sounds.swatch--synth { background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 10px); }
+
+.swatch--trail.swatch--none { background: var(--panel-2); }
+.swatch--trail.swatch--stardust { background: radial-gradient(circle at 30% 40%, var(--trail) 1px, transparent 1.5px) 0 0 / 12px 12px; }
+.swatch--trail.swatch--comet { background: linear-gradient(100deg, transparent 30%, var(--sky-star) 60%, transparent 62%); }
+.swatch--trail.swatch--fireflies { background: radial-gradient(circle at 60% 30%, #ffe58a 2px, transparent 2.5px) 0 0 / 22px 20px; }
+
+.swatch--font {
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  color: var(--text);
+  background: var(--panel-2);
+}
+.swatch--font.swatch--aurora::after { content: "Aa"; font-family: system-ui, sans-serif; }
+.swatch--font.swatch--mono::after { content: "Aa"; font-family: ui-monospace, Menlo, monospace; }
+.swatch--font.swatch--serif::after { content: "Aa"; font-family: Georgia, serif; }
+.swatch--font.swatch--display::after {
+  content: "Aa";
+  font-family: "Avenir Next", Futura, sans-serif;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 14px var(--glow);
+}

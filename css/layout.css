@@ -25,7 +25,7 @@
   gap: var(--sp-4);
   padding: var(--sp-3) var(--sp-5);
   padding-top: max(var(--sp-3), env(safe-area-inset-top));
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--sky-1) 88%, transparent), transparent);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--sky-1) 94%, transparent) 55%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -305,15 +305,39 @@
    fold. You open this app to check things off, so the list comes first. */
 @media (max-width: 640px) {
   .app { gap: var(--sp-3); padding: var(--sp-3) var(--sp-3) var(--sp-7); }
+
+  /* One aligned line — badge, title and both chips share a centre — with the
+     XP bar spanning underneath. The title used to sit above the chips' centre
+     line because it was stacked over the bar inside its own column. */
+  .topbar__stats {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas:
+      "badge title streak dust"
+      "bar   bar   bar    bar";
+    align-items: center;
+    gap: 8px 10px;
+  }
+  .level, .level__meta { display: contents; }
+  .level__badge { grid-area: badge; width: 38px; height: 38px; border-radius: 12px; }
+  .level__num { font-size: 16px; }
+  .level__title { grid-area: title; font-size: 14px; }
+  .xpbar { grid-area: bar; width: 100%; min-width: 0; }
+  .topbar__stats > .stat--streak { grid-area: streak; }
+  .topbar__stats > .stat--stardust { grid-area: dust; }
+  .stat { min-height: 34px; }
+
+  /* Three digits plus a percent sign used to touch the ring on both sides. */
+  .dial { width: 84px; height: 84px; }
+  .dial__fill, .dial__track { stroke-width: 8; }
+  .dial__pct { font-size: 18px; letter-spacing: -0.02em; }
+  .dial__sub { font-size: 10.5px; }
   .tonight { padding: 14px; gap: 12px; border-radius: var(--r-lg); }
   .tonight__main { gap: 14px; align-items: center; }
   .tonight__eyebrow { display: none; }
   .tonight__date { font-size: 19px; }
   .tonight__summary { font-size: 13px; }
   .tonight__side { gap: 8px; }
-  .dial { width: 76px; height: 76px; }
-  .dial__pct { font-size: 19px; }
-  .dial__sub { font-size: 10.5px; }
   .pacing, .quest { padding: 10px 12px; }
   .pacing__count { font-size: 14px; }
   .quest__desc { font-size: 12px; }
@@ -322,11 +346,19 @@
   .quest-compact { display: flex; }
 }
 
+/* Eight icons cannot share a line with the wordmark at this width; their own
+   row beats wrapping into a ragged, right-aligned second line. */
+@media (max-width: 480px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    grid-template-areas: "brand" "actions" "stats";
+  }
+  .topbar__actions { justify-self: stretch; justify-content: space-between; flex-wrap: nowrap; }
+}
+
 @media (max-width: 560px) {
-  .dial { width: 76px; height: 76px; }
   .stat { padding: 5px 10px; }
   .stat__label { display: none; }
-  .level__meta { min-width: 88px; }
-  .xpbar { min-width: 78px; }
+  .xpbar { min-width: 0; }
   .topbar__divider { display: none; }
 }

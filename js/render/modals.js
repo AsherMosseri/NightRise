@@ -1,7 +1,7 @@
 /* Every panel that opens over the app: the Night Market, the star map,
    night history, insights, settings and the shortcut list. */
 
-import { h, svg, icon, replace } from '../dom.js';
+import { h, svg, icon, replace, withFocus } from '../dom.js';
 import { getState, update, replaceState, emit } from '../state.js';
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, COMPANION_ITEMS,
@@ -67,9 +67,11 @@ function renderModal({ keepScroll = true } = {}) {
   const view = VIEWS[currentView];
   if (!view) return;
   const offset = bodyHost.scrollTop;
-  const built = view();
-  titleHost.textContent = built.title;
-  replace(bodyHost, built.body);
+  withFocus(bodyHost, () => {
+    const built = view();
+    titleHost.textContent = built.title;
+    replace(bodyHost, built.body);
+  });
   // Buying one thing used to fling the shop back to the top of the list.
   bodyHost.scrollTop = keepScroll ? offset : 0;
 }
@@ -105,6 +107,7 @@ function shopCard(state, item, { onPreview } = {}) {
         : h('button', {
           type: 'button',
           class: 'btn btn--primary btn--sm',
+          dataset: { focus: `shop:${item.id}` },
           onClick: () => { equipItem(item.id); refreshModal(); },
         }, 'Equip'))
       : h('button', {
@@ -112,6 +115,7 @@ function shopCard(state, item, { onPreview } = {}) {
         class: 'btn btn--primary btn--sm',
         disabled: !check.ok,
         title: check.ok ? `Buy for ${item.cost} stardust` : check.reason,
+        dataset: { focus: `shop:${item.id}` },
         onClick: () => { purchase(item.id); refreshModal(); },
       }, check.ok ? 'Buy' : check.reason)));
 }
@@ -176,6 +180,7 @@ VIEWS.shop = () => {
       class: `tab ${id === active[0] ? 'is-active' : ''}`.trim(),
       role: 'tab',
       'aria-selected': id === active[0] ? 'true' : 'false',
+      dataset: { focus: `tab:${id}` },
       onClick: () => { shopTab = id; refreshModal(); },
     }, label)));
 
@@ -248,6 +253,7 @@ VIEWS.starmap = () => {
             h('button', {
               type: 'button',
               class: 'btn btn--primary btn--sm',
+              dataset: { focus: `star:${def.id}` },
               disabled: !affordable,
               onClick: () => {
                 const result = update((s) => buyStar(s, def.id));
@@ -527,7 +533,14 @@ VIEWS.settings = () => {
 VIEWS.help = () => ({
   title: 'Keyboard',
   body: h('div', {},
-    h('p', { class: 'modal__lead' }, 'Quick add understands ', h('code', {}, '#section'), ' and ', h('code', {}, '!minutes'), ' — for example ', h('code', {}, 'Floss #wind-down !2'), '.'),
+    h('p', { class: 'modal__lead' },
+      'Adding a task is a text box, a time and a section — no syntax needed. If you '
+      + 'prefer to type, the quick-add box also understands ',
+      h('code', {}, '#section'), ' and ', h('code', {}, '!minutes'), ': ',
+      h('code', {}, 'Floss #wind-down !2'), '.'),
+    h('p', { class: 'modal__lead' },
+      'Press ', h('kbd', {}, 'F'), ' for one task at a time — a single card with a big '
+      + 'target, which is the easy way through a long list at midnight.'),
     h('ul', { class: 'shortcuts' }, ...SHORTCUTS.map(([keys, description]) => h('li', {},
       h('kbd', {}, keys), h('span', {}, description))))),
 });

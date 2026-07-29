@@ -11,6 +11,7 @@ import {
 import { initDragAndDrop } from '../dnd.js';
 import { toast } from '../toast.js';
 import { openSheet } from './sheet.js';
+import { openAddTask, openFirstTask } from './add-task.js';
 import { plural } from '../util.js';
 
 let root = null;
@@ -131,8 +132,8 @@ function taskActions(state, task) {
       run: () => rainCheck(task.id),
     },
     { key: 'edit', icon: 'pencil', label: 'Rename', run: () => startRenameTask(task.id) },
-    { key: 'up', icon: 'up', label: 'Move up', run: () => { focusNext(`task:${task.id}`); moveTaskByStep(task.id, -1); } },
-    { key: 'down', icon: 'down', label: 'Move down', run: () => { focusNext(`task:${task.id}`); moveTaskByStep(task.id, 1); } },
+    { key: 'up', icon: 'up', label: 'Move up', run: () => { focusNext(`task:${task.id}`); expectReorder(); moveTaskByStep(task.id, -1); } },
+    { key: 'down', icon: 'down', label: 'Move down', run: () => { focusNext(`task:${task.id}`); expectReorder(); moveTaskByStep(task.id, 1); } },
     { key: 'del', icon: 'trash', label: 'Delete', danger: true, run: () => removeTask(task.id) },
   ];
 }
@@ -239,8 +240,8 @@ function sectionActions(section, addInput) {
       run: () => { focusNext(`section-add:${section.id}`); addInput.focus(); },
     },
     { key: 'edit', icon: 'pencil', label: 'Rename section', run: () => startRenameSection(section.id) },
-    { key: 'up', icon: 'up', label: 'Move section up', run: () => { focusNext(`section:${section.id}`); moveSection(section.id, -1); } },
-    { key: 'down', icon: 'down', label: 'Move section down', run: () => { focusNext(`section:${section.id}`); moveSection(section.id, 1); } },
+    { key: 'up', icon: 'up', label: 'Move section up', run: () => { focusNext(`section:${section.id}`); expectReorder(); moveSection(section.id, -1); } },
+    { key: 'down', icon: 'down', label: 'Move section down', run: () => { focusNext(`section:${section.id}`); expectReorder(); moveSection(section.id, 1); } },
     { key: 'del', icon: 'trash', label: 'Delete section', danger: true, run: () => removeSection(section.id) },
   ];
 }
@@ -287,6 +288,7 @@ function rowKeys(event, task) {
     const delta = key === 'ArrowDown' ? 1 : -1;
     if (event.altKey) {
       focusNext(`task:${task.id}`);
+      expectReorder();
       moveTaskByStep(task.id, delta);
     } else {
       moveFocus(row, delta);
@@ -318,10 +320,19 @@ function sectionNode(state, section, index) {
   const addInput = h('input', {
     class: 'section__add-input',
     type: 'text',
-    placeholder: 'Add a task…  (try  Floss !2)',
+    placeholder: 'Add a task…',
     'aria-label': `Add a task to ${section.title}`,
     dataset: { focus: `section-add:${section.id}` },
   });
+
+  // On touch the same row is a button that opens the add sheet; typing symbols
+  // on a phone keyboard at midnight is not a reasonable ask.
+  const addTap = h('button', {
+    type: 'button',
+    class: 'section__add-tap',
+    dataset: { focus: `section-addtap:${section.id}` },
+    onClick: () => openAddTask({ sectionId: section.id, invoker: addTap }),
+  }, icon('plus', { size: 15 }), h('span', {}, 'Add a task'));
 
   const submitAdd = () => {
     const value = addInput.value.trim();
@@ -383,6 +394,7 @@ function sectionNode(state, section, index) {
       if (!event.altKey) return;
       event.preventDefault();
       focusNext(`section:${section.id}`);
+      expectReorder();
       moveSection(section.id, key === 'ArrowDown' ? 1 : -1);
     } else if (key.toLowerCase() === 'e') {
       event.preventDefault();
@@ -428,7 +440,8 @@ function sectionNode(state, section, index) {
     h('div', { class: 'section__add' },
       icon('plus', { size: 14 }),
       addInput,
-      h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onClick: submitAdd }, 'Add'))));
+      h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onClick: submitAdd }, 'Add')),
+    addTap));
 }
 
 /** Lightweight "Title !5" parse for the per-section add box. */
@@ -443,9 +456,18 @@ function parseInlineTask(value) {
 
 /* ----------------------------------------------------------------- render */
 
+let expectMove = false;
+
+/** Called by the reorder paths; nothing else pays for the FLIP measurement. */
+export function expectReorder() {
+  expectMove = true;
+}
+
 function captureRects() {
   const map = new Map();
-  if (!root) return map;
+  // getBoundingClientRect per row forces layout twice on every render. Only a
+  // reorder can move anything, so only a reorder is worth measuring.
+  if (!root || !expectMove) return map;
   for (const node of root.querySelectorAll('[data-task-id], [data-section-id]')) {
     const key = node.dataset.taskId ? `t:${node.dataset.taskId}` : `s:${node.dataset.sectionId}`;
     map.set(key, node.getBoundingClientRect());
@@ -455,6 +477,8 @@ function captureRects() {
 
 /** FLIP: animate rows from where they were to where they now are. */
 function playFlip(previous) {
+  expectMove = false;
+  if (!previous.size) return;
   if (document.documentElement.dataset.motion === 'off') return;
   for (const node of root.querySelectorAll('[data-task-id], [data-section-id]')) {
     const key = node.dataset.taskId ? `t:${node.dataset.taskId}` : `s:${node.dataset.sectionId}`;
@@ -498,19 +522,39 @@ export function initChecklist(node) {
     onDropTask: (taskId, sectionId, index) => {
       if (!sectionId) return;
       focusNext(`task:${taskId}`);
+      expectReorder();
       moveTaskTo(taskId, sectionId, index);
     },
     onDropSection: (sectionId, index) => {
       focusNext(`section:${sectionId}`);
+      expectReorder();
       reorderSection(sectionId, index);
     },
   });
+}
+
+/** Text someone is mid-way through typing must survive an unrelated render. */
+function captureDrafts() {
+  const drafts = new Map();
+  if (!root) return drafts;
+  for (const input of root.querySelectorAll('.section__add-input')) {
+    if (input.value) drafts.set(input.dataset.focus, input.value);
+  }
+  return drafts;
+}
+
+function restoreDrafts(drafts) {
+  for (const [key, value] of drafts) {
+    const input = root.querySelector(`.section__add-input[data-focus="${CSS.escape(key)}"]`);
+    if (input) input.value = value;
+  }
 }
 
 export function renderChecklist() {
   if (!root) return;
   const state = getState();
   const previousRects = captureRects();
+  const drafts = captureDrafts();
   const focusKey = document.activeElement?.dataset?.focus || null;
 
   clear(root);
@@ -523,12 +567,8 @@ export function renderChecklist() {
       h('button', {
         type: 'button',
         class: 'btn btn--primary',
-        onClick: () => {
-          const section = addSection('Tonight');
-          focusNext(`section-add:${section.id}`);
-          renderChecklist();
-        },
-      }, 'Create your first section')));
+        onClick: () => openFirstTask(),
+      }, 'Add your first task')));
     return;
   }
 
@@ -548,5 +588,6 @@ export function renderChecklist() {
   }, icon('plus', { size: 16 }), 'Add a section'));
 
   playFlip(previousRects);
+  restoreDrafts(drafts);
   restoreFocus(focusKey);
 }

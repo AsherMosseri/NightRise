@@ -171,3 +171,31 @@ export function forceNewNight(state, key) {
   state.night = createNight(key || shiftKey(state.night.key, 1));
   return result;
 }
+
+/**
+ * Nights that have gone by unbanked since the last one you banked. The streak
+ * in `profile` is only updated when a night is banked, so after three nights
+ * away the app cheerfully showed the old number until 4am the next morning.
+ */
+export function pendingMisses(state, now = new Date()) {
+  const { lastBankedKey } = state.profile;
+  if (!lastBankedKey) return 0;
+  return Math.max(0, keyDiffDays(lastBankedKey, nightKeyOf(now)) - 1);
+}
+
+/** The streak as it actually stands right now, not as it was last banked. */
+export function effectiveStreak(state, now = new Date()) {
+  const missed = pendingMisses(state, now);
+  const held = state.profile.tokens.freeze || 0;
+  if (missed === 0) {
+    return { streak: state.profile.streak, missed: 0, covered: 0, atRisk: false };
+  }
+  const covered = Math.min(missed, held);
+  const survives = covered >= missed && state.profile.streak > 0;
+  return {
+    streak: survives ? state.profile.streak : 0,
+    missed,
+    covered,
+    atRisk: true,
+  };
+}

@@ -10,7 +10,9 @@ import { initChecklist, renderChecklist, floatXp } from './render/checklist.js';
 import { initHeader, renderHeader, renderTonight } from './render/header.js';
 import { initModals, openModal, closeModal } from './render/modals.js';
 import { initSheet, openSheet } from './render/sheet.js';
+import { openAddTask } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
+import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown } from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
 import { initSky, setMoonFill, setTrail, setConstellations, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations } from './constellations.js';
@@ -167,6 +169,7 @@ function renderAll() {
   if (isGoodnightOpen() && getState().night.lightsOutAt === null) dismissGoodnight({ reopened: false });
   renderChecklist();
   renderHeader();
+  renderCards();
   syncSky();
 }
 
@@ -204,7 +207,7 @@ function checkRollover() {
 /* ------------------------------------------------------------------ boot */
 
 function boot() {
-  initToasts($('#toasts'));
+  initToasts($('#toasts'), $('#toasts-modal'));
   initChecklist($('#sections'));
   initHeader({
     stats: $('#topstats'),
@@ -215,8 +218,10 @@ function boot() {
   initModals($('#modal'));
   initSheet($('#sheet'));
   initGoodnight($('#goodnight'));
+  initCards($('#cards'), { onClose: () => renderAll() });
   initSky($('#sky'), { reduceMotion: reducedMotionActive(getState()) });
   initQuickAdd($('#quick-add-input'), $('#quick-add-button'));
+  $('#quick-add-tap').addEventListener('click', () => openAddTask({ invoker: $('#quick-add-tap') }));
   wireEffects();
 
   // One icon source, one size: fill every declarative [data-icon] slot in the shell.
@@ -286,6 +291,7 @@ function boot() {
     onInsights: () => openPanel('insights'),
     onSettings: () => openModal('settings'),
     onHelp: () => openModal('help'),
+    onFocusMode: () => (cardsActive() ? exitCards() : enterCards()),
     onToggleMute: () => { muteButton.click(); },
     onToggleDim: () => { dimButton.click(); },
   });
@@ -293,9 +299,17 @@ function boot() {
   subscribe(() => {
     renderChecklist();
     renderHeader();
+    renderCards();
     syncSky();
     syncToggles();
   });
+
+  // One-at-a-time owns the keyboard while it is up.
+  window.addEventListener('keydown', (event) => {
+    if (!cardsActive()) return;
+    if (document.querySelector('.sheet')) return;
+    if (cardsKeydown(event)) event.preventDefault();
+  }, true);
 
   applyCosmetics();
   checkRollover();

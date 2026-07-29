@@ -4,14 +4,26 @@
 import { h, icon } from './dom.js';
 
 let host = null;
+let modalHost = null;
 
-export function initToasts(node) {
+export function initToasts(node, inModal = null) {
   host = node;
+  modalHost = inModal;
+}
+
+/**
+ * A <dialog> opened with showModal() lives in the top layer, where no z-index
+ * can reach it — toasts fired behind one were invisible and never announced.
+ */
+function activeHost() {
+  const dialog = document.querySelector('dialog[open]');
+  return dialog && modalHost && dialog.contains(modalHost) ? modalHost : host;
 }
 
 const DEFAULT_MS = 4200;
 
 export function toast(message, options = {}) {
+  const host = activeHost();
   if (!host) return () => {};
   const {
     tone = 'info', iconName = null, action = null, duration = DEFAULT_MS, detail = null,

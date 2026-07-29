@@ -48,9 +48,11 @@ export function parseQuickAdd(text, sections = []) {
 }
 
 export const SHORTCUTS = [
+  ['F', 'One task at a time'],
   ['N', 'Add a task to the first section'],
   ['S', 'Add a section'],
   ['/', 'Jump to quick add'],
+  ['→', 'In one-at-a-time: leave this one for later'],
   ['B', 'Open the Night Market'],
   ['G', 'Open the star map'],
   ['H', 'Open night history'],
@@ -77,7 +79,8 @@ export function initKeys(handlers) {
   window.addEventListener('keydown', (event) => {
     if (event.metaKey || event.ctrlKey) return;
     if (isTypingTarget(event.target)) return;
-    if (document.querySelector('dialog[open]') && event.key !== 'Escape') return;
+    // Any modal surface owns the keyboard while it is up.
+    if (document.querySelector('dialog[open], .sheet, .goodnight__panel') && event.key !== 'Escape') return;
 
     const key = event.key.toLowerCase();
     const map = {
@@ -92,6 +95,7 @@ export function initKeys(handlers) {
       m: handlers.onToggleMute,
       d: handlers.onToggleDim,
       '?': handlers.onHelp,
+      f: handlers.onFocusMode,
     };
     const fn = map[key] || (event.key === '?' ? handlers.onHelp : null);
     if (fn) {

@@ -17,8 +17,13 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
 - On a phone every row action lives in a bottom sheet behind `⋯` — thumb-sized targets,
   and the task title gets the width instead of five buttons. Drag-and-drop is a pointer
   affordance; touch reordering goes through the sheet.
-- Quick add understands a small syntax: `Floss #wind-down !2` → task "Floss", in the
-  Wind Down section, two minutes.
+- **Adding a task is three taps**: type the words, tap how long (1/2/5/10/15/30), tap
+  which part of the night. The sheet stays open so you can rattle off several. Nothing
+  asks you to remember a syntax at midnight — though the quick-add box on a keyboard
+  still understands `Floss #wind-down !2` if you want it.
+- **One at a time** (`F`) hides the list and shows a single task with a check target
+  filling the bottom third of the screen. A twelve-row list at 11:40pm is twelve
+  decisions; a card is a prompt. `Later` pushes one to the back of the sitting.
 - Every task carries a minute estimate that drives the bedtime pacing.
 
 **The night cycle**
@@ -122,7 +127,7 @@ node tools/make-icons.mjs
 index.html            app shell
 css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
-js/render/            checklist, header, modals, bottom sheet, the goodnight screen
+js/render/            checklist, header, modals, sheet, add-task, cards, goodnight
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator
 sw.js                 cache-first service worker

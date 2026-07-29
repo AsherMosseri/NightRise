@@ -1,9 +1,9 @@
 /* Top bar stats and the "tonight" panel: progress, bedtime pacing, quest,
    tokens and the companion in the corner. */
 
-import { h, svg, icon, clear, replace } from '../dom.js';
+import { h, svg, icon, clear, replace, withFocus } from '../dom.js';
 import { getState } from '../state.js';
-import { computeStats } from '../night.js';
+import { computeStats, effectiveStreak } from '../night.js';
 import { momentumWindow } from '../game.js';
 import { evaluateQuest } from '../quests.js';
 import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
@@ -15,6 +15,7 @@ import { topNudge } from '../insights.js';
 import { claimQuest } from '../actions.js';
 import { openEnvelope, envelopeWaiting, dropById } from '../envelope.js';
 import { lightsOut } from './goodnight.js';
+import { enterCards } from './cards.js';
 import { update, emit } from '../state.js';
 import { companionSvg, TIER_NAMES, feedsToNextTier } from '../companion.js';
 import { toast } from '../toast.js';
@@ -72,19 +73,28 @@ export function renderStats() {
           'aria-label': `${level.into} of ${level.need} XP toward level ${level.level + 1}`,
           title: `${formatNumber(level.into)} / ${formatNumber(level.need)} XP`,
         }, h('span', { class: 'xpbar__fill', style: { width: `${Math.min(100, level.pct)}%` } })))),
-    statChip({
-      iconName: 'flame',
-      value: String(profile.streak),
-      label: profile.streak === 1 ? 'night streak' : 'night streak',
-      title: `Best streak: ${profile.bestStreak}. Streak freezes held: ${profile.tokens.freeze}`,
-      className: profile.streak > 0 ? 'stat--hot' : '',
-    }),
+    (() => {
+      const live = effectiveStreak(state);
+      const title = live.atRisk
+        ? `${plural(live.missed, 'night', 'nights')} missed since you last banked one.`
+          + (live.covered
+            ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover ${live.covered === live.missed ? 'it' : 'some of it'}.`
+            : ' Nothing to cover it, so the streak is gone.')
+        : `Best streak: ${profile.bestStreak}. Streak freezes held: ${profile.tokens.freeze}`;
+      return statChip({
+        iconName: 'flame',
+        value: String(live.streak),
+        label: 'night streak',
+        title,
+        className: `stat--streak ${live.streak > 0 && !live.atRisk ? 'stat--hot' : ''} ${live.atRisk ? 'stat--risk' : ''}`.trim(),
+      });
+    })(),
     statChip({
       iconName: 'star',
       value: formatNumber(profile.stardust),
       label: 'stardust',
       title: 'Spend it in the Night Market and on the star map',
-      className: 'stat--dust',
+      className: 'stat--stardust stat--dust',
     }));
 }
 
@@ -243,6 +253,10 @@ function lightsOutButton(state, stats) {
 
 export function renderTonight() {
   if (!tonightHost) return;
+  withFocus(tonightHost, () => renderTonightInner());
+}
+
+function renderTonightInner() {
   const state = getState();
   const stats = computeStats(state);
   const nudge = topNudge(state);
@@ -260,6 +274,14 @@ export function renderTonight() {
             : stats.remaining === 0
               ? 'Everything is done. Go to bed.'
               : `${plural(stats.remaining, 'task', 'tasks')} to go${stats.skipped ? `, ${stats.skipped} rain-checked` : ''}.`),
+        stats.remaining > 0
+          ? h('button', {
+            type: 'button',
+            class: 'focus-btn',
+            title: 'Show one task at a time (F)',
+            onClick: () => enterCards(),
+          }, icon('skip', { size: 14 }), `One at a time · ${stats.remaining} left`)
+          : null,
         h('div', { class: 'tonight__chips' },
           combo && momentumLive(state)
             ? h('span', {

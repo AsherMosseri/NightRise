@@ -824,3 +824,253 @@ body.has-sheet { overflow: hidden; }
   .companion-slot { bottom: calc(74px + env(safe-area-inset-bottom)); }
   .is-goodnight .lightsout { display: none; }
 }
+
+/* ------------------------------------------------- adding a task, by tapping */
+
+.sheet__content { padding: 4px 8px 8px; display: flex; flex-direction: column; }
+
+.addsheet { display: flex; flex-direction: column; gap: 10px; }
+.addsheet__input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  font-size: 17px;
+  outline: none;
+}
+.addsheet__input:focus { border-color: var(--accent); }
+.addsheet__label { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.addsheet__go { justify-content: center; min-height: 50px; font-size: 15.5px; margin-top: 4px; }
+.addsheet__status { font-size: 12.5px; color: var(--good); min-height: 1.2em; text-align: center; }
+
+.chipset { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-toggle {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 14px;
+  transition: all var(--speed) var(--ease);
+}
+.chip-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.chip-toggle.is-on {
+  border-color: transparent;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: #0a0c1c;
+  font-weight: 650;
+}
+
+/* The tap-to-add affordances replace the typed ones where there is no keyboard. */
+.quick-add-tap, .section__add-tap { display: none; }
+.quick-add-tap {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.section__add-tap {
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 12px;
+  margin-top: 4px;
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-size: 15px;
+  text-align: left;
+}
+
+@media (hover: none), (max-width: 640px) {
+  .quick-add, .section__add { display: none; }
+  .quick-add-tap, .section__add-tap { display: flex; }
+}
+
+/* --------------------------------------------------------- one at a time */
+
+.focus-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all var(--speed) var(--ease);
+}
+.focus-btn:hover { background: var(--panel-hover); border-color: var(--accent); }
+
+.cards { position: fixed; inset: 0; z-index: 45; }
+.cards:empty { display: none; }
+.cards::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--sky-1) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.cards__inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: max(var(--sp-4), env(safe-area-inset-top)) var(--sp-4)
+           calc(var(--sp-4) + env(safe-area-inset-bottom));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 260ms var(--ease), transform 260ms var(--ease);
+}
+.cards__inner--in { opacity: 1; transform: none; }
+
+.cards__head { display: flex; align-items: center; gap: 12px; }
+.cards__count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cards__bar { flex: 1; height: 5px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+.cards__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 400ms var(--ease);
+}
+.cards__exit { width: 40px; height: 40px; }
+
+.cards__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  min-height: 0;
+}
+.cards__section {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cards__title {
+  font-size: clamp(26px, 7vw, 40px);
+  font-weight: 700;
+  line-height: 1.15;
+  max-width: 16ch;
+  text-wrap: balance;
+}
+.cards__minutes { font-size: 15px; color: var(--muted); }
+
+/* The target is the bottom half of the screen: no aiming, one hand, dark room. */
+.cards__check {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: min(34vh, 240px);
+  border-radius: var(--r-xl);
+  border: 1px solid transparent;
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
+  color: #0a0c1c;
+  font-size: 19px;
+  font-weight: 750;
+  box-shadow: 0 18px 50px -22px var(--glow);
+  transition: transform 120ms var(--ease), filter var(--speed) var(--ease);
+}
+.cards__check:hover { filter: brightness(1.06); }
+.cards__check:active { transform: scale(0.985); }
+
+.cards__flash {
+  position: absolute;
+  top: 18px;
+  font-size: 15px;
+  font-weight: 750;
+  color: #0a0c1c;
+  animation: xp-rise 0.9s var(--ease) forwards;
+}
+
+.cards__row { display: flex; gap: 8px; }
+.cards__minor {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 48px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+.cards__minor:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+.cards__minor:disabled { opacity: 0.35; }
+
+.cards__done {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--good);
+}
+.cards__done h2 { font-size: 26px; font-weight: 700; color: var(--text); }
+.cards__done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: var(--sp-4); }
+
+/* Nothing behind the cards should be reachable, including the sticky bar. */
+.is-cards .topbar,
+.is-cards .app,
+.is-cards .companion-slot,
+.is-cards .lightsout { display: none; }
+
+/* Toasts raised into the dialog itself, since the top layer ignores z-index. */
+.toasts--in-modal {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  width: min(420px, calc(100% - 28px));
+}
+
+/* Unearned badge hints were 3.4:1 — the opacity, not the colour, was the problem. */
+.badge { opacity: 1; color: var(--muted); }
+.badge:not(.is-earned) { border-style: dashed; }
+.badge:not(.is-earned) .badge__name { color: var(--muted); }
+
+/* The tap target belongs on the checkbox, not spilling 16px into the title. */
+@media (max-width: 640px) {
+  .task__check::after {
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Landscape on a phone: the sticky bar was eating a third of the viewport. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .topbar { position: static; padding: 6px var(--sp-3); }
+  .topbar__stats { gap: 4px 8px; }
+  .level__badge { width: 32px; height: 32px; }
+  .topbar__actions .icon-btn { width: 34px; height: 34px; }
+  .app { padding-top: var(--sp-2); }
+}
+.stat--risk { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.stat--risk .stat__value { color: var(--warn); }

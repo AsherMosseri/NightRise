@@ -38,9 +38,9 @@ export function isSheetOpen() {
 
 /**
  * items: [{ icon, label, hint, onClick, danger, disabled }]
- * A null entry inserts a divider.
+ * `content` is any node to place above the items — used by the add-a-task form.
  */
-export function openSheet({ title, subtitle, items, invoker = null }) {
+export function openSheet({ title, subtitle, items = [], content = null, invoker = null, onOpen = null }) {
   if (!host) return;
   closeSheet();
   openInvoker = invoker || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -70,8 +70,9 @@ export function openSheet({ title, subtitle, items, invoker = null }) {
   h('header', { class: 'sheet__head' },
     h('h2', { class: 'sheet__title' }, title || 'Actions'),
     subtitle ? h('p', { class: 'sheet__subtitle' }, subtitle) : null),
-  h('div', { class: 'sheet__items' }, ...buttons),
-  h('button', { type: 'button', class: 'sheet__cancel', onClick: () => closeSheet() }, 'Cancel'));
+  content ? h('div', { class: 'sheet__content' }, content) : null,
+  buttons.length ? h('div', { class: 'sheet__items' }, ...buttons) : null,
+  h('button', { type: 'button', class: 'sheet__cancel', onClick: () => closeSheet() }, content ? 'Done' : 'Cancel'));
 
   const scrim = h('div', { class: 'sheet-scrim', onClick: () => closeSheet() });
 
@@ -81,7 +82,8 @@ export function openSheet({ title, subtitle, items, invoker = null }) {
     scrim.classList.add('sheet-scrim--in');
     panel.classList.add('sheet--in');
   });
-  buttons[0]?.focus({ preventScroll: true });
+  if (onOpen) onOpen(panel);
+  else buttons[0]?.focus({ preventScroll: true });
 
   // Modal semantics without <dialog>: trap the tab ring, swallow app shortcuts.
   onKeydown = (event) => {
@@ -91,11 +93,10 @@ export function openSheet({ title, subtitle, items, invoker = null }) {
       closeSheet();
       return;
     }
-    if (event.key !== 'Tab') {
-      event.stopPropagation();
-      return;
-    }
-    const focusables = Array.from(panel.querySelectorAll('button:not([disabled])'));
+    // Only Tab is ours. Swallowing everything else stopped Enter from ever
+    // reaching a form field inside the sheet.
+    if (event.key !== 'Tab') return;
+    const focusables = Array.from(panel.querySelectorAll('button:not([disabled]), input:not([disabled])'));
     if (!focusables.length) return;
     const first = focusables[0];
     const last = focusables[focusables.length - 1];

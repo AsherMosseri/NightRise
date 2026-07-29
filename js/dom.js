@@ -67,6 +67,42 @@ export function replace(node, ...children) {
   return node;
 }
 
+/**
+ * Re-render `host` without throwing away the keyboard.
+ *
+ * These panels rebuild wholesale on every state change, which used to drop
+ * focus to <body> — so buying one thing in the shop, or the 30-second countdown
+ * tick, silently ejected a keyboard user from wherever they were.
+ */
+export function withFocus(host, render) {
+  const active = document.activeElement;
+  const inside = active && host.contains(active);
+  const key = inside ? active.dataset?.focus : null;
+  const index = inside && !key
+    ? Array.from(host.querySelectorAll('button, input, select, textarea, [tabindex="0"]')).indexOf(active)
+    : -1;
+  const caret = inside && active.selectionStart !== undefined
+    ? [active.selectionStart, active.selectionEnd]
+    : null;
+
+  render();
+
+  if (!inside) return;
+  let next = key ? host.querySelector(`[data-focus="${CSS.escape(key)}"]`) : null;
+  if (!next && index > -1) {
+    next = host.querySelectorAll('button, input, select, textarea, [tabindex="0"]')[index] || null;
+  }
+  if (!next) return;
+  next.focus({ preventScroll: true });
+  if (caret && next.setSelectionRange) {
+    try {
+      next.setSelectionRange(caret[0], caret[1]);
+    } catch {
+      /* not a text field any more */
+    }
+  }
+}
+
 /** Icon set — inline SVG so the app stays offline-capable and dependency free. */
 const ICON_PATHS = {
   plus: 'M12 5v14M5 12h14',

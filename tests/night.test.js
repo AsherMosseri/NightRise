@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { computeStats, bankNight, rolloverIfNeeded, forceNewNight } from '../js/night.js';
+import {
+  computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak,
+} from '../js/night.js';
 import { createInitialState } from '../js/model.js';
 import { applyTaskCompletion } from '../js/game.js';
 
@@ -174,4 +176,37 @@ test('a forced new night banks the old one', () => {
   assert.equal(state.night.key, '2026-07-30');
   assert.ok(state.history['2026-07-29']);
   assert.deepEqual(state.night.done, {});
+});
+
+test('the streak shown after an absence is the honest one', () => {
+  const state = stateWithProgress(0);
+  state.profile.streak = 9;
+  state.profile.tokens.freeze = 0;
+  state.profile.lastBankedKey = '2026-07-25'; // three nights ago
+
+  const live = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  assert.equal(live.missed, 3);
+  assert.equal(live.streak, 0, 'nothing covers it, so say so now');
+  assert.equal(live.atRisk, true);
+});
+
+test('freezes you hold are counted before the streak is written off', () => {
+  const state = stateWithProgress(0);
+  state.profile.streak = 9;
+  state.profile.tokens.freeze = 3;
+  state.profile.lastBankedKey = '2026-07-26'; // two nights missed
+
+  const live = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  assert.equal(live.missed, 2);
+  assert.equal(live.covered, 2);
+  assert.equal(live.streak, 9, 'covered, so it still stands');
+  assert.equal(live.atRisk, true);
+});
+
+test('an unbroken run reports no risk', () => {
+  const state = stateWithProgress(0);
+  state.profile.streak = 4;
+  state.profile.lastBankedKey = '2026-07-28';
+  const live = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  assert.deepEqual(live, { streak: 4, missed: 0, covered: 0, atRisk: false });
 });

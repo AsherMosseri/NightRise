@@ -26,6 +26,9 @@ import { formatNumber, plural } from '../util.js';
 import { confirmAction, chooseAction } from './confirm.js';
 import { RESET_PARTS, resetPartById, applyReset } from '../reset.js';
 import { refreshApp, runningVersion } from '../updates.js';
+import {
+  bedtimeSeries, bedtimeSummary, formatFromNoon, formatShift,
+} from '../bedtime.js';
 
 let dialog = null;
 let bodyHost = null;
@@ -364,6 +367,128 @@ VIEWS.history = () => {
 
 /* --------------------------------------------------------------- insights */
 
+/* --------------------------------------------------------------- bedtime */
+
+const CHART_NIGHTS = 21;
+
+/** The bedtime target in minutes from noon, matching the series. */
+function targetFromNoon(bedtime) {
+  const parsed = parseClock(bedtime);
+  if (!parsed) return null;
+  const minutes = parsed.hours * 60 + parsed.minutes - 12 * 60;
+  // A 1am target belongs to the small hours of the *next* morning, same as the
+  // night it ends — otherwise it plots twenty-three hours early.
+  return parsed.hours < 4 ? minutes + 1440 : minutes;
+}
+
+/**
+ * Three weeks of bedtimes against the line you are aiming at.
+ *
+ * A calendar grid would say whether each night passed; this says by how much,
+ * which is the part that shows a habit moving. The dots are the nights, the
+ * dashed line is your target, and the stems make lateness a length rather than
+ * a colour you have to decode.
+ */
+function bedtimeChart(state) {
+  const series = bedtimeSeries(state.history, state.night.key, CHART_NIGHTS);
+  const recorded = series.filter((n) => n.recorded);
+  const target = targetFromNoon(state.profile.settings.bedtime);
+  if (!recorded.length) {
+    return h('p', { class: 'muted' },
+      'Nothing to chart yet. End a night with Lights out and it lands here.');
+  }
+
+  const W = 320;
+  const H = 116;
+  const padX = 8;
+  const padTop = 10;
+  const padBottom = 18;
+  const values = recorded.map((n) => n.minutes);
+  if (target !== null) values.push(target);
+  let lo = Math.min(...values) - 20;
+  let hi = Math.max(...values) + 20;
+  if (hi - lo < 90) { // one night should not be drawn on a hairline scale
+    const mid = (hi + lo) / 2;
+    lo = mid - 45;
+    hi = mid + 45;
+  }
+  const x = (i) => padX + (i * (W - padX * 2)) / (CHART_NIGHTS - 1);
+  const y = (m) => padTop + ((m - lo) / (hi - lo)) * (H - padTop - padBottom);
+  const baseY = H - padBottom + 6;
+
+  const marks = [];
+  if (target !== null) {
+    marks.push(svg('line', {
+      class: 'bt__target', x1: 0, x2: W, y1: y(target).toFixed(2), y2: y(target).toFixed(2),
+    }));
+  }
+
+  series.forEach((night, i) => {
+    if (!night.recorded) {
+      marks.push(svg('circle', { class: 'bt__gap', cx: x(i).toFixed(2), cy: baseY, r: 1.6 },
+        svg('title', {}, `${formatShortDate(night.key)}: no Lights out`)));
+      return;
+    }
+    const cy = y(night.minutes);
+    const label = `${formatShortDate(night.key)}: ${formatFromNoon(night.minutes, night.key)}`
+      + (typeof night.late === 'number'
+        ? ` · ${night.late <= 0 ? `${Math.abs(night.late)} min early` : `${night.late} min late`}`
+        : '');
+    if (target !== null) {
+      marks.push(svg('line', {
+        class: `bt__stem ${night.onTime ? 'is-ontime' : 'is-late'}`,
+        x1: x(i).toFixed(2), x2: x(i).toFixed(2), y1: y(target).toFixed(2), y2: cy.toFixed(2),
+      }));
+    }
+    marks.push(svg('circle', {
+      class: `bt__dot ${night.onTime ? 'is-ontime' : 'is-late'}`,
+      cx: x(i).toFixed(2), cy: cy.toFixed(2), r: 3.4,
+    }, svg('title', {}, label)));
+  });
+
+  return h('div', { class: 'bt' },
+    svg('svg', {
+      class: 'bt__svg',
+      viewBox: `0 0 ${W} ${H}`,
+      preserveAspectRatio: 'none',
+      role: 'img',
+      'aria-label': `Bedtime for the last ${CHART_NIGHTS} nights against a target of ${formatClockLabel(state.profile.settings.bedtime)}`,
+    }, ...marks),
+    h('div', { class: 'bt__axis' },
+      h('span', {}, formatShortDate(series[0].key)),
+      target !== null
+        ? h('span', { class: 'bt__legend' }, `target ${formatClockLabel(state.profile.settings.bedtime)}`)
+        : null,
+      h('span', {}, 'tonight')));
+}
+
+function bedtimeSection(state) {
+  const summary = bedtimeSummary(state.history, state.night.key, 7);
+  const lights = state.profile.lightsOut || {};
+
+  const box = (value, label, title = null) => h('div', { class: 'stat-box', title },
+    h('strong', {}, value), h('span', {}, label));
+
+  return h('div', {},
+    h('p', { class: 'modal__lead' },
+      'When you actually stopped, night by night. Only nights you ended with ',
+      h('strong', {}, 'Lights out'), ' are on the record — close the app without it and there '
+      + 'is nothing to measure.'),
+    h('div', { class: 'stat-row' },
+      box(String(lights.streak || 0), 'on time in a row',
+        `Best run: ${lights.best || 0}. This is the number the app is actually about.`),
+      box(summary.onTimeRate === null ? '—' : `${summary.onTimeRate}%`, 'on time this week',
+        `${summary.onTime} of ${summary.recorded} recorded nights in the last 7`),
+      box(formatFromNoon(summary.average), 'average bedtime', 'Mean of the last 7 recorded nights'),
+      box(formatShift(summary.delta), 'vs the week before',
+        summary.previous === null
+          ? 'Not enough nights yet to compare'
+          : `Previously ${formatFromNoon(summary.previous)}`),
+      box(formatFromNoon(summary.earliest), 'earliest'),
+      box(formatFromNoon(summary.latest), 'latest')),
+    bedtimeChart(state));
+}
+
 VIEWS.insights = () => {
   const state = getState();
   const rows = taskInsights(state);
@@ -398,6 +523,8 @@ VIEWS.insights = () => {
         h('div', { class: 'stat-box' }, h('strong', {}, formatNumber(state.profile.xp)), h('span', {}, 'total XP')),
         h('div', { class: 'stat-box' }, h('strong', {}, formatNumber(state.profile.stardust)), h('span', {}, 'stardust')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.badges.length)), h('span', {}, 'badges'))),
+      h('h3', { class: 'modal__section' }, 'Bedtime'),
+      bedtimeSection(state),
       reliable.length
         ? h('p', { class: 'modal__lead' }, 'Most reliable: ', h('strong', {}, reliable.map((r) => r.title).join(', ')), '.')
         : null,

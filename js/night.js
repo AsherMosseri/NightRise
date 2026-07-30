@@ -1,7 +1,7 @@
 /* The nightly cycle: live stats, rollover, banking, streaks and freezes. */
 
 import { createNight } from './model.js';
-import { nightKeyOf, keyDiffDays } from './time.js';
+import { nightKeyOf, keyDiffDays, bedtimeInstant } from './time.js';
 import { STREAK_THRESHOLD_PCT, checkBadges } from './game.js';
 
 /** Live view of tonight — used by the header, sky, quests and pacing. */
@@ -54,7 +54,28 @@ export function summarizeForHistory(stats, xpEarned) {
     frozen: false,
     lightsOutAt: null,
     onTime: false,
+    // The target as it stood that night, so changing your bedtime later cannot
+    // rewrite whether you made it, and how far off you were either way.
+    bedtime: null,
+    minutesLate: null,
   };
+}
+
+/** How late the night ended against its own target. Negative is early. */
+export function latenessOf(night, bedtime) {
+  if (!night.lightsOutAt) return null;
+  const target = bedtimeInstant(night.key, bedtime);
+  if (!target) return null;
+  return Math.round((night.lightsOutAt - target.getTime()) / 60000);
+}
+
+function stampBedtime(entry, state) {
+  const { night, profile } = state;
+  entry.lightsOutAt = night.lightsOutAt || null;
+  entry.onTime = Boolean(night.lightsOutOnTime);
+  entry.bedtime = night.lightsOutAt ? (profile.settings?.bedtime || null) : null;
+  entry.minutesLate = latenessOf(night, profile.settings?.bedtime);
+  return entry;
 }
 
 function xpEarnedTonight(state) {
@@ -115,8 +136,14 @@ export function bankNight(state, stats) {
     if (stats.total > 0 && (!previous || stats.pct > previous.pct)) {
       const better = summarizeForHistory(stats, xp);
       better.quest = Boolean(night.quest?.claimed) || Boolean(previous?.quest);
-      better.lightsOutAt = night.lightsOutAt || previous?.lightsOutAt || null;
-      better.onTime = Boolean(night.lightsOutOnTime) || Boolean(previous?.onTime);
+      stampBedtime(better, state);
+      if (!better.lightsOutAt && previous?.lightsOutAt) {
+        // A second run at the same night keeps the bedtime the first one recorded.
+        better.lightsOutAt = previous.lightsOutAt;
+        better.onTime = Boolean(previous.onTime);
+        better.bedtime = previous.bedtime ?? null;
+        better.minutesLate = previous.minutesLate ?? null;
+      }
       better.frozen = Boolean(previous?.frozen);
       state.history[night.key] = better;
     }
@@ -147,8 +174,7 @@ export function bankNight(state, stats) {
 
   const entry = summarizeForHistory(stats, xp);
   entry.quest = Boolean(night.quest?.claimed);
-  entry.lightsOutAt = night.lightsOutAt || null;
-  entry.onTime = Boolean(night.lightsOutOnTime);
+  stampBedtime(entry, state);
   entry.frozen = result.frozenUsed > 0;
   state.history[night.key] = entry;
 

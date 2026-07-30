@@ -83,11 +83,12 @@ export function renderStats() {
           + (live.covered
             ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover ${live.covered === live.missed ? 'it' : 'some of it'}.`
             : ' Nothing to cover it, so the streak is gone.')
-        : `Best streak: ${profile.bestStreak}. Streak freezes held: ${profile.tokens.freeze}`;
+        : `Nights running you finished at least 60% of your list — this one is about the`
+          + ` list, not the clock. Best: ${profile.bestStreak}. Freezes held: ${profile.tokens.freeze}`;
       return statChip({
         iconName: 'flame',
         value: String(live.streak),
-        label: 'night streak',
+        label: 'list streak',
         title,
         className: `stat--streak ${live.streak > 0 && !live.atRisk ? 'stat--hot' : ''} ${live.atRisk ? 'stat--risk' : ''}`.trim(),
       });
@@ -337,6 +338,14 @@ function renderTonightInner() {
           }, icon('skip', { size: 14 }), `One at a time · ${stats.remaining} left`)
           : null,
         h('div', { class: 'tonight__chips' },
+          // The streak that belongs next to the bedtime countdown, not the one
+          // about the list. It only appears once there is one to show.
+          (state.profile.lightsOut?.streak || 0) > 0
+            ? h('span', {
+              class: 'chip chip--ontime',
+              title: `Nights in a row you called it before your bedtime. Best: ${state.profile.lightsOut.best}.`,
+            }, icon('moon', { size: 13 }), `${state.profile.lightsOut.streak} on time`)
+            : null,
           combo && momentumLive(state)
             ? h('span', {
               class: 'chip chip--combo',

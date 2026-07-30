@@ -49,8 +49,10 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
   night before.
 - On rollover the night is banked into your history, the checklist resets, and a new
   bonus quest is rolled.
-- Hit 60% and your streak grows. Miss a night — including nights you never opened the
-  app — and a **Streak Freeze** is spent automatically to cover it, if you have one.
+- Hit 60% and your **list streak** grows. Miss a night — including nights you never opened
+  the app — and a **Streak Freeze** is spent automatically to cover it, if you have one.
+  That streak is about the list and says so: finishing everything at 1am still counts for
+  it. Bedtime keeps its own streak, and its own record.
 
 **Getting you off the phone**
 
@@ -104,6 +106,14 @@ it's the scroll.
 - Bedtime target with a countdown and an on-pace / cutting-it-close / over-budget read.
 - Night history as a heatmap, plus per-task insight — which tasks you actually do, and
   which have quietly slipped six nights running.
+- **A bedtime record, kept separately from the chores.** Every night you end with Lights
+  out is stamped with the time and with the target as it stood that night, so changing
+  your bedtime later cannot rewrite whether you made it. Insights shows the on-time
+  streak, the on-time rate, your average bedtime this week **against the week before** —
+  the only one of those numbers that answers "am I getting better" — plus earliest and
+  latest, and three weeks of nights charted against your target line: green standing above
+  it, red hanging below, faint dots for nights nobody ended. Averaging clock times is done
+  in minutes from noon, so 11:50pm and 12:10am are twenty minutes apart rather than 1420.
 - Sleep-safe dim mode (which reaches the dialogs and sheets too), sound effects (muted by
   default), full keyboard control, and `prefers-reduced-motion` support throughout.
 - **Reset what you actually mean.** Settings asks which of six things should go —
@@ -166,6 +176,7 @@ js/                   state, actions, game rules, canvas sky, renderers
 js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
 js/reset.js           what each part of "reset" actually clears
 js/timer.js           the card clock: countdown, overtime, pause
+js/bedtime.js         the bedtime record: averages, trend, on-time rate
 js/updates.js         keeps an installed copy from booting last week's build
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator

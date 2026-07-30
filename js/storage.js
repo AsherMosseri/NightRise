@@ -120,6 +120,10 @@ function normalizeHistory(raw) {
       frozen: Boolean(entry.frozen),
       lightsOutAt: Number(entry.lightsOutAt) || null,
       onTime: Boolean(entry.onTime),
+      bedtime: typeof entry.bedtime === 'string' ? entry.bedtime : null,
+      minutesLate: Number.isFinite(Number(entry.minutesLate)) && entry.minutesLate !== null
+        ? Math.round(Number(entry.minutesLate))
+        : null,
     };
   }
   return history;

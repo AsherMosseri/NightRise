@@ -66,6 +66,7 @@ export const SHORTCUTS = [
   ['S', 'Add a section'],
   ['/', 'Jump to quick add'],
   ['→', 'In one-at-a-time: leave this one for later'],
+  ['T', 'In one-at-a-time: start or pause the timer'],
   ['B', 'Open the Night Market'],
   ['G', 'Open the star map'],
   ['H', 'Open night history'],

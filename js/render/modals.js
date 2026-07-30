@@ -581,6 +581,7 @@ VIEWS.settings = () => {
         toggle('dim', 'Sleep-safe dim', 'Warms and dims the whole page for late nights.'),
         toggle('muted', 'Mute sounds', 'Sound effects are off by default.'),
         toggle('hideCompleted', 'Hide completed tasks', 'They still count — they just get out of the way.'),
+        toggle('autoTimer', 'Start the timer automatically', 'In one-at-a-time, the clock runs the moment a card appears instead of waiting for Start.'),
         toggle('curfew', 'Close the market before bed', 'The shop, star map, history and insights shut 30 minutes before bedtime, so this app is not the thing keeping you up.')),
       h('h3', { class: 'modal__section' }, 'Your data'),
       h('p', { class: 'muted small' }, 'Everything lives in this browser only. Export if you want it anywhere else.'),

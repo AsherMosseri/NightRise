@@ -15,6 +15,7 @@ import { topNudge } from '../insights.js';
 import { claimQuest } from '../actions.js';
 import { openEnvelope, envelopeWaiting, dropById } from '../envelope.js';
 import { lightsOut } from './goodnight.js';
+import { confirmAction } from './confirm.js';
 import { enterCards } from './cards.js';
 import { update, emit } from '../state.js';
 import { companionSvg, TIER_NAMES, feedsToNextTier } from '../companion.js';
@@ -242,14 +243,65 @@ function lightsOutButton(state, stats) {
       `Lights out at ${new Date(state.night.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`);
   }
   const done = stats.total > 0 && stats.remaining === 0;
-  return h('button', {
+  const button = h('button', {
     type: 'button',
     class: `lightsout ${done ? 'lightsout--ready' : ''}`.trim(),
-    onClick: () => lightsOut(),
+    'aria-label': 'Lights out — press and hold to end the night',
   },
+  h('span', { class: 'lightsout__fill', 'aria-hidden': 'true' }),
   icon('moon', { size: 15 }),
   h('span', { class: 'lightsout__label' }, 'Lights out'),
-  h('span', { class: 'lightsout__hint' }, done ? 'You’re done' : 'Stop here, keep the points'));
+  h('span', { class: 'lightsout__hint' }, 'hold to end'));
+  return holdToEnd(button);
+}
+
+/**
+ * Ending the night is the best thing you can do in this app and the worst thing
+ * to do by accident, and it lives under your thumb at the bottom of a list you
+ * scroll. A dialog every time would tax the good outcome, so it takes a hold
+ * instead: one deliberate gesture, impossible to produce with a stray tap, and
+ * no decision to read at midnight.
+ */
+const HOLD_MS = 650;
+
+function holdToEnd(button) {
+  let timer = null;
+
+  const stop = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    button.classList.remove('is-holding');
+  };
+
+  button.addEventListener('pointerdown', (event) => {
+    if (event.button !== undefined && event.button !== 0) return;
+    button.setPointerCapture?.(event.pointerId);
+    button.classList.add('is-holding');
+    timer = setTimeout(() => {
+      stop();
+      lightsOut();
+    }, HOLD_MS);
+  });
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
+    button.addEventListener(type, stop);
+  }
+
+  button.addEventListener('click', async (event) => {
+    // `detail` is 0 only for a click the keyboard synthesised. A pointer click
+    // is the tail of a hold that either finished or was abandoned, and either
+    // way it has already been answered.
+    if (event.detail !== 0) return;
+    const go = await confirmAction({
+      title: 'End the night here?',
+      body: 'Tonight is stamped and banked, the screen goes dark, and the biggest reward is for stopping early.',
+      confirmLabel: 'Lights out',
+      cancelLabel: 'Not yet',
+      iconName: 'moon',
+    });
+    if (go) lightsOut();
+  });
+
+  return button;
 }
 
 export function renderTonight() {

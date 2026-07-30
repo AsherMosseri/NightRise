@@ -13,11 +13,21 @@ import { plural, formatMinutesLong } from '../util.js';
 import { openSheet } from './sheet.js';
 import { toast } from '../toast.js';
 import { lightsOut } from './goodnight.js';
+import {
+  createTimer, elapsedOf, isRunning, toggleTimer, resetTimer,
+  timerPhase, timerLabel, timerCaption, timerProgress,
+} from '../timer.js';
 
 let host = null;
 let active = false;
 let deferred = new Set(); // "later" only reorders this sitting, never the list
 let onExit = null;
+
+/* The timer belongs to the card on screen, not to the task list: it is a
+   sitting, not a record. Leaving one-at-a-time or moving on forgets it. */
+let timer = null;
+let ticker = null;
+let face = null; // the live nodes, so a tick repaints without a re-render
 
 export function initCards(node, { onClose } = {}) {
   host = node;
@@ -49,7 +59,11 @@ export function enterCards() {
   if (!host) return;
   active = true;
   deferred = new Set();
+  timer = null;
   document.documentElement.classList.add('is-onecard');
+  // A quarter second is under the eye's patience for a clock that should tick
+  // on the second, and costs nothing: it only repaints two nodes.
+  if (!ticker) ticker = setInterval(paintTimer, 250);
   renderCards();
 }
 
@@ -57,6 +71,12 @@ export function exitCards() {
   if (!active) return;
   active = false;
   deferred = new Set();
+  timer = null;
+  face = null;
+  if (ticker) {
+    clearInterval(ticker);
+    ticker = null;
+  }
   document.documentElement.classList.remove('is-onecard');
   if (host) host.replaceChildren();
   if (onExit) onExit();
@@ -66,6 +86,69 @@ function flash(node, text) {
   const bubble = h('span', { class: 'onecard__flash' }, text);
   node.appendChild(bubble);
   setTimeout(() => bubble.remove(), 900);
+}
+
+/* --------------------------------------------------------------- the timer */
+
+/** Repaints the clock in place. Re-rendering the card every second would
+    destroy the entry animation and the focus on the check button. */
+function paintTimer() {
+  if (!face || !timer || !face.root.isConnected) return;
+  const elapsed = elapsedOf(timer);
+  const running = isRunning(timer);
+  face.value.textContent = timerLabel(timer.plannedMs, elapsed);
+  face.caption.textContent = timerCaption(timer.plannedMs, elapsed, face.spoken);
+  face.bar.style.width = `${(timerProgress(timer.plannedMs, elapsed) * 100).toFixed(2)}%`;
+  // A clock that has never run is not "nearly out of time" — a two-minute task
+  // would open in amber. The colours describe a clock in motion.
+  const started = running || elapsed > 0;
+  face.root.dataset.phase = started ? timerPhase(timer.plannedMs, elapsed) : 'idle';
+  face.root.dataset.state = running ? 'running' : 'paused';
+  face.toggle.replaceChildren(
+    icon(running ? 'pause' : 'play', { size: 16 }),
+    h('span', {}, running ? 'Pause' : (elapsed > 0 ? 'Resume' : 'Start')),
+  );
+  face.toggle.setAttribute('aria-label', running ? 'Pause the timer' : 'Start the timer');
+  face.reset.hidden = elapsed < 1000;
+}
+
+/** Space and Enter are the check button's; the timer answers to T. */
+export function toggleCardTimer() {
+  if (!timer) return false;
+  toggleTimer(timer);
+  paintTimer();
+  return true;
+}
+
+function timerFace(state, task) {
+  const spoken = formatMinutesLong(task.minutes);
+  const value = h('span', { class: 'onecard__clock' }, '');
+  const caption = h('span', { class: 'onecard__clock-note' }, '');
+  const bar = h('span', { class: 'onecard__clock-fill' });
+
+  const toggle = h('button', {
+    type: 'button',
+    class: 'onecard__timer-btn',
+    onClick: () => { toggleTimer(timer); paintTimer(); },
+  });
+
+  const reset = h('button', {
+    type: 'button',
+    class: 'onecard__timer-btn onecard__timer-btn--quiet',
+    'aria-label': 'Start the timer over',
+    hidden: true,
+    onClick: () => { resetTimer(timer, isRunning(timer)); paintTimer(); },
+  }, icon('undo', { size: 15 }));
+
+  const root = h('div', { class: 'onecard__timer' },
+    h('div', { class: 'onecard__clock-row' }, value),
+    caption,
+    h('span', { class: 'onecard__clock-track', 'aria-hidden': 'true' }, bar),
+    h('div', { class: 'onecard__timer-actions' }, toggle, reset));
+
+  face = { root, value, caption, bar, toggle, reset, spoken };
+  paintTimer();
+  return root;
 }
 
 function finishedCard(state, stats) {
@@ -100,11 +183,19 @@ export function renderCards() {
     iconButton('close', 'Leave one-at-a-time mode', () => exitCards(), { class: 'onecard__exit' }));
 
   if (!pending.length) {
+    timer = null;
+    face = null;
     host.replaceChildren(h('div', { class: 'onecard__inner' }, head, finishedCard(state, stats)));
     return;
   }
 
   const { task, section } = pending[0];
+
+  // A new card gets a new clock. The same card re-rendering — because a task
+  // elsewhere changed, or the sky ticked — keeps the one that is running.
+  if (!timer || timer.taskId !== task.id) {
+    timer = createTimer(task.id, task.minutes, Boolean(state.profile.settings.autoTimer));
+  }
 
   const check = h('button', {
     type: 'button',
@@ -118,7 +209,7 @@ export function renderCards() {
   const body = h('div', { class: 'onecard__body' },
     h('p', { class: 'onecard__section' }, section.title),
     h('h2', { class: 'onecard__title' }, task.title),
-    h('p', { class: 'onecard__minutes' }, formatMinutesLong(task.minutes)));
+    timerFace(state, task));
 
   const row = h('div', { class: 'onecard__row' },
     h('button', {
@@ -171,5 +262,6 @@ export function cardsKeydown(event) {
     renderCards();
     return true;
   }
+  if (event.key.toLowerCase() === 't') return toggleCardTimer();
   return false;
 }

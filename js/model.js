@@ -76,6 +76,7 @@ export function createProfile() {
       dim: false,
       muted: true,
       curfew: true,
+      autoTimer: false,
       motion: 'auto',
       hideCompleted: false,
     },

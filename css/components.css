@@ -828,6 +828,7 @@ body.has-sheet { overflow: hidden; }
 }
 
 .lightsout {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -841,8 +842,28 @@ body.has-sheet { overflow: hidden; }
   font-size: 14.5px;
   font-weight: 650;
   text-align: left;
+  overflow: hidden;
+  /* pan-y, not none: a thumb that lands here and scrolls still scrolls, and the
+     browser cancels the pointer, which cancels the hold. Only a still finger
+     ends the night. */
+  touch-action: pan-y;
   transition: all var(--speed) var(--ease);
 }
+/* The hold, drawn. Nothing happens until it reaches the far side, which is why
+   a thumb landing on this button while scrolling costs nothing. */
+.lightsout__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  pointer-events: none;
+}
+.lightsout.is-holding .lightsout__fill { width: 100%; transition: width 650ms linear; }
+.lightsout.is-holding { border-color: var(--accent); }
+.lightsout > svg, .lightsout__label, .lightsout__hint { position: relative; }
 .lightsout:hover { background: var(--panel-hover); }
 .lightsout__label { white-space: nowrap; }
 .lightsout__hint {
@@ -917,22 +938,26 @@ body.has-sheet { overflow: hidden; }
 .is-goodnight .app,
 .is-goodnight .companion-slot { pointer-events: none; }
 
-/* On a phone the ending is not a row in a panel you scroll past — it is a bar
-   under your thumb, out of the document flow so it costs the list nothing. */
+/* On a phone the ending stays within reach but out of the way: a pill in the
+   bottom-right corner rather than a bar across the whole width, because a bar
+   across the whole width is a bar you hit while scrolling. */
 @media (max-width: 640px) {
   .lightsout {
     position: fixed;
-    left: 10px;
+    left: auto;
     right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    bottom: calc(14px + env(safe-area-inset-bottom));
     z-index: 16;
     width: auto;
+    max-width: calc(100vw - 96px);
+    border-radius: 999px;
+    padding: 10px 16px;
     background: var(--panel-solid);
     box-shadow: var(--shadow-md);
   }
-  .lightsout--done { position: static; box-shadow: none; background: none; }
-  .lightsout { min-height: 54px; font-size: 15px; }
-  .lightsout__hint { font-size: 11.5px; max-width: 46%; }
+  .lightsout--done { position: static; box-shadow: none; background: none; max-width: none; }
+  .lightsout { min-height: 50px; font-size: 14.5px; }
+  .lightsout__hint { margin-left: 4px; font-size: 11.5px; max-width: none; white-space: nowrap; }
   .app { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
   .toasts { bottom: calc(78px + env(safe-area-inset-bottom)); }
   .companion-slot { bottom: calc(74px + env(safe-area-inset-bottom)); }
@@ -1146,6 +1171,71 @@ body.has-sheet { overflow: hidden; }
   text-wrap: balance;
 }
 .onecard__minutes { font-size: 15px; color: var(--muted); }
+
+/* The clock. It never stops, so it says where you are by colour rather than by
+   ending: quiet inside the estimate, amber near the edge of it, warm past it. */
+.onecard__timer { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.onecard__clock-row { display: flex; align-items: baseline; gap: 8px; }
+.onecard__clock {
+  font-size: clamp(34px, 11vw, 52px);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  transition: color 600ms var(--ease);
+}
+.onecard__clock-note { font-size: 12.5px; color: var(--muted); }
+.onecard__clock-track {
+  display: block;
+  width: min(260px, 68vw);
+  height: 3px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.onecard__clock-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 400ms linear, background 600ms var(--ease);
+}
+.onecard__timer[data-state="paused"] .onecard__clock { opacity: 0.68; }
+.onecard__timer[data-phase="close"] .onecard__clock { color: var(--warn); }
+.onecard__timer[data-phase="close"] .onecard__clock-fill { background: var(--warn); }
+.onecard__timer[data-phase="over"] .onecard__clock { color: var(--bad); }
+.onecard__timer[data-phase="over"] .onecard__clock-fill { background: var(--bad); }
+/* Past the estimate the bar is full and the number is the only thing moving —
+   a slow breath rather than a flash, because this is not an emergency. */
+.onecard__timer[data-phase="over"][data-state="running"] .onecard__clock {
+  animation: clock-breathe 3.4s ease-in-out infinite;
+}
+@keyframes clock-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.62; }
+}
+[data-motion="off"] .onecard__timer .onecard__clock { animation: none; }
+
+.onecard__timer-actions { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.onecard__timer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--speed) var(--ease);
+}
+.onecard__timer-btn:hover { border-color: var(--accent); color: var(--accent); }
+.onecard__timer-btn--quiet { padding: 8px 12px; color: var(--muted); }
+.onecard__timer-btn[hidden] { display: none; }
 
 /* The target is the bottom half of the screen: no aiming, one hand, dark room. */
 .onecard__check {

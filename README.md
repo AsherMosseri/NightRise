@@ -38,6 +38,10 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
 - **One at a time** (`F`) hides the list and shows a single task with a check target
   filling the bottom third of the screen. A twelve-row list at 11:40pm is twelve
   decisions; a card is a prompt. `Later` pushes one to the back of the sitting.
+- **A timer that refuses to end.** Each card counts down from its own estimate (`T`, or
+  automatically if you turn that on in Settings). At zero it does not alarm, block or ask
+  to be dismissed — it turns over and counts *up* in a warmer colour. Nothing beeps. The
+  message is "this is taking longer than you thought", not "you failed".
 - Every task carries a minute estimate that drives the bedtime pacing.
 
 **The night cycle**
@@ -56,10 +60,12 @@ it's the scroll.
 - **The envelope.** One good thing happens the moment you open the app, before you've
   earned anything: stardust, a rain check, a head start. Every other reward is downstream
   of doing chores, which does nothing for the night the app stays closed.
-- **Lights out.** A permanent bar at the bottom that ends the night. It stamps when you
-  stopped, pays its biggest reward for stopping *early*, and then fades the screen to
-  black instead of handing you back a lit phone at midnight. It keeps its own streak —
-  nights you went to bed on time, which is the number that actually matters.
+- **Lights out.** A pill in the corner that ends the night. It stamps when you stopped,
+  pays its biggest reward for stopping *early*, and then fades the screen to black instead
+  of handing you back a lit phone at midnight. It keeps its own streak — nights you went
+  to bed on time, which is the number that actually matters. It takes a press and hold,
+  because it sits under your thumb on a list you scroll and it is the one button in the
+  app you must never hit by accident.
 - **Momentum, not speed.** The multiplier rises when the gap between check-offs looks
   like you went and did the thing: longer than a token tap, shorter than a drift. Tapping
   through the list in ten seconds earns nothing.
@@ -155,6 +161,7 @@ css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
 js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
 js/reset.js           what each part of "reset" actually clears
+js/timer.js           the card clock: countdown, overtime, pause
 js/updates.js         keeps an installed copy from booting last week's build
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator

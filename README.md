@@ -17,10 +17,14 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
 - On a phone every row action lives in a bottom sheet behind `⋯` — thumb-sized targets,
   and the task title gets the width instead of five buttons. Drag-and-drop is a pointer
   affordance; touch reordering goes through the sheet.
-- **Adding a task is three taps**: type the words, tap how long (1/2/5/10/15/30), tap
+- **Adding a task is three taps**: type the words, tap how long (30s/1/2/5/10/15/30), tap
   which part of the night. The sheet stays open so you can rattle off several. Nothing
   asks you to remember a syntax at midnight — though the quick-add box on a keyboard
   still understands `Floss #wind-down !2` if you want it.
+- **Odd durations are first-class.** Estimates are stored in minutes and quantised to a
+  half, so a thirty-second job is `30s` and a shower is `7½m`. `Other…` in the add sheet
+  opens a stepper whose step size grows with the number; typing works too, in the sheet,
+  the row chip, or as `!7.5` / `!30s` in quick add.
 - **One at a time** (`F`) hides the list and shows a single task with a check target
   filling the bottom third of the screen. A twelve-row list at 11:40pm is twelve
   decisions; a card is a prompt. `Later` pushes one to the back of the sitting.

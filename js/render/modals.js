@@ -537,7 +537,8 @@ VIEWS.help = () => ({
       'Adding a task is a text box, a time and a section — no syntax needed. If you '
       + 'prefer to type, the quick-add box also understands ',
       h('code', {}, '#section'), ' and ', h('code', {}, '!minutes'), ': ',
-      h('code', {}, 'Floss #wind-down !2'), '.'),
+      h('code', {}, 'Floss #wind-down !2'), '. Odd durations are fine — ',
+      h('code', {}, '!7.5'), ' and ', h('code', {}, '!30s'), ' both work.'),
     h('p', { class: 'modal__lead' },
       'Press ', h('kbd', {}, 'F'), ' for one task at a time — a single card with a big '
       + 'target, which is the easy way through a long list at midnight.'),

@@ -1,6 +1,6 @@
 /* localStorage persistence, schema normalisation and JSON export/import. */
 
-import { debounce, deepClone } from './util.js';
+import { debounce, deepClone, roundMinutes } from './util.js';
 import {
   SCHEMA_VERSION, STORAGE_KEY, createInitialState, createNight, createProfile,
   createSection, emptyTemplate, DEFAULT_MINUTES,
@@ -31,7 +31,7 @@ function normalizeTemplate(raw) {
     template.tasks[id] = {
       id,
       title: String(task.title ?? 'Untitled').slice(0, 200),
-      minutes: Number.isFinite(Number(task.minutes)) ? Math.max(0, Math.round(Number(task.minutes))) : DEFAULT_MINUTES,
+      minutes: roundMinutes(task.minutes) ?? DEFAULT_MINUTES,
       note: String(task.note ?? ''),
     };
   }

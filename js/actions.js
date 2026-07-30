@@ -2,7 +2,7 @@
 
 import { getState, update, emit } from './state.js';
 import { createSection, createTask, DEFAULT_MINUTES } from './model.js';
-import { moveItem, deepClone, clamp } from './util.js';
+import { moveItem, deepClone, clamp, roundMinutes } from './util.js';
 import {
   applyTaskCompletion, revokeTaskCompletion, checkBadges, nightCompletionBonus, grantXp,
   revokeGrant,
@@ -133,7 +133,7 @@ export function addTask(sectionId, title, minutes = DEFAULT_MINUTES) {
       state.template.sections[section.id] = section;
       state.template.order.push(section.id);
     }
-    const task = createTask(title.trim() || 'New task', clamp(Math.round(minutes) || 0, 0, 600));
+    const task = createTask(title.trim() || 'New task', roundMinutes(minutes) ?? DEFAULT_MINUTES);
     state.template.tasks[task.id] = task;
     section.taskIds.push(task.id);
     return { task, sectionId: section.id };
@@ -150,7 +150,8 @@ export function renameTask(id, title) {
 export function setTaskMinutes(id, minutes) {
   update((state) => {
     const task = state.template.tasks[id];
-    if (task) task.minutes = clamp(Math.round(Number(minutes) || 0), 0, 600);
+    const next = roundMinutes(minutes);
+    if (task && next !== null) task.minutes = next;
   });
 }
 

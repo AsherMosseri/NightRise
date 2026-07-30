@@ -84,7 +84,7 @@ const STARTER = [
     ['Dim the lights', 2],
     ['Stretch or breathe', 5],
     ['Read a few pages', 15],
-    ['Screens off', 1],
+    ['Screens off', 0.5],
   ]],
   ['Tidy Up', [
     ['Clear the sink', 5],

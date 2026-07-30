@@ -33,6 +33,23 @@ test('minutes can be written a few ways', () => {
   assert.equal(parseQuickAdd('Read', SECTIONS).minutes, null);
 });
 
+test('odd durations survive: half minutes and seconds', () => {
+  assert.equal(parseQuickAdd('Shower !7.5', SECTIONS).minutes, 7.5);
+  assert.equal(parseQuickAdd('Bins !30s', SECTIONS).minutes, 0.5);
+  assert.equal(parseQuickAdd('Bins !90 sec', SECTIONS).minutes, 1.5);
+  assert.equal(parseQuickAdd('Stretch 7.5 min', SECTIONS).minutes, 7.5);
+  assert.equal(parseQuickAdd('Shower !7.5', SECTIONS).title, 'Shower');
+  // Quantised to the half — nobody is estimating twenty seconds honestly.
+  assert.equal(parseQuickAdd('Bins !20s', SECTIONS).minutes, 0.5);
+  assert.equal(parseQuickAdd('Bins !5s', SECTIONS).minutes, 0);
+});
+
+test('a bare trailing "s" is not a unit', () => {
+  const parsed = parseQuickAdd('Sort the 90s records', SECTIONS);
+  assert.equal(parsed.title, 'Sort the 90s records');
+  assert.equal(parsed.minutes, null);
+});
+
 test('a title with no extras is left alone', () => {
   const parsed = parseQuickAdd('  Water the  plants ', SECTIONS);
   assert.equal(parsed.title, 'Water the plants');

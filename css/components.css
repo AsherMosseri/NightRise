@@ -844,6 +844,53 @@ body.has-sheet { overflow: hidden; }
 .addsheet__go { justify-content: center; min-height: 50px; font-size: 15.5px; margin-top: 4px; }
 .addsheet__status { font-size: 12.5px; color: var(--good); min-height: 1.2em; text-align: center; }
 
+/* "Other…" — for the task that really does take seven and a half minutes. */
+.addsheet__slot:empty { display: none; }
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+}
+.stepper__btn:hover { border-color: var(--accent); color: var(--accent); }
+.stepper__input {
+  width: 68px;
+  flex: none;
+  padding: 8px 6px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.stepper__input:focus { border-color: var(--accent); }
+.stepper__unit { font-size: 12.5px; color: var(--muted); }
+.stepper__readout {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: right;
+}
+
 .chipset { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-toggle {
   min-height: 40px;

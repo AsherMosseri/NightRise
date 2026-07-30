@@ -9,7 +9,7 @@ import { h, icon, iconButton } from '../dom.js';
 import { getState } from '../state.js';
 import { toggleTask, toggleSkip } from '../actions.js';
 import { computeStats } from '../night.js';
-import { plural } from '../util.js';
+import { plural, formatMinutesLong } from '../util.js';
 import { openSheet } from './sheet.js';
 import { toast } from '../toast.js';
 import { lightsOut } from './goodnight.js';
@@ -118,7 +118,7 @@ export function renderCards() {
   const body = h('div', { class: 'cards__body' },
     h('p', { class: 'cards__section' }, section.title),
     h('h2', { class: 'cards__title' }, task.title),
-    h('p', { class: 'cards__minutes' }, plural(task.minutes, 'minute', 'minutes')));
+    h('p', { class: 'cards__minutes' }, formatMinutesLong(task.minutes)));
 
   const row = h('div', { class: 'cards__row' },
     h('button', {

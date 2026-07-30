@@ -12,7 +12,8 @@ import { initDragAndDrop } from '../dnd.js';
 import { toast } from '../toast.js';
 import { openSheet } from './sheet.js';
 import { openAddTask, openFirstTask } from './add-task.js';
-import { plural } from '../util.js';
+import { minutesFromToken } from '../keys.js';
+import { formatMinutesLong, formatMinutesShort, plural } from '../util.js';
 
 let root = null;
 let pendingFocus = null;
@@ -59,8 +60,10 @@ function editMinutes(chip, task) {
     type: 'number',
     min: '0',
     max: '600',
+    step: '0.5',
+    inputMode: 'decimal',
     value: String(task.minutes),
-    'aria-label': `Minutes for ${task.title}`,
+    'aria-label': `Minutes for ${task.title} — half minutes allowed, so 0.5 is thirty seconds`,
   });
   let settled = false;
   const commit = (save) => {
@@ -148,15 +151,15 @@ function taskRow(state, task, index) {
     type: 'button',
     class: 'task__minutes',
     title: 'Change the time estimate',
-    'aria-label': `${task.title}: ${plural(task.minutes, 'minute', 'minutes')}. Change estimate`,
+    'aria-label': `${task.title}: ${formatMinutesLong(task.minutes)}. Change estimate`,
     onClick: (event) => { event.stopPropagation(); editMinutes(minutesChip, task); },
-  }, `${task.minutes}m`);
+  }, formatMinutesShort(task.minutes));
 
   const menuButton = iconButton('more', `More actions for ${task.title}`, (event) => {
     event.stopPropagation();
     openSheet({
       title: task.title,
-      subtitle: `${plural(task.minutes, 'minute', 'minutes')}${done ? ' · done' : ''}${skipped ? ' · rain-checked' : ''}`,
+      subtitle: `${formatMinutesLong(task.minutes)}${done ? ' · done' : ''}${skipped ? ' · rain-checked' : ''}`,
       invoker: menuButton,
       items: actions.map((a) => ({ icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, onClick: a.run })),
     });
@@ -166,7 +169,7 @@ function taskRow(state, task, index) {
   // stop tells a screen reader nothing about what it is or what it can do.
   const rowLabel = [
     task.title,
-    plural(task.minutes, 'minute', 'minutes'),
+    formatMinutesLong(task.minutes),
     done ? 'done' : null,
     skipped ? 'rain-checked' : null,
   ].filter(Boolean).join(', ');
@@ -446,11 +449,11 @@ function sectionNode(state, section, index) {
 
 /** Lightweight "Title !5" parse for the per-section add box. */
 function parseInlineTask(value) {
-  const match = /(^|\s)[!~](\d{1,3})m?\b/.exec(value);
+  const match = /(^|\s)[!~](\d{1,3}(?:\.\d+)?)\s?(m|min|mins|minutes|s|sec|secs|seconds)?(?=\s|$)/i.exec(value);
   if (!match) return { title: value.trim(), minutes: null };
   return {
     title: value.replace(match[0], ' ').replace(/\s+/g, ' ').trim(),
-    minutes: Number(match[2]),
+    minutes: minutesFromToken(match[2], match[3]),
   };
 }
 

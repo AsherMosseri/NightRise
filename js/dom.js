@@ -106,6 +106,7 @@ export function withFocus(host, render) {
 /** Icon set — inline SVG so the app stays offline-capable and dependency free. */
 const ICON_PATHS = {
   plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
   trash: 'M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6',
   pencil: 'M4 20h4L20 8l-4-4L4 16v4z',
   up: 'M12 19V5M5 12l7-7 7 7',
@@ -139,6 +140,8 @@ const ICON_PATHS = {
  */
 const ICON_BOX = {
   plus: [5, 5, 14, 14, 11.95, 11.95],
+  // Same span as `plus`, so the two take the same scale and the bars match.
+  minus: [5, 12, 14, 0, 11.95, 11.95],
   trash: [4, 5, 16, 15, 11.95, 12.14],
   pencil: [4, 4, 16, 16, 11.47, 12.43],
   up: [5, 5, 14, 14, 11.95, 10.4],

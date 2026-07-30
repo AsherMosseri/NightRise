@@ -1,7 +1,7 @@
 /* Cache-first service worker. Bump CACHE when shipping changes — the old
    cache is dropped on activate, so an update never leaves a half-stale app. */
 
-const CACHE = 'nightcheck-v2';
+const CACHE = 'nightcheck-v3';
 
 const ASSETS = [
   './',

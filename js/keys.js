@@ -1,14 +1,23 @@
 /* Global keyboard shortcuts and the quick-add mini language.
    Row-level keys (space, e, delete, alt+arrows) live with the checklist. */
 
+import { roundMinutes } from './util.js';
+
+/** "7" / "7.5" / "90s" → minutes. Seconds are allowed because tasks are. */
+export function minutesFromToken(value, unit) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return roundMinutes(/^s/i.test(unit || '') ? n / 60 : n);
+}
+
 export function slugify(str) {
   return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 /**
  * Parse "Brush teeth #wind-down !5" into its parts.
- * `#hint` picks a section (slug, prefix or substring match), `!n` sets minutes,
- * and a trailing "5m" works too.
+ * `#hint` picks a section (slug, prefix or substring match), `!n` sets minutes
+ * (`!7.5` and `!30s` both work), and a trailing "5m" or "30 sec" works too.
  */
 export function parseQuickAdd(text, sections = []) {
   let rest = String(text || '').trim();
@@ -20,15 +29,19 @@ export function parseQuickAdd(text, sections = []) {
     return space ? ' ' : '';
   });
 
-  rest = rest.replace(/(^|\s)[!~](\d{1,3})m?\b/g, (_, space, value) => {
-    minutes = Number(value);
+  rest = rest.replace(/(^|\s)[!~](\d{1,3}(?:\.\d+)?)\s?(m|min|mins|minutes|s|sec|secs|seconds)?(?=\s|$)/gi, (whole, space, value, unit) => {
+    const parsed = minutesFromToken(value, unit);
+    if (parsed === null) return whole;
+    minutes = parsed;
     return space ? ' ' : '';
   });
 
   if (minutes === null) {
-    const trailing = /(^|\s)(\d{1,3})\s?(m|min|mins|minutes)$/i.exec(rest);
+    // A bare trailing "s" is deliberately not a unit here: "Sort the 90s
+    // records" is a task, not a ninety-second one.
+    const trailing = /(^|\s)(\d{1,3}(?:\.\d+)?)\s?(m|min|mins|minutes|sec|secs|seconds)$/i.exec(rest);
     if (trailing) {
-      minutes = Number(trailing[2]);
+      minutes = minutesFromToken(trailing[2], trailing[3]);
       rest = rest.slice(0, trailing.index);
     }
   }

@@ -88,7 +88,12 @@ export const BADGES = [
   { id: 'level-5', name: 'Star Gazer', hint: 'Reach level 5', icon: 'star', level: 5 },
   { id: 'level-10', name: 'Deep Sky', hint: 'Reach level 10', icon: 'star', level: 10 },
   { id: 'combo-max', name: 'Chain Lightning', hint: 'Hit a x2.5 combo', icon: 'flame' },
-  { id: 'after-hours', name: 'After Hours', hint: 'Check something off past 1am', icon: 'moon' },
+  /* There was an "After Hours" badge here, for checking something off past 1am.
+     A reward for still being awake at one in the morning, in the app whose
+     entire argument is that you should be asleep. These two are what it should
+     always have been: the same recognition, pointed the other way. */
+  { id: 'on-time', name: 'Turned In', hint: 'Stop for the night before your bedtime', icon: 'moon' },
+  { id: 'on-time-3', name: 'Three Early Nights', hint: 'Stop before bedtime three nights running', icon: 'flame' },
   { id: 'collector', name: 'Collector', hint: 'Own 5 shop unlocks', icon: 'bag' },
   { id: 'constellation', name: 'Cartographer', hint: 'Complete a constellation', icon: 'map' },
   { id: 'companion', name: 'Best Friend', hint: 'Raise a companion to tier 3', icon: 'star' },
@@ -124,10 +129,9 @@ export function checkBadges(state, stats) {
     if (badge.level) award(badge.id, profile.level >= badge.level);
   }
   award('combo-max', (state.night.maxCombo || 1) >= COMBO_MAX);
-  award('after-hours', Object.values(state.night.done).some((ts) => {
-    const hour = new Date(ts).getHours();
-    return hour >= 0 && hour < 4;
-  }));
+  const lights = profile.lightsOut || {};
+  award('on-time', (lights.best || 0) >= 1);
+  award('on-time-3', (lights.best || 0) >= 3);
   award('collector', inventorySize(profile) >= 9); // 4 freebies + 5 unlocks
   award('constellation', Object.values(profile.constellations).some((c) => c && c.complete));
   award('companion', (profile.companion?.tier || 0) >= 3);

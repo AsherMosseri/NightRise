@@ -6,6 +6,7 @@ import {
   createSection, emptyTemplate, DEFAULT_MINUTES,
 } from './model.js';
 import { nightKeyOf } from './time.js';
+import { BADGES } from './game.js';
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -139,7 +140,13 @@ export function normalizeState(raw, now = new Date()) {
     lastKey: typeof profile.lightsOut?.lastKey === 'string' ? profile.lightsOut.lastKey : null,
   };
   profile.lightsOut.best = Math.max(profile.lightsOut.best, profile.lightsOut.streak);
-  profile.badges = Array.isArray(profile.badges) ? profile.badges.filter((b) => typeof b === 'string') : [];
+  // Only badges the app still has. A retired one — "After Hours", which paid
+  // you for being awake at 1am in an app about going to bed — should stop
+  // showing up in your count, not linger as an id nothing can render.
+  const known = new Set(BADGES.map((b) => b.id));
+  profile.badges = Array.isArray(profile.badges)
+    ? profile.badges.filter((b) => typeof b === 'string' && known.has(b))
+    : [];
   const defaultInventory = createProfile().inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
     const list = Array.isArray(profile.inventory[kind]) ? profile.inventory[kind] : [];

@@ -77,7 +77,10 @@ it's the scroll.
 - XP with a level curve and titles: Dreamer → Night Owl → Star Gazer → Moon Walker →
   Dusk Warden → Void Sailor → Constellation Keeper.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
-- Badges for streaks, perfect nights, late-night finishes and collection milestones.
+- Badges for streaks, perfect nights, early nights and collection milestones. Nothing in
+  the game rewards being awake late: there was a badge for checking something off past
+  1am, in the app whose whole argument is that you should be asleep, and it has been
+  replaced by two for stopping *before* your bedtime.
 - Un-checking a task reverses its exact award, and if that drops you below a level it
   takes the level with it: the level-up stardust goes back and a level badge comes off
   again. The completion bonus is banked so it can be paid once and taken back precisely.

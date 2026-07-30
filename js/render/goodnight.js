@@ -10,7 +10,7 @@
 import { h, icon } from '../dom.js';
 import { getState, update, emit } from '../state.js';
 import { computeStats } from '../night.js';
-import { grantXp } from '../game.js';
+import { grantXp, checkBadges } from '../game.js';
 import { minutesUntilBedtime, formatClockLabel } from '../time.js';
 import { formatDuration, plural } from '../util.js';
 
@@ -67,10 +67,13 @@ export function lightsOut() {
       }
       grantXp(state, reward.xp, reward.dust);
     }
-    return { stats, minutesLeft, onTime, reward };
+    // Going to bed on time is the achievement this app is about, so it is
+    // awarded at the moment you do it rather than quietly at 4am.
+    return { stats, minutesLeft, onTime, reward, badges: checkBadges(state, stats) };
   });
 
   emit('lightsout', result);
+  if (result.badges?.length) emit('badge', result.badges);
   render(result);
   return result;
 }

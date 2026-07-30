@@ -5,7 +5,8 @@ import {
   computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak,
 } from '../js/night.js';
 import { createInitialState } from '../js/model.js';
-import { applyTaskCompletion } from '../js/game.js';
+import { applyTaskCompletion, checkBadges, BADGES } from '../js/game.js';
+import { normalizeState } from '../js/storage.js';
 import { openEnvelope, envelopeWaiting } from '../js/envelope.js';
 
 function stateWithProgress(doneCount, skipCount = 0) {
@@ -262,4 +263,33 @@ test('an unbroken run reports no risk', () => {
   state.profile.lastBankedKey = '2026-07-28';
   const live = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
   assert.deepEqual(live, { streak: 4, missed: 0, covered: 0, atRisk: false });
+});
+
+/* --------------------------------------------------------------- badges */
+
+test('there is no badge for still being awake at 1am', () => {
+  const ids = BADGES.map((b) => b.id);
+  assert.equal(ids.includes('after-hours'), false);
+  for (const badge of BADGES) {
+    assert.doesNotMatch(`${badge.name} ${badge.hint}`, /1am|past midnight|late night/i,
+      `${badge.id} should not reward staying up`);
+  }
+});
+
+test('stopping before bedtime is what earns a badge now', () => {
+  const state = stateWithProgress(9);
+  assert.deepEqual(checkBadges(state, computeStats(state)).filter((id) => id.startsWith('on-time')), []);
+
+  state.profile.lightsOut = { streak: 1, best: 1, lastKey: '2026-07-29' };
+  assert.ok(checkBadges(state, computeStats(state)).includes('on-time'));
+
+  state.profile.lightsOut.best = 3;
+  assert.ok(checkBadges(state, computeStats(state)).includes('on-time-3'));
+});
+
+test('a retired badge is dropped from a saved profile', () => {
+  const state = stateWithProgress(0);
+  state.profile.badges = ['first-night', 'after-hours', 'perfect'];
+  const loaded = normalizeState(JSON.parse(JSON.stringify(state)), new Date(2026, 6, 29, 22, 0));
+  assert.deepEqual(loaded.profile.badges, ['first-night', 'perfect']);
 });

@@ -957,6 +957,15 @@ body.has-sheet { overflow: hidden; }
   }
   .lightsout--done { position: static; box-shadow: none; background: none; max-width: none; }
   .lightsout { min-height: 50px; font-size: 14.5px; }
+  /* It floats over the list, so while the list is moving it gets out of the
+     way — it was landing squarely on top of "Add a task". It comes back half a
+     second after you stop, which is when you might actually want it. */
+  .is-scrolling .lightsout:not(.lightsout--done) {
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
+  }
+  .lightsout { transition: opacity 220ms var(--ease), transform 220ms var(--ease), border-color var(--speed) var(--ease); }
   .lightsout__hint { margin-left: 4px; font-size: 11.5px; max-width: none; white-space: nowrap; }
   .app { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
   .toasts { bottom: calc(78px + env(safe-area-inset-bottom)); }

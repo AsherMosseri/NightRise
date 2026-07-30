@@ -219,7 +219,25 @@ function checkRollover() {
 
 /* ------------------------------------------------------------------ boot */
 
+/**
+ * Flags the document while the page is moving. One listener for the lifetime of
+ * the app, rather than one per render of a button that is rebuilt constantly.
+ */
+function watchScrolling() {
+  let idle = null;
+  const root = document.documentElement;
+  window.addEventListener('scroll', () => {
+    if (!idle) root.classList.add('is-scrolling');
+    else clearTimeout(idle);
+    idle = setTimeout(() => {
+      idle = null;
+      root.classList.remove('is-scrolling');
+    }, 500);
+  }, { passive: true });
+}
+
 function boot() {
+  watchScrolling();
   initToasts($('#toasts'), $('#toasts-modal'));
   initChecklist($('#sections'));
   initHeader({

@@ -88,17 +88,39 @@ export function setConstellations(list) {
   if (width) placeConstellations(constellationSource);
 }
 
-function resize() {
+/**
+ * Match the bitmap to the box.
+ *
+ * A canvas whose backing store does not match its CSS size is not clipped, it
+ * is *stretched* — which is what an installed iOS app showed after launch: a
+ * moon drawn as a circle arriving on screen as a tall ellipse, stars the size
+ * of coins, and the drawing running out partway down. The element had grown
+ * when the safe-area insets settled, and iOS never fired a window `resize` for
+ * it, so the bitmap stayed the size it was born at.
+ *
+ * The reliable signal is the element itself, via a ResizeObserver. Everything
+ * else here — window resize, orientation, the visual viewport — is belt and
+ * braces for engines that report the box late.
+ */
+function resize(force = false) {
   if (!canvas) return;
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  width = canvas.clientWidth;
-  height = canvas.clientHeight;
-  canvas.width = Math.max(1, Math.floor(width * dpr));
-  canvas.height = Math.max(1, Math.floor(height * dpr));
+  const nextDpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  // Mid-layout the element can measure zero. Keeping the last good size beats
+  // rebuilding the sky into a 1×1 bitmap and stretching that across a phone.
+  if (w <= 0 || h <= 0) return;
+  if (!force && w === width && h === height && nextDpr === dpr) return;
+
+  dpr = nextDpr;
+  width = w;
+  height = h;
+  canvas.width = Math.max(1, Math.round(width * dpr));
+  canvas.height = Math.max(1, Math.round(height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   buildStars();
   placeConstellations(constellationSource);
-  if (reducedMotion) drawFrame(0);
+  if (reducedMotion || !running) drawFrame(performance.now());
 }
 
 /* ------------------------------------------------------------------ moon */
@@ -396,7 +418,13 @@ function step(time) {
 
 function drawFrame(time) {
   if (!ctx) return;
-  ctx.clearRect(0, 0, width, height);
+  // The whole bitmap, not just the logical box. Should the two ever disagree
+  // again, pixels outside the box would otherwise never be painted over —
+  // which is how a band of stale sky ended up frozen across the top of a phone.
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
   drawStars(time);
   drawConstellations(time);
   drawMoon(time);
@@ -462,8 +490,16 @@ export function initSky(node, { reduceMotion = false } = {}) {
   ctx = canvas.getContext('2d');
   readColors();
   reducedMotion = reduceMotion;
-  resize();
-  window.addEventListener('resize', resize, { passive: true });
+  resize(true);
+
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => resize()).observe(canvas);
+  }
+  window.addEventListener('resize', () => resize(), { passive: true });
+  window.addEventListener('orientationchange', () => resize(), { passive: true });
+  window.visualViewport?.addEventListener('resize', () => resize(), { passive: true });
+  // Returning from the app switcher can restore a page laid out at another size.
+  window.addEventListener('pageshow', () => resize(), { passive: true });
 
   window.addEventListener('pointermove', (event) => {
     parallax.tx = (event.clientX / Math.max(1, width) - 0.5) * 2;

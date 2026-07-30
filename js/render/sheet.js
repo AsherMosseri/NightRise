@@ -8,15 +8,86 @@ import { h, icon } from '../dom.js';
 let host = null;
 let openInvoker = null;
 let onKeydown = null;
+/* The close animation clears the host 200ms later. If a sheet opens inside that
+   window — naming a section, then adding a task to it — the stale timer wiped
+   the new one out from under it. */
+let closeTimer = null;
 
 export function initSheet(node) {
   host = node;
+}
+
+/** Past this the sheet is going away; below it, it springs back. */
+const DISMISS_PX = 90;
+const DISMISS_VELOCITY = 0.5; // px per ms — a flick counts even if it is short
+
+/**
+ * The grip is a handle, not a decoration.
+ *
+ * It looked draggable and did nothing, which on a phone is worse than not
+ * drawing it: the gesture everyone tries first failed silently. Dragging starts
+ * on the grip or the header — never on the list — so a sheet full of buttons
+ * still scrolls and taps normally.
+ */
+function makeDraggable(panel, scrim) {
+  const handles = [panel.querySelector('.sheet__grip'), panel.querySelector('.sheet__head')];
+  let startY = 0;
+  let startAt = 0;
+  let dy = 0;
+  let dragging = false;
+
+  const move = (event) => {
+    if (!dragging) return;
+    // Upward drag resists: the sheet is already as far up as it goes.
+    const raw = event.clientY - startY;
+    dy = raw < 0 ? raw / 4 : raw;
+    panel.style.transform = `translate(-50%, ${dy}px)`;
+    scrim.style.opacity = String(Math.max(0, 1 - dy / 320));
+  };
+
+  const end = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    panel.releasePointerCapture?.(event.pointerId);
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', end);
+    window.removeEventListener('pointercancel', end);
+    panel.style.transition = '';
+    scrim.style.opacity = '';
+    const velocity = dy / Math.max(1, performance.now() - startAt);
+    // Either way the inline transform has to go: it would outrank the class
+    // that slides the sheet out, and the exit would freeze mid-drag.
+    panel.style.transform = '';
+    if (dy > DISMISS_PX || velocity > DISMISS_VELOCITY) closeSheet();
+  };
+
+  for (const handle of handles) {
+    if (!handle) continue;
+    handle.style.touchAction = 'none';
+    handle.addEventListener('pointerdown', (event) => {
+      // Let a real control inside the header keep its click.
+      if (event.target.closest('button, input, a')) return;
+      dragging = true;
+      startY = event.clientY;
+      startAt = performance.now();
+      dy = 0;
+      panel.style.transition = 'none';
+      panel.setPointerCapture?.(event.pointerId);
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
+  }
 }
 
 export function closeSheet() {
   if (!host || !host.firstChild) return;
   const panel = host.querySelector('.sheet');
   const scrim = host.querySelector('.sheet-scrim');
+  if (panel) {
+    panel.style.transform = '';
+    panel.style.transition = '';
+  }
   panel?.classList.add('sheet--out');
   scrim?.classList.remove('sheet-scrim--in');
   if (onKeydown) {
@@ -25,7 +96,9 @@ export function closeSheet() {
   }
   const invoker = openInvoker;
   openInvoker = null;
-  setTimeout(() => {
+  if (closeTimer) clearTimeout(closeTimer);
+  closeTimer = setTimeout(() => {
+    closeTimer = null;
     if (host) host.replaceChildren();
     document.body.classList.remove('has-sheet');
   }, 200);
@@ -43,6 +116,10 @@ export function isSheetOpen() {
 export function openSheet({ title, subtitle, items = [], content = null, invoker = null, onOpen = null }) {
   if (!host) return;
   closeSheet();
+  if (closeTimer) {
+    clearTimeout(closeTimer);
+    closeTimer = null;
+  }
   openInvoker = invoker || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
 
   const buttons = items.filter(Boolean).map((item) => h('button', {
@@ -75,6 +152,8 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
   h('button', { type: 'button', class: 'sheet__cancel', onClick: () => closeSheet() }, content ? 'Done' : 'Cancel'));
 
   const scrim = h('div', { class: 'sheet-scrim', onClick: () => closeSheet() });
+
+  makeDraggable(panel, scrim);
 
   host.replaceChildren(scrim, panel);
   document.body.classList.add('has-sheet');

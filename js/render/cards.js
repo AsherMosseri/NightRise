@@ -49,7 +49,7 @@ export function enterCards() {
   if (!host) return;
   active = true;
   deferred = new Set();
-  document.documentElement.classList.add('is-cards');
+  document.documentElement.classList.add('is-onecard');
   renderCards();
 }
 
@@ -57,25 +57,25 @@ export function exitCards() {
   if (!active) return;
   active = false;
   deferred = new Set();
-  document.documentElement.classList.remove('is-cards');
+  document.documentElement.classList.remove('is-onecard');
   if (host) host.replaceChildren();
   if (onExit) onExit();
 }
 
 function flash(node, text) {
-  const bubble = h('span', { class: 'cards__flash' }, text);
+  const bubble = h('span', { class: 'onecard__flash' }, text);
   node.appendChild(bubble);
   setTimeout(() => bubble.remove(), 900);
 }
 
 function finishedCard(state, stats) {
-  return h('div', { class: 'cards__done' },
+  return h('div', { class: 'onecard__done' },
     icon('check', { size: 40 }),
     h('h2', {}, stats.total === 0 ? 'Nothing on the list' : 'That’s everything.'),
     h('p', { class: 'muted' }, stats.total === 0
       ? 'Add something to tonight and come back.'
       : `${plural(stats.done, 'task', 'tasks')} done. Time to stop.`),
-    h('div', { class: 'cards__done-actions' },
+    h('div', { class: 'onecard__done-actions' },
       state.night.lightsOutAt ? null : h('button', {
         type: 'button',
         class: 'btn btn--primary',
@@ -91,16 +91,16 @@ export function renderCards() {
   const pending = queue(state);
   const position = stats.done + stats.skipped + 1;
 
-  const head = h('header', { class: 'cards__head' },
-    h('span', { class: 'cards__count' }, pending.length
+  const head = h('header', { class: 'onecard__head' },
+    h('span', { class: 'onecard__count' }, pending.length
       ? `${Math.min(position, stats.total)} of ${stats.total}`
       : `${stats.done} of ${stats.total}`),
-    h('div', { class: 'cards__bar', 'aria-hidden': 'true' },
+    h('div', { class: 'onecard__bar', 'aria-hidden': 'true' },
       h('span', { style: { width: `${stats.pct}%` } })),
-    iconButton('close', 'Leave one-at-a-time mode', () => exitCards(), { class: 'cards__exit' }));
+    iconButton('close', 'Leave one-at-a-time mode', () => exitCards(), { class: 'onecard__exit' }));
 
   if (!pending.length) {
-    host.replaceChildren(h('div', { class: 'cards__inner' }, head, finishedCard(state, stats)));
+    host.replaceChildren(h('div', { class: 'onecard__inner' }, head, finishedCard(state, stats)));
     return;
   }
 
@@ -108,28 +108,28 @@ export function renderCards() {
 
   const check = h('button', {
     type: 'button',
-    class: 'cards__check',
+    class: 'onecard__check',
     onClick: () => {
       const result = toggleTask(task.id);
       if (result?.award) flash(check, `+${result.award.xp} XP`);
     },
   }, icon('check', { size: 30 }), h('span', {}, 'Done'));
 
-  const body = h('div', { class: 'cards__body' },
-    h('p', { class: 'cards__section' }, section.title),
-    h('h2', { class: 'cards__title' }, task.title),
-    h('p', { class: 'cards__minutes' }, formatMinutesLong(task.minutes)));
+  const body = h('div', { class: 'onecard__body' },
+    h('p', { class: 'onecard__section' }, section.title),
+    h('h2', { class: 'onecard__title' }, task.title),
+    h('p', { class: 'onecard__minutes' }, formatMinutesLong(task.minutes)));
 
-  const row = h('div', { class: 'cards__row' },
+  const row = h('div', { class: 'onecard__row' },
     h('button', {
       type: 'button',
-      class: 'cards__minor',
+      class: 'onecard__minor',
       disabled: pending.length < 2,
       onClick: () => { deferred.add(task.id); renderCards(); },
     }, icon('down', { size: 15 }), 'Later'),
     h('button', {
       type: 'button',
-      class: 'cards__minor',
+      class: 'onecard__minor',
       onClick: () => {
         const result = toggleSkip(task.id);
         if (result?.blocked) toast('No rain checks left', { tone: 'warn', iconName: 'skip' });
@@ -137,7 +137,7 @@ export function renderCards() {
     }, icon('skip', { size: 15 }), 'Rain check'),
     h('button', {
       type: 'button',
-      class: 'cards__minor',
+      class: 'onecard__minor',
       onClick: () => openSheet({
         title: task.title,
         subtitle: 'One at a time',
@@ -148,9 +148,9 @@ export function renderCards() {
       }),
     }, icon('more', { size: 15 }), 'More'));
 
-  const inner = h('div', { class: 'cards__inner' }, head, body, check, row);
+  const inner = h('div', { class: 'onecard__inner' }, head, body, check, row);
   host.replaceChildren(inner);
-  requestAnimationFrame(() => inner.classList.add('cards__inner--in'));
+  requestAnimationFrame(() => inner.classList.add('onecard__inner--in'));
   check.focus({ preventScroll: true });
 }
 

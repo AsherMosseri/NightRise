@@ -13,7 +13,9 @@ import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../compani
 import { BADGES, levelFromXp, titleForLevel, TITLES } from '../game.js';
 import { taskInsights, reliableTasks, overallRate } from '../insights.js';
 import { forceNewNight } from '../night.js';
-import { shiftKey, keyToDate, formatShortDate, formatNightLabel } from '../time.js';
+import {
+  shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
+} from '../time.js';
 import { serializeState, parseImport, clearStorage } from '../storage.js';
 import { createInitialState } from '../model.js';
 import { SHORTCUTS } from '../keys.js';
@@ -21,6 +23,7 @@ import { previewPack } from '../audio.js';
 import { setSkyPaused } from '../sky.js';
 import { toast } from '../toast.js';
 import { formatNumber, plural } from '../util.js';
+import { confirmAction } from './confirm.js';
 
 let dialog = null;
 let bodyHost = null;
@@ -416,6 +419,85 @@ function field(label, control, hint) {
     hint ? h('p', { class: 'muted small' }, hint) : null);
 }
 
+/**
+ * A row of choices instead of a <select>. A native dropdown at midnight is a
+ * grey system sheet sliding up over the app in a font we did not pick; this is
+ * three buttons you can already see, and it never covers anything.
+ */
+function choiceRow(label, options, current, onPick) {
+  const row = h('div', { class: 'chipset', role: 'radiogroup', 'aria-label': label });
+  const buttons = options.map(([value, text]) => h('button', {
+    type: 'button',
+    class: `chip-toggle ${value === current ? 'is-on' : ''}`.trim(),
+    role: 'radio',
+    'aria-checked': value === current ? 'true' : 'false',
+    onClick: () => {
+      for (const [i, other] of buttons.entries()) {
+        const on = options[i][0] === value;
+        other.classList.toggle('is-on', on);
+        other.setAttribute('aria-checked', on ? 'true' : 'false');
+      }
+      onPick(value);
+    },
+  }, text));
+  row.append(...buttons);
+  return row;
+}
+
+const BEDTIME_STEP = 15;
+const BEDTIME_PRESETS = ['21:30', '22:00', '22:30', '23:00', '23:30', '00:00'];
+
+/** Same idea for the clock: `<input type="time">` is a native wheel on a phone. */
+function bedtimePicker(current, onChange) {
+  let value = parseClock(current) ? current : '23:30';
+
+  const readout = h('span', { class: 'timeset__value', role: 'status', 'aria-live': 'polite' },
+    formatClockLabel(value));
+  const chips = [];
+
+  const sync = () => {
+    readout.textContent = formatClockLabel(value);
+    for (const [i, chip] of chips.entries()) {
+      const on = BEDTIME_PRESETS[i] === value;
+      chip.classList.toggle('is-on', on);
+      chip.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+    onChange(value);
+  };
+
+  const shift = (minutes) => {
+    const parsed = parseClock(value) || { hours: 23, minutes: 30 };
+    // Wrap through midnight: a bedtime of 00:15 is a normal answer.
+    const total = (parsed.hours * 60 + parsed.minutes + minutes + 1440) % 1440;
+    value = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    sync();
+  };
+
+  const stepper = h('div', { class: 'timeset' },
+    h('button', {
+      type: 'button', class: 'timeset__btn', 'aria-label': 'Fifteen minutes earlier', onClick: () => shift(-BEDTIME_STEP),
+    }, icon('minus', { size: 16 })),
+    readout,
+    h('button', {
+      type: 'button', class: 'timeset__btn', 'aria-label': 'Fifteen minutes later', onClick: () => shift(BEDTIME_STEP),
+    }, icon('plus', { size: 16 })));
+
+  const row = h('div', { class: 'chipset', role: 'radiogroup', 'aria-label': 'Common bedtimes' });
+  for (const preset of BEDTIME_PRESETS) {
+    const chip = h('button', {
+      type: 'button',
+      class: `chip-toggle ${preset === value ? 'is-on' : ''}`.trim(),
+      role: 'radio',
+      'aria-checked': preset === value ? 'true' : 'false',
+      onClick: () => { value = preset; sync(); },
+    }, formatClockLabel(preset));
+    chips.push(chip);
+    row.append(chip);
+  }
+
+  return h('div', { class: 'timepick' }, stepper, row);
+}
+
 function downloadBackup(state) {
   const blob = new Blob([serializeState(state)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -430,18 +512,18 @@ VIEWS.settings = () => {
   const state = getState();
   const settings = state.profile.settings;
 
-  const bedtime = h('input', { class: 'field__input', type: 'time', value: settings.bedtime });
-  bedtime.addEventListener('change', () => {
-    update((s) => { s.profile.settings.bedtime = bedtime.value || '23:30'; });
+  const bedtime = bedtimePicker(settings.bedtime, (value) => {
+    update((s) => { s.profile.settings.bedtime = value; });
+    emit('setting', { key: 'bedtime', value });
   });
 
-  const motion = h('select', { class: 'field__input' },
-    h('option', { value: 'auto', selected: settings.motion === 'auto' }, 'Follow my system setting'),
-    h('option', { value: 'on', selected: settings.motion === 'on' }, 'Always animate'),
-    h('option', { value: 'off', selected: settings.motion === 'off' }, 'Reduce motion'));
-  motion.addEventListener('change', () => {
-    update((s) => { s.profile.settings.motion = motion.value; });
-    emit('setting', { key: 'motion', value: motion.value });
+  const motion = choiceRow('Motion', [
+    ['auto', 'Follow my system'],
+    ['on', 'Always animate'],
+    ['off', 'Reduce motion'],
+  ], settings.motion, (value) => {
+    update((s) => { s.profile.settings.motion = value; });
+    emit('setting', { key: 'motion', value });
   });
 
   const importInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'visually-hidden' });
@@ -454,9 +536,16 @@ VIEWS.settings = () => {
       const current = getState();
       const nights = Object.keys(current.history).length;
       const warning = nights
-        ? `Importing replaces everything in this browser: ${nights} banked ${nights === 1 ? 'night' : 'nights'}, level ${current.profile.level}, ${current.profile.stardust} stardust and every unlock. Continue?`
-        : 'Importing replaces everything currently in this browser. Continue?';
-      if (!window.confirm(warning)) {
+        ? `This replaces everything in this browser: ${nights} banked ${nights === 1 ? 'night' : 'nights'}, level ${current.profile.level}, ${current.profile.stardust} stardust and every unlock.`
+        : 'This replaces everything currently in this browser.';
+      const go = await confirmAction({
+        title: 'Restore this backup?',
+        body: warning,
+        confirmLabel: 'Restore it',
+        cancelLabel: 'Keep what I have',
+        iconName: 'upload',
+      });
+      if (!go) {
         importInput.value = '';
         return;
       }
@@ -514,8 +603,16 @@ VIEWS.settings = () => {
         h('button', {
           type: 'button',
           class: 'btn btn--sm btn--danger',
-          onClick: () => {
-            if (!window.confirm('Erase every task, section, level and unlock? This cannot be undone.')) return;
+          onClick: async () => {
+            const go = await confirmAction({
+              title: 'Erase everything?',
+              body: 'Every task, section, level, streak and unlock goes. There is no undo, and no copy anywhere else unless you exported one.',
+              confirmLabel: 'Erase it all',
+              cancelLabel: 'Never mind',
+              danger: true,
+              iconName: 'trash',
+            });
+            if (!go) return;
             clearStorage();
             replaceState(createInitialState());
             emit('imported', getState());

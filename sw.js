@@ -1,7 +1,7 @@
 /* Cache-first service worker. Bump CACHE when shipping changes — the old
    cache is dropped on activate, so an update never leaves a half-stale app. */
 
-const CACHE = 'nightcheck-v4';
+const CACHE = 'nightcheck-v5';
 
 const ASSETS = [
   './',
@@ -35,6 +35,7 @@ const ASSETS = [
   './js/render/header.js',
   './js/render/modals.js',
   './js/render/sheet.js',
+  './js/render/confirm.js',
   './js/render/add-task.js',
   './js/render/cards.js',
   './js/render/goodnight.js',

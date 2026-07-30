@@ -276,4 +276,49 @@ export function openFirstTask() {
   openAddTask();
 }
 
+/* ----------------------------------------------------------- new section */
+
+/**
+ * Naming it up front, rather than dropping a row called "New section" into the
+ * list and hoping you notice the rename box. You are the one who knows whether
+ * this is Wind Down or Kitchen.
+ */
+export function openAddSection({ invoker = null, onCreated = null } = {}) {
+  const input = h('input', {
+    class: 'addsheet__input',
+    type: 'text',
+    placeholder: 'Wind Down',
+    'aria-label': 'Name this section',
+    autocomplete: 'off',
+    autocapitalize: 'words',
+    spellcheck: 'false',
+    enterkeyhint: 'done',
+  });
+
+  const submit = () => {
+    const section = addSection(input.value.trim() || 'Tonight');
+    closeSheet();
+    if (onCreated) onCreated(section);
+  };
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submit();
+    }
+    event.stopPropagation();
+  });
+
+  openSheet({
+    title: 'New section',
+    subtitle: 'A part of the night — Wind Down, Tidy Up, whatever suits.',
+    content: h('div', { class: 'addsheet' },
+      input,
+      h('button', { type: 'button', class: 'btn btn--primary addsheet__go', onClick: submit },
+        icon('plus', { size: 16 }), 'Create it')),
+    invoker,
+    onOpen: () => setTimeout(() => input.focus(), 60),
+  });
+}
+
 export { closeSheet };

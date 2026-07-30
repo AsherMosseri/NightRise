@@ -4,14 +4,14 @@
 import { h, icon, iconButton, clear, $$ } from '../dom.js';
 import { getState } from '../state.js';
 import {
-  addSection, addTask, deleteSection, deleteTask, moveSection, moveTaskByStep, moveTaskTo,
+  addTask, deleteSection, deleteTask, moveSection, moveTaskByStep, moveTaskTo,
   renameSection, renameTask, reorderSection, setTaskMinutes, toggleSectionCollapsed,
   toggleSkip, toggleTask, undo,
 } from '../actions.js';
 import { initDragAndDrop } from '../dnd.js';
 import { toast } from '../toast.js';
 import { openSheet } from './sheet.js';
-import { openAddTask, openFirstTask } from './add-task.js';
+import { openAddTask, openFirstTask, openAddSection } from './add-task.js';
 import { minutesFromToken } from '../keys.js';
 import { formatMinutesLong, formatMinutesShort, plural } from '../util.js';
 
@@ -580,15 +580,16 @@ export function renderChecklist() {
     if (section) root.appendChild(sectionNode(state, section, index));
   });
 
-  root.appendChild(h('button', {
+  const addSectionButton = h('button', {
     type: 'button',
     class: 'add-section',
     dataset: { focus: 'add-section' },
-    onClick: () => {
-      const section = addSection('New section');
-      focusNext(`section-edit:${section.id}`);
-    },
-  }, icon('plus', { size: 16 }), 'Add a section'));
+    onClick: () => openAddSection({
+      invoker: addSectionButton,
+      onCreated: (section) => openAddTask({ sectionId: section.id }),
+    }),
+  }, icon('plus', { size: 16 }), 'Add a section');
+  root.appendChild(addSectionButton);
 
   playFlip(previousRects);
   restoreDrafts(drafts);

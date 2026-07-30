@@ -496,6 +496,60 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 }
 .field__input:focus { border-color: var(--accent); }
 
+/* Bedtime, without the system's wheel picker sliding up over the app. */
+.timepick { display: flex; flex-direction: column; gap: 8px; }
+.timeset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.timeset__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+}
+.timeset__btn:hover { border-color: var(--accent); color: var(--accent); }
+.timeset__value {
+  min-width: 96px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- confirm */
+
+.confirm {
+  width: min(400px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--panel-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+.confirm::backdrop { background: rgba(3, 5, 15, 0.66); }
+.confirm[open] { animation: modal-in 180ms var(--ease); }
+.confirm__inner { display: flex; flex-direction: column; gap: 10px; padding: 22px; }
+.confirm__icon { color: var(--accent); }
+.confirm--danger .confirm__icon { color: var(--bad); }
+.confirm__title { font-size: 17px; font-weight: 700; }
+.confirm__body { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+.confirm__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
+.confirm__actions .btn { min-height: 42px; }
+
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .switch__track {
@@ -574,13 +628,27 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .sheet--in { transform: translate(-50%, 0); }
 .sheet--out { transform: translate(-50%, 100%); }
 
+/* A handle you can actually grab: the bar is 4px, the target is 28. */
 .sheet__grip {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: -2px 0 2px;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet__grip::before {
+  content: "";
+  display: block;
   width: 38px;
   height: 4px;
+  margin: 8px auto;
   border-radius: 999px;
   background: var(--border-strong);
-  margin: 4px auto 8px;
+  transition: background var(--speed) var(--ease);
 }
+.sheet__grip:active { cursor: grabbing; }
+.sheet__grip:active::before { background: var(--accent); }
 .sheet__head { padding: 0 8px 6px; }
 .sheet__title {
   font-size: 15px;
@@ -977,9 +1045,9 @@ body.has-sheet { overflow: hidden; }
 }
 .focus-btn:hover { background: var(--panel-hover); border-color: var(--accent); }
 
-.cards { position: fixed; inset: 0; z-index: 45; }
-.cards:empty { display: none; }
-.cards::before {
+.onecard { position: fixed; inset: 0; z-index: 45; }
+.onecard:empty { display: none; }
+.onecard::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -988,7 +1056,7 @@ body.has-sheet { overflow: hidden; }
   -webkit-backdrop-filter: blur(14px);
 }
 
-.cards__inner {
+.onecard__inner {
   position: absolute;
   inset: 0;
   display: flex;
@@ -1000,20 +1068,20 @@ body.has-sheet { overflow: hidden; }
   transform: translateY(8px);
   transition: opacity 260ms var(--ease), transform 260ms var(--ease);
 }
-.cards__inner--in { opacity: 1; transform: none; }
+.onecard__inner--in { opacity: 1; transform: none; }
 
-.cards__head { display: flex; align-items: center; gap: 12px; }
-.cards__count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cards__bar { flex: 1; height: 5px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
-.cards__bar span {
+.onecard__head { display: flex; align-items: center; gap: 12px; }
+.onecard__count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.onecard__bar { flex: 1; height: 5px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+.onecard__bar span {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   transition: width 400ms var(--ease);
 }
-.cards__exit { width: 40px; height: 40px; }
+.onecard__exit { width: 40px; height: 40px; }
 
-.cards__body {
+.onecard__body {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1023,23 +1091,23 @@ body.has-sheet { overflow: hidden; }
   text-align: center;
   min-height: 0;
 }
-.cards__section {
+.onecard__section {
   font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
 }
-.cards__title {
+.onecard__title {
   font-size: clamp(26px, 7vw, 40px);
   font-weight: 700;
   line-height: 1.15;
   max-width: 16ch;
   text-wrap: balance;
 }
-.cards__minutes { font-size: 15px; color: var(--muted); }
+.onecard__minutes { font-size: 15px; color: var(--muted); }
 
 /* The target is the bottom half of the screen: no aiming, one hand, dark room. */
-.cards__check {
+.onecard__check {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1057,10 +1125,10 @@ body.has-sheet { overflow: hidden; }
   box-shadow: 0 18px 50px -22px var(--glow);
   transition: transform 120ms var(--ease), filter var(--speed) var(--ease);
 }
-.cards__check:hover { filter: brightness(1.06); }
-.cards__check:active { transform: scale(0.985); }
+.onecard__check:hover { filter: brightness(1.06); }
+.onecard__check:active { transform: scale(0.985); }
 
-.cards__flash {
+.onecard__flash {
   position: absolute;
   top: 18px;
   font-size: 15px;
@@ -1069,8 +1137,8 @@ body.has-sheet { overflow: hidden; }
   animation: xp-rise 0.9s var(--ease) forwards;
 }
 
-.cards__row { display: flex; gap: 8px; }
-.cards__minor {
+.onecard__row { display: flex; gap: 8px; }
+.onecard__minor {
   flex: 1;
   display: flex;
   align-items: center;
@@ -1082,10 +1150,10 @@ body.has-sheet { overflow: hidden; }
   color: var(--muted);
   font-size: 14px;
 }
-.cards__minor:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
-.cards__minor:disabled { opacity: 0.35; }
+.onecard__minor:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+.onecard__minor:disabled { opacity: 0.35; }
 
-.cards__done {
+.onecard__done {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1095,14 +1163,14 @@ body.has-sheet { overflow: hidden; }
   text-align: center;
   color: var(--good);
 }
-.cards__done h2 { font-size: 26px; font-weight: 700; color: var(--text); }
-.cards__done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: var(--sp-4); }
+.onecard__done h2 { font-size: 26px; font-weight: 700; color: var(--text); }
+.onecard__done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: var(--sp-4); }
 
 /* Nothing behind the cards should be reachable, including the sticky bar. */
-.is-cards .topbar,
-.is-cards .app,
-.is-cards .companion-slot,
-.is-cards .lightsout { display: none; }
+.is-onecard .topbar,
+.is-onecard .app,
+.is-onecard .companion-slot,
+.is-onecard .lightsout { display: none; }
 
 /* Toasts raised into the dialog itself, since the top layer ignores z-index. */
 .toasts--in-modal {

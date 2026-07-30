@@ -16,7 +16,14 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
   sections at the edges, so nothing needs a mouse.
 - On a phone every row action lives in a bottom sheet behind `⋯` — thumb-sized targets,
   and the task title gets the width instead of five buttons. Drag-and-drop is a pointer
-  affordance; touch reordering goes through the sheet.
+  affordance; touch reordering goes through the sheet. The sheet's grip is a real handle:
+  drag or flick it down to dismiss.
+- **Nothing hands you to the operating system.** No `<select>`, no `confirm()`, no native
+  time wheel — the bedtime, the motion setting and every "are you sure" are the app's own
+  controls, in the app's own type, and none of them slide a grey system panel over your
+  night.
+- Adding a section asks what to call it first, rather than dropping a row named
+  "New section" into the list.
 - **Adding a task is three taps**: type the words, tap how long (30s/1/2/5/10/15/30), tap
   which part of the night. The sheet stays open so you can rattle off several. Nothing
   asks you to remember a syntax at midnight — though the quick-add box on a keyboard
@@ -134,7 +141,7 @@ node tools/make-icons.mjs
 index.html            app shell
 css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
-js/render/            checklist, header, modals, sheet, add-task, cards, goodnight
+js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator
 sw.js                 cache-first service worker

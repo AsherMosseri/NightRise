@@ -10,7 +10,7 @@ import { initChecklist, renderChecklist, floatXp } from './render/checklist.js';
 import { initHeader, renderHeader, renderTonight } from './render/header.js';
 import { initModals, openModal, closeModal } from './render/modals.js';
 import { initSheet, openSheet } from './render/sheet.js';
-import { openAddTask } from './render/add-task.js';
+import { openAddTask, openAddSection } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
 import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown } from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
@@ -282,11 +282,7 @@ function boot() {
 
   initKeys({
     onNewTask: () => $('#quick-add-input').focus(),
-    onNewSection: () => {
-      const section = addSection('New section');
-      const node = document.querySelector(`[data-focus="section-edit:${section.id}"]`);
-      node?.focus();
-    },
+    onNewSection: () => openAddSection(),
     onQuickAdd: () => $('#quick-add-input').focus(),
     onShop: () => openPanel('shop'),
     onStarMap: () => openPanel('starmap'),

@@ -22,9 +22,12 @@ your night lives in `localStorage` and can be exported to a JSON file whenever y
   asks you to remember a syntax at midnight — though the quick-add box on a keyboard
   still understands `Floss #wind-down !2` if you want it.
 - **Odd durations are first-class.** Estimates are stored in minutes and quantised to a
-  half, so a thirty-second job is `30s` and a shower is `7½m`. `Other…` in the add sheet
-  opens a stepper whose step size grows with the number; typing works too, in the sheet,
-  the row chip, or as `!7.5` / `!30s` in quick add.
+  half, so a thirty-second job is `30s` and a shower is `7½m`. `Other…` opens a number
+  pad of our own — eleven big keys and a delete, no system keyboard shoving the sheet off
+  the screen. Typing works too: the row chip, or `!7.5` / `!30s` in quick add.
+- **You name your own first section.** With an empty list the add sheet asks what to call
+  this part of the night (`Tonight` if you leave it blank) instead of inventing a section
+  behind your back and telling you about it in a toast.
 - **One at a time** (`F`) hides the list and shows a single task with a check target
   filling the bottom third of the screen. A twelve-row list at 11:40pm is twelve
   decisions; a card is a prompt. `Later` pushes one to the back of the sitting.
@@ -139,7 +142,10 @@ sw.js                 cache-first service worker
 
 Icons are one set: every glyph is measured once, then centred and scaled to a common
 optical span with its stroke width compensated, so a dense cog and a sparse bar chart
-read at the same weight.
+read at the same weight. Where an icon sits beside a label, `js/optical.js` measures the
+font the device actually loaded and publishes `--icon-nudge`, which lifts the glyph onto
+the label's cap-height centre — `align-items: center` aligns line boxes, and a line box
+is mostly the empty room a font reserves for accents and descenders.
 
 State flows one way: the UI calls an action, the action mutates the single store in
 `js/state.js`, and subscribers re-render. One-off effects (sounds, shooting stars, toasts)

@@ -25,8 +25,33 @@ a { color: var(--accent); }
 code, kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
 svg { display: block; }
 
+/* Icons that sit on a line of text, lifted onto its cap-height centre. The
+   list is explicit because CSS cannot ask "is there a text node next to this
+   icon?" — everything here is a control whose icon shares one line with a
+   label. Icon-only buttons and the dial are deliberately absent: nothing to
+   align them to. */
+.topbar__brand > svg,
+.stat > svg,
+.chip > svg,
+.pacing__top > svg,
+.quest__head > svg,
+.envelope > svg,
+.quest-compact > svg,
+.focus-btn > svg,
+.lightsout > svg,
+.quick-add-tap > svg,
+.section__add-tap > svg,
+.add-section > svg,
+.cards__minor > svg,
+.btn > svg { transform: translateY(var(--icon-nudge)); }
+
 :root {
   --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Measured at boot by js/optical.js — how far an icon must move to sit on the
+     cap-height centre of the label beside it rather than on its line box.
+     Zero until measured, and zero if the measurement looks wrong. */
+  --icon-nudge: 0em;
 
   --r-sm: 8px;
   --r-md: 12px;

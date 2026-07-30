@@ -10,16 +10,15 @@ import { h, icon } from '../dom.js';
 import { getState } from '../state.js';
 import { addTask, addSection } from '../actions.js';
 import { openSheet, closeSheet } from './sheet.js';
-import { toast } from '../toast.js';
 import {
-  plural, formatMinutesShort, formatMinutesClock, roundMinutes, stepMinutes,
+  plural, formatMinutesShort, formatMinutesClock, roundMinutes, keypadPress,
 } from '../util.js';
 
 /**
  * Rounded, human durations. Most things you do at night land on one of these,
  * and picking one is a tap. But some things genuinely take thirty seconds and
- * some take seven minutes, so "Other" opens a stepper rather than pretending
- * every chore rounds to five.
+ * some take seven, so "Other…" opens a number pad rather than pretending every
+ * chore rounds to five.
  */
 export const TIME_CHOICES = [0.5, 1, 2, 5, 10, 15, 30];
 const DEFAULT_MINUTES = 5;
@@ -51,52 +50,12 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
 
   const timeRow = h('div', { class: 'chipset', role: 'group', 'aria-label': 'How long will it take?' });
   const customSlot = h('div', { class: 'addsheet__slot' });
-
-  const readout = h('span', { class: 'stepper__readout', role: 'status', 'aria-live': 'polite' },
-    formatMinutesClock(minutes));
-
-  const customInput = h('input', {
-    class: 'stepper__input',
-    type: 'number',
-    min: '0',
-    max: '600',
-    step: '0.5',
-    inputMode: 'decimal',
-    'aria-label': 'Minutes — 0.5 is thirty seconds',
-    value: String(minutes),
+  const pad = buildKeypad(minutes, (value) => {
+    minutes = value;
+    syncTime({ keepPad: true });
   });
 
-  const bump = (direction) => {
-    minutes = stepMinutes(minutes, direction);
-    customInput.value = String(minutes);
-    readout.textContent = formatMinutesClock(minutes);
-  };
-
-  const customRow = h('div', { class: 'stepper' },
-    h('button', {
-      type: 'button', class: 'stepper__btn', 'aria-label': 'Less time', onClick: () => bump(-1),
-    }, icon('minus', { size: 16 })),
-    customInput,
-    h('span', { class: 'stepper__unit' }, 'min'),
-    h('button', {
-      type: 'button', class: 'stepper__btn', 'aria-label': 'More time', onClick: () => bump(1),
-    }, icon('plus', { size: 16 })),
-    readout);
-
-  customInput.addEventListener('input', () => {
-    const next = roundMinutes(customInput.value);
-    if (next !== null) minutes = next;
-    readout.textContent = formatMinutesClock(minutes);
-  });
-  // Only tidy the field once they stop typing — rewriting it mid-keystroke
-  // turns "7.5" into "7" under your thumb.
-  customInput.addEventListener('blur', () => { customInput.value = String(minutes); });
-  customInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') { event.preventDefault(); submit(); }
-    event.stopPropagation();
-  });
-
-  const syncTime = () => {
+  const syncTime = ({ keepPad = false } = {}) => {
     for (const [i, b] of timeButtons.entries()) {
       const on = !custom && TIME_CHOICES[i] === minutes;
       b.classList.toggle('is-on', on);
@@ -104,9 +63,10 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
     }
     otherButton.classList.toggle('is-on', custom);
     otherButton.setAttribute('aria-pressed', custom ? 'true' : 'false');
-    // Added and removed rather than hidden: a hidden input still answers the
-    // sheet's tab trap, and focus would vanish into it.
-    customSlot.replaceChildren(...(custom ? [customRow] : []));
+    // Added and removed rather than hidden: hidden controls still answer the
+    // sheet's tab trap, and focus would vanish into them.
+    customSlot.replaceChildren(...(custom ? [pad.node] : []));
+    if (custom && !keepPad) pad.set(minutes);
   };
 
   const timeButtons = TIME_CHOICES.map((value) => h('button', {
@@ -116,8 +76,6 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
     onClick: () => {
       minutes = value;
       custom = false;
-      customInput.value = String(minutes);
-      readout.textContent = formatMinutesClock(minutes);
       syncTime();
       input.focus();
     },
@@ -130,32 +88,60 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
     onClick: () => {
       custom = !custom;
       syncTime();
-      if (custom) customInput.focus();
-      else input.focus();
+      if (!custom) input.focus();
     },
   }, 'Other…');
 
   timeRow.append(...timeButtons, otherButton);
 
-  const sectionRow = h('div', { class: 'chipset', role: 'group', 'aria-label': 'Which part of the night?' });
-  const sectionButtons = sections.map((section) => {
-    const button = h('button', {
+  /* Where. With no sections yet this is a name to type, not a list to pick
+     from: the app used to invent "Tonight" behind your back and tell you about
+     it in a toast, which is a decision made for you about your own night. */
+  const nameInput = h('input', {
+    class: 'addsheet__input addsheet__input--section',
+    type: 'text',
+    placeholder: 'Tonight',
+    'aria-label': 'Name this part of the night',
+    autocomplete: 'off',
+    autocapitalize: 'words',
+    spellcheck: 'false',
+  });
+
+  const sectionSlot = h('div', { class: 'addsheet__slot' });
+  const sectionLabel = h('p', { class: 'addsheet__label' }, 'Where?');
+
+  const renderWhere = () => {
+    const live = getState();
+    const list = live.template.order.map((id) => live.template.sections[id]).filter(Boolean);
+    if (!list.length) {
+      sectionLabel.textContent = 'Call this part of the night…';
+      sectionSlot.replaceChildren(nameInput);
+      return;
+    }
+    if (list.length === 1) {
+      sectionLabel.textContent = 'Where?';
+      sectionSlot.replaceChildren(h('p', { class: 'addsheet__where' }, list[0].title));
+      return;
+    }
+    sectionLabel.textContent = 'Where?';
+    const row = h('div', { class: 'chipset', role: 'group', 'aria-label': 'Which part of the night?' });
+    const buttons = list.map((section) => h('button', {
       type: 'button',
       class: `chip-toggle ${section.id === target ? 'is-on' : ''}`.trim(),
       'aria-pressed': section.id === target ? 'true' : 'false',
       onClick: () => {
         target = section.id;
-        for (const [i, b] of sectionButtons.entries()) {
-          const on = sections[i].id === target;
-          b.classList.toggle('is-on', on);
-          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        for (const [i, other] of buttons.entries()) {
+          const on = list[i].id === target;
+          other.classList.toggle('is-on', on);
+          other.setAttribute('aria-pressed', on ? 'true' : 'false');
         }
         input.focus();
       },
-    }, section.title);
-    return button;
-  });
-  sectionRow.append(...sectionButtons);
+    }, section.title));
+    row.append(...buttons);
+    sectionSlot.replaceChildren(row);
+  };
 
   const submit = () => {
     const title = input.value.trim();
@@ -163,33 +149,39 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
       input.focus();
       return;
     }
-    if (!target) target = addSection('Tonight').id;
+    if (!target) target = addSection(nameInput.value.trim() || 'Tonight').id;
     addTask(target, title, minutes);
     added += 1;
     input.value = '';
     // Stay open: adding three things in a row should not cost three trips.
     status.textContent = `${plural(added, 'task', 'tasks')} added. Another?`;
+    renderWhere();
     input.focus();
   };
 
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      submit();
-    }
-    event.stopPropagation();
-  });
+  for (const field of [input, nameInput]) {
+    field.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (field === nameInput) input.focus();
+        else submit();
+      }
+      event.stopPropagation();
+    });
+  }
 
   const content = h('div', { class: 'addsheet' },
     input,
     h('p', { class: 'addsheet__label' }, 'How long?'),
     timeRow,
     customSlot,
-    sections.length > 1 ? h('p', { class: 'addsheet__label' }, 'Where?') : null,
-    sections.length > 1 ? sectionRow : null,
+    sectionLabel,
+    sectionSlot,
     h('button', { type: 'button', class: 'btn btn--primary addsheet__go', onClick: submit },
       icon('plus', { size: 16 }), 'Add it'),
     status);
+
+  renderWhere();
 
   openSheet({
     title: 'Add a task',
@@ -203,14 +195,84 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
   });
 }
 
+/* ------------------------------------------------------------------ keypad */
+
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'];
+
+/**
+ * A number pad of our own rather than the phone's keyboard. The system keypad
+ * is a spreadsheet tool: small keys, a caret to place, and it shoves the sheet
+ * halfway off the screen. This is eleven big targets and a delete, and it costs
+ * nothing at midnight.
+ */
+export function buildKeypad(initial, onChange) {
+  let typed = String(initial);
+  // The pad opens showing whatever was already chosen. The first key you press
+  // should replace it, the way a calculator does — not append to it.
+  let fresh = true;
+
+  const value = h('span', { class: 'keypad__value' }, typed);
+  const unit = h('span', { class: 'keypad__unit' }, 'min');
+  const hint = h('span', { class: 'keypad__hint', role: 'status', 'aria-live': 'polite' },
+    formatMinutesClock(initial));
+
+  const commit = () => {
+    const parsed = roundMinutes(typed === '' || typed === '.' ? 0 : typed) ?? 0;
+    value.textContent = typed === '' ? '0' : typed;
+    hint.textContent = formatMinutesClock(parsed);
+    onChange(parsed);
+  };
+
+  const press = (key) => {
+    if (fresh && key !== 'del') typed = '';
+    fresh = false;
+    typed = keypadPress(typed, key);
+    commit();
+  };
+
+  const keyButtons = KEYS.map((key) => h('button', {
+    type: 'button',
+    class: `keypad__key ${key === '.' ? 'keypad__key--dot' : ''}`.trim(),
+    'aria-label': key === '.' ? 'Decimal point' : key,
+    onClick: () => press(key),
+  }, key));
+
+  const del = h('button', {
+    type: 'button',
+    class: 'keypad__key keypad__key--del',
+    'aria-label': 'Delete a digit',
+    onClick: () => press('del'),
+  }, icon('back', { size: 18 }));
+
+  const grid = h('div', { class: 'keypad__grid' }, ...keyButtons, del);
+
+  const node = h('div', { class: 'keypad' },
+    h('div', { class: 'keypad__display' }, value, unit, hint),
+    grid);
+
+  // A hardware keyboard should reach the same pad, not a second code path.
+  node.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (/^[0-9]$/.test(event.key)) press(event.key);
+    else if (event.key === '.') press('.');
+    else if (event.key === 'Backspace') press('del');
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  return {
+    node,
+    set(next) {
+      typed = String(next);
+      fresh = true;
+      commit();
+    },
+  };
+}
+
 /** Used by the empty state, where there is nowhere to put a task yet. */
 export function openFirstTask() {
-  if (!getState().template.order.length) {
-    const section = addSection('Tonight');
-    toast('Made you a section', { tone: 'info', iconName: 'plus', detail: 'Rename it whenever you like.' });
-    openAddTask({ sectionId: section.id });
-    return;
-  }
   openAddTask();
 }
 

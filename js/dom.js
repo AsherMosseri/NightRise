@@ -107,6 +107,7 @@ export function withFocus(host, render) {
 const ICON_PATHS = {
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
+  back: 'M10 5h9a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-9L3 12zM13 9.5l5 5M18 9.5l-5 5',
   trash: 'M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6',
   pencil: 'M4 20h4L20 8l-4-4L4 16v4z',
   up: 'M12 19V5M5 12l7-7 7 7',
@@ -142,6 +143,7 @@ const ICON_BOX = {
   plus: [5, 5, 14, 14, 11.95, 11.95],
   // Same span as `plus`, so the two take the same scale and the bars match.
   minus: [5, 12, 14, 0, 11.95, 11.95],
+  back: [3, 5, 17, 14, 12.2, 11.95],
   trash: [4, 5, 16, 15, 11.95, 12.14],
   pencil: [4, 4, 16, 16, 11.47, 12.43],
   up: [5, 5, 14, 14, 11.95, 10.4],

@@ -139,6 +139,24 @@ export function formatMinutesLong(minutes) {
 }
 
 /**
+ * One key press on the minutes pad, as text in and text out. Kept away from the
+ * DOM so the awkward parts — a lone decimal point, a leading zero, the 600
+ * ceiling — can be tested without a browser.
+ */
+export function keypadPress(typed, key) {
+  const current = String(typed ?? '');
+  if (key === 'del') return current.slice(0, -1);
+  if (key === '.') return current.includes('.') ? current : `${current || '0'}.`;
+  if (!/^[0-9]$/.test(key)) return current;
+  const next = `${current}${key}`;
+  // Refuse rather than truncate: a digit that silently vanishes reads as a
+  // broken key, and the value shown must be the value that gets saved.
+  if ((Number(next) || 0) > MAX_MINUTES) return current;
+  if (next.replace(/\D/g, '').length > 5) return current;
+  return next.replace(/^0+(?=\d)/, '');
+}
+
+/**
  * Stepping an estimate up or down by an amount that matches its size — half
  * minutes near zero, five-minute jumps once you are past ten. One long press
  * should not take you from 30s to 45 minutes, and it should not take forty taps

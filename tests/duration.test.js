@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   roundMinutes, formatMinutesShort, formatMinutesClock, formatMinutesLong, stepMinutes,
-  formatDuration,
+  formatDuration, keypadPress,
 } from '../js/util.js';
 import { createInitialState } from '../js/model.js';
 import { computeStats } from '../js/night.js';
@@ -56,6 +56,27 @@ test('the stepper moves by an amount that suits the size', () => {
   assert.equal(stepMinutes(1, -1), 0.5);
   assert.equal(stepMinutes(3, -1), 2);
   assert.equal(stepMinutes(15, -1), 10);
+});
+
+test('the number pad builds a value one key at a time', () => {
+  const type = (keys) => keys.reduce((acc, k) => keypadPress(acc, k), '');
+  assert.equal(type(['7']), '7');
+  assert.equal(type(['7', '.', '5']), '7.5');
+  assert.equal(type(['0', '7']), '7');
+  assert.equal(type(['.', '5']), '0.5');
+  assert.equal(type(['1', '.', '.', '5']), '1.5');
+  assert.equal(type(['1', '2', 'del']), '1');
+  assert.equal(keypadPress('', 'del'), '');
+  assert.equal(roundMinutes(type(['.', '5'])), 0.5);
+});
+
+test('the number pad refuses a key rather than saving a different number', () => {
+  assert.equal(keypadPress('600', '0'), '600');
+  assert.equal(keypadPress('60', '1'), '60');
+  assert.equal(keypadPress('7', 'x'), '7');
+  // Typing past the half is allowed; it lands on the half when it is saved.
+  assert.equal(keypadPress('1.5', '5'), '1.55');
+  assert.equal(roundMinutes('1.55'), 1.5);
 });
 
 test('half a minute of work left does not read as nothing left', () => {

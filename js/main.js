@@ -21,6 +21,7 @@ import { badgeById, titleForLevel } from './game.js';
 import * as audio from './audio.js';
 import { storageAvailable, flushPersist, STORAGE_KEY, normalizeState } from './storage.js';
 import { plural } from './util.js';
+import { initOptical, applyOpticalNudge } from './optical.js';
 
 const TOPBAR_ICON_SIZE = 18;
 
@@ -43,6 +44,7 @@ function applyCosmetics() {
   const root = document.documentElement;
   root.dataset.theme = equipped.theme || 'midnight';
   root.dataset.font = equipped.font || 'aurora';
+  applyOpticalNudge(); // a different face centres its letters differently
   root.dataset.motion = reducedMotionActive(state) ? 'off' : 'on';
   root.classList.toggle('is-dim', Boolean(settings.dim));
 
@@ -216,6 +218,7 @@ function boot() {
     nightEnd: $('#nightend'),
   });
   initModals($('#modal'));
+  initOptical();
   initSheet($('#sheet'));
   initGoodnight($('#goodnight'));
   initCards($('#cards'), { onClose: () => renderAll() });

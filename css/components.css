@@ -565,6 +565,11 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   border-bottom: none;
   box-shadow: var(--shadow-lg);
   transition: transform 240ms var(--ease);
+  /* With the number pad open and a keyboard up, the sheet can outgrow a small
+     phone. It scrolls rather than pushing "Add it" off the bottom. */
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .sheet--in { transform: translate(-50%, 0); }
 .sheet--out { transform: translate(-50%, 100%); }
@@ -844,52 +849,61 @@ body.has-sheet { overflow: hidden; }
 .addsheet__go { justify-content: center; min-height: 50px; font-size: 15.5px; margin-top: 4px; }
 .addsheet__status { font-size: 12.5px; color: var(--good); min-height: 1.2em; text-align: center; }
 
-/* "Other…" — for the task that really does take seven and a half minutes. */
+/* "Other…" — for the task that really does take seven and a half minutes.
+   Our own pad, not the phone's: the system keypad is small, wants a caret
+   placed, and shoves the sheet off the screen. */
 .addsheet__slot:empty { display: none; }
-.stepper {
+.addsheet__where { font-size: 14px; color: var(--text); font-weight: 600; }
+.addsheet__input--section { font-size: 16px; padding: 12px 14px; }
+
+.keypad {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px;
   border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--panel-2);
 }
-.stepper__btn {
-  display: inline-flex;
+.keypad__display {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 6px 6px;
+}
+.keypad__value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.keypad__unit { font-size: 14px; color: var(--muted); }
+.keypad__hint { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.keypad__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.keypad__key {
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
+  min-height: 46px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
-}
-.stepper__btn:hover { border-color: var(--accent); color: var(--accent); }
-.stepper__input {
-  width: 68px;
-  flex: none;
-  padding: 8px 6px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--panel);
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 650;
-  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  outline: none;
+  transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
 }
-.stepper__input:focus { border-color: var(--accent); }
-.stepper__unit { font-size: 12.5px; color: var(--muted); }
-.stepper__readout {
-  margin-left: auto;
-  font-size: 12.5px;
-  color: var(--muted);
-  text-align: right;
-}
+.keypad__key:hover { border-color: var(--border-strong); background: var(--panel-hover); }
+.keypad__key:active { background: var(--accent); border-color: transparent; color: #0a0c1c; }
+.keypad__key--del { color: var(--muted); }
+/* A full stop at button size is nearly invisible; give it something to hit. */
+.keypad__key--dot { font-size: 30px; line-height: 0.4; align-items: flex-end; padding-bottom: 14px; }
 
 .chipset { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-toggle {

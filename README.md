@@ -80,7 +80,7 @@ it's the scroll.
   one arrives at but never what it is called until you get there — a list of every name you
   will ever be given is a list of endings, and the reveal is the reward.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
-- Badges for streaks, perfect nights, early nights and collection milestones. Nothing in
+- Badges for streaks, clearing the list, stopping early and collection milestones. Nothing in
   the game rewards being awake late: there was a badge for checking something off past
   1am, in the app whose whole argument is that you should be asleep, and it has been
   replaced by two for stopping *before* your bedtime.
@@ -105,7 +105,10 @@ it's the scroll.
   moon whose phase fills with tonight's completion.
 - Bedtime target with a countdown and an on-pace / cutting-it-close / over-budget read.
 - Night history as a heatmap, plus per-task insight — which tasks you actually do, and
-  which have quietly slipped six nights running.
+  which have quietly slipped six nights running. Its stats say which thing they count:
+  **every task done** is nights you cleared the list, sitting beside **to bed on time**,
+  which is the clock. It used to be called "perfect nights", one tile away from a bedtime
+  number, and read like a second one.
 - **A bedtime record, kept separately from the chores.** Every night you end with Lights
   out is stamped with the time and with the target as it stood that night, so changing
   your bedtime later cannot rewrite whether you made it. Insights shows the on-time

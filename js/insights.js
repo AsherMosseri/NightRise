@@ -47,3 +47,17 @@ export function overallRate(state) {
   const sum = history.reduce((acc, h) => acc + (h.pct || 0), 0);
   return Math.round(sum / history.length);
 }
+
+/**
+ * Nights where every task was ticked — deliberately not nights that *scored*
+ * 100%.
+ *
+ * A rain check excuses a task from the percentage, so a night with five of six
+ * rain-checked and one done reads as 100%. That is a fine night and it earns
+ * Full Marks, but it is not a night you did everything, and a stat labelled
+ * "every task done" must not count it. Nights with no tasks at all are not
+ * achievements either.
+ */
+export function nightsFullyCleared(history) {
+  return Object.values(history).filter((h) => h.total > 0 && h.done >= h.total).length;
+}

@@ -96,7 +96,10 @@ export function levelUpDust(level) {
 
 export const BADGES = [
   { id: 'first-night', name: 'First Light', hint: 'Bank your first night', icon: 'moon' },
-  { id: 'perfect', name: 'Flawless Night', hint: 'Finish 100% of a night', icon: 'check' },
+  // Named for the percentage it actually measures. "Flawless Night" sounded
+  // like a night that went well in every way, bedtime included; this one is
+  // only ever about clearing the list.
+  { id: 'perfect', name: 'Full Marks', hint: 'Finish a night at 100%', icon: 'check' },
   { id: 'streak-3', name: 'Three in a Row', hint: 'Hold a 3 night streak', icon: 'flame' },
   { id: 'streak-7', name: 'Week of Nights', hint: 'Hold a 7 night streak', icon: 'flame' },
   { id: 'streak-30', name: 'Moon Cycle', hint: 'Hold a 30 night streak', icon: 'moon' },

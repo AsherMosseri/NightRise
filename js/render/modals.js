@@ -11,7 +11,7 @@ import {
 import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost } from '../constellations.js';
 import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../companion.js';
 import { BADGES, levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
-import { taskInsights, reliableTasks, overallRate } from '../insights.js';
+import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
 import { forceNewNight } from '../night.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
@@ -340,8 +340,10 @@ VIEWS.history = () => {
     return cell;
   });
 
-  const totals = Object.values(state.history);
-  const perfect = totals.filter((h2) => h2.pct >= 100).length;
+  // "Perfect nights" sat one tile away from "to bed on time" and read like a
+  // second bedtime stat. It was never about bedtime: it counts nights you got
+  // through the list. So it now says that, and counts it strictly.
+  const cleared = nightsFullyCleared(state.history);
 
   return {
     title: 'Night History',
@@ -355,7 +357,10 @@ VIEWS.history = () => {
         }, h('strong', {}, String(state.profile.lightsOut?.streak || 0)), h('span', {}, 'to bed on time')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.nightsLogged)), h('span', {}, 'nights logged')),
         h('div', { class: 'stat-box' }, h('strong', {}, `${overallRate(state) ?? 0}%`), h('span', {}, 'average night')),
-        h('div', { class: 'stat-box' }, h('strong', {}, String(perfect)), h('span', {}, 'perfect nights'))),
+        h('div', {
+          class: 'stat-box',
+          title: 'Nights you ticked off every task on the list. Nothing to do with what time you went to bed — a rain-checked task does not count as done.',
+        }, h('strong', {}, String(cleared)), h('span', {}, 'every task done'))),
       h('div', { class: 'heatmap' }, ...cells),
       h('div', { class: 'heatmap__key' },
         h('span', { class: 'muted small' }, 'less'),

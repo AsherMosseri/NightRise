@@ -8,7 +8,7 @@ import {
   grantXp, revokeGrant, levelUpDust, levelFromXp, xpForLevel, checkBadges,
 } from '../js/game.js';
 import { applyReset, RESET_PARTS } from '../js/reset.js';
-import { computeStats } from '../js/night.js';
+import { computeStats, bankNight } from '../js/night.js';
 import { getState, replaceState } from '../js/state.js';
 import { toggleTask } from '../js/actions.js';
 
@@ -136,16 +136,24 @@ test('checking everything and resetting on a loop earns nothing', () => {
   assert.equal(getState().profile.level, 1);
 });
 
-test('each part only takes its own', () => {
+function loaded() {
   const state = fresh();
   state.profile.xp = 900;
   state.profile.level = 4;
   state.profile.stardust = 300;
   state.profile.streak = 6;
-  state.profile.badges = ['first-night'];
+  state.profile.bestStreak = 9;
+  state.profile.lightsOut = { streak: 3, best: 5, lastKey: '2026-07-29' };
+  state.profile.badges = ['first-night', 'streak-3'];
   state.history['2026-07-28'] = { total: 3, done: 3, pct: 100, xp: 30 };
   state.profile.settings.bedtime = '01:00';
   state.profile.inventory.themes.push('aurora');
+  state.profile.tokens = { freeze: 4, raincheck: 6 };
+  return state;
+}
+
+test('each part only takes its own', () => {
+  const state = loaded();
 
   applyReset(state, ['history']);
   assert.deepEqual(state.history, {});
@@ -154,21 +162,51 @@ test('each part only takes its own', () => {
   assert.equal(state.profile.settings.bedtime, '01:00');
 
   applyReset(state, ['unlocks']);
-  assert.equal(state.profile.stardust, 0);
   assert.deepEqual(state.profile.inventory.themes, ['midnight']);
+  assert.deepEqual(state.profile.tokens, { freeze: 1, raincheck: 2 });
+  assert.equal(state.profile.stardust, 300, 'the balance is a separate choice');
   assert.equal(state.profile.xp, 900, 'unlocks are not progress either');
   assert.equal(state.profile.streak, 6);
+
+  applyReset(state, ['stardust']);
+  assert.equal(state.profile.stardust, 0);
+  assert.equal(state.profile.xp, 900, 'and spending money is not losing XP');
 
   applyReset(state, ['progress']);
   assert.equal(state.profile.xp, 0);
   assert.equal(state.profile.level, 1);
-  assert.equal(state.profile.streak, 0);
   assert.deepEqual(state.profile.badges, []);
+  assert.equal(state.profile.streak, 6, 'the streak is its own option now');
   assert.equal(state.profile.settings.bedtime, '01:00', 'settings are still yours');
 
   applyReset(state, ['settings']);
   assert.equal(state.profile.settings.bedtime, '23:30');
   assert.ok(Object.keys(state.template.tasks).length > 0, 'and the list was never touched');
+});
+
+test('resetting the streak leaves everything you earned alone', () => {
+  const state = loaded();
+  applyReset(state, ['streaks']);
+
+  assert.equal(state.profile.streak, 0, 'current');
+  assert.equal(state.profile.bestStreak, 0, 'and best, or the number would never be beatable');
+  assert.deepEqual(state.profile.lightsOut, { streak: 0, best: 0, lastKey: null },
+    'both streaks go together — they are one idea counted two ways');
+
+  assert.equal(state.profile.xp, 900, 'XP is not a streak');
+  assert.equal(state.profile.level, 4);
+  assert.equal(state.profile.stardust, 300);
+  assert.deepEqual(state.profile.badges, ['first-night', 'streak-3'],
+    'holding a streak once is something you did, not somewhere you are');
+  assert.ok(state.history['2026-07-28'], 'and the nights themselves still happened');
+});
+
+test('a fresh streak starts from tonight rather than continuing', () => {
+  const state = loaded();
+  applyReset(state, ['streaks']);
+  state.profile.lastBankedKey = '2026-07-28';
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.streak, 0, 'an empty night does not resurrect the old number');
 });
 
 test('clearing the list clears what was ticked on it', () => {

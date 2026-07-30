@@ -754,7 +754,7 @@ VIEWS.settings = () => {
 async function runReset() {
   const chosen = await chooseAction({
     title: 'What should go?',
-    body: 'Everything you leave unticked is kept exactly as it is.',
+    body: 'Everything you leave unticked is kept exactly as it is. Pick as few as you like.',
     options: RESET_PARTS,
     confirmLabel: 'Reset these',
     cancelLabel: 'Cancel',

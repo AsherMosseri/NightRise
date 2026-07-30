@@ -32,13 +32,23 @@ export const RESET_PARTS = [
   },
   {
     id: 'progress',
-    label: 'Level, XP and streak',
-    hint: 'Back to level 1, no badges, no streak.',
+    label: 'Level, XP and badges',
+    hint: 'Back to level 1 with an empty badge shelf. Streaks and stardust stay.',
+  },
+  {
+    id: 'streaks',
+    label: 'Streaks',
+    hint: 'The list streak and the nights-on-time streak, current and best. Start counting again from tonight.',
+  },
+  {
+    id: 'stardust',
+    label: 'Stardust',
+    hint: 'The balance only. Anything you already bought with it is yours.',
   },
   {
     id: 'unlocks',
-    label: 'Stardust and unlocks',
-    hint: 'Skies, companions, constellations, supplies — all back to the start.',
+    label: 'Everything you unlocked',
+    hint: 'Skies, companions, constellations, supplies — back to the starting set. Your stardust balance is untouched.',
   },
   {
     id: 'settings',
@@ -94,15 +104,11 @@ const APPLY = {
   },
 
   progress(state) {
-    const fresh = createProfile();
     Object.assign(state.profile, {
       xp: 0,
       level: 1,
       maxLevelRewarded: 1,
-      streak: 0,
-      bestStreak: 0,
       badges: [],
-      lightsOut: fresh.lightsOut,
     });
     // The night's awards recorded XP that no longer exists; un-checking later
     // must not subtract it a second time.
@@ -110,10 +116,27 @@ const APPLY = {
     state.night.bonus = null;
   },
 
+  /**
+   * Both streaks, because they are the same idea counted two ways and nobody
+   * wants to zero one and be asked again about the other. Badges stay: holding
+   * a seven-night streak is something you did, not somewhere you are.
+   */
+  streaks(state) {
+    const fresh = createProfile();
+    Object.assign(state.profile, {
+      streak: 0,
+      bestStreak: 0,
+      lightsOut: fresh.lightsOut,
+    });
+  },
+
+  stardust(state) {
+    state.profile.stardust = 0;
+  },
+
   unlocks(state) {
     const fresh = createProfile();
     Object.assign(state.profile, {
-      stardust: 0,
       inventory: fresh.inventory,
       equipped: fresh.equipped,
       tokens: fresh.tokens,

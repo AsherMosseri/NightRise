@@ -116,10 +116,13 @@ it's the scroll.
   in minutes from noon, so 11:50pm and 12:10am are twenty minutes apart rather than 1420.
 - Sleep-safe dim mode (which reaches the dialogs and sheets too), sound effects (muted by
   default), full keyboard control, and `prefers-reduced-motion` support throughout.
-- **Reset what you actually mean.** Settings asks which of six things should go —
-  tonight's checkmarks, the list, history, level and streak, stardust and unlocks,
-  settings — and then confirms exactly those. Clearing tonight's checkmarks hands back
-  the XP and stardust they paid, so it is not a way to farm the same night twice.
+- **Reset what you actually mean.** Settings asks which of eight things should go —
+  tonight's checkmarks, the task list, history, level and XP, streaks, stardust, unlocks,
+  settings — and then confirms exactly those. They are separate because the reasons are:
+  wanting to start the streak count again is not wanting to lose your level, and clearing
+  a stardust balance is not giving back the skies you bought with it. Clearing tonight's
+  checkmarks hands back the XP and stardust they paid, so it is not a way to farm the same
+  night twice.
 - Two tabs stay in sync instead of clobbering each other, pending writes are flushed when
   the tab is backgrounded, and unreadable saved data is preserved under
   `nightcheck.v1.corrupt` rather than silently discarded.

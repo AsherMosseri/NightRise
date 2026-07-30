@@ -9,7 +9,7 @@
 
 import { h, icon } from '../dom.js';
 import { getState, update, emit } from '../state.js';
-import { computeStats } from '../night.js';
+import { computeStats, advanceLightsOutStreak } from '../night.js';
 import { grantXp, checkBadges } from '../game.js';
 import { minutesUntilBedtime, formatClockLabel } from '../time.js';
 import { formatDuration, plural } from '../util.js';
@@ -58,13 +58,7 @@ export function lightsOut() {
     if (!state.night.lightsOutAt) {
       state.night.lightsOutAt = now;
       state.night.lightsOutOnTime = onTime;
-      const lights = state.profile.lightsOut;
-      // One increment per night, however many times you press the button.
-      if (lights.lastKey !== state.night.key) {
-        lights.streak = onTime ? (lights.lastKey ? lights.streak + 1 : 1) : 0;
-        lights.best = Math.max(lights.best, lights.streak);
-        lights.lastKey = state.night.key;
-      }
+      advanceLightsOutStreak(state.profile.lightsOut, state.night.key, onTime);
       grantXp(state, reward.xp, reward.dust);
     }
     // Going to bed on time is the achievement this app is about, so it is

@@ -30,7 +30,7 @@ export const TITLES = [
   { level: 12, name: 'Dusk Warden' },
   { level: 16, name: 'Void Sailor' },
   { level: 20, name: 'Constellation Keeper' },
-  { level: 25, name: 'Keeper of the Long Dark' },
+  { level: 25, name: 'Well Slept' },
 ];
 
 /** XP needed to get from `level` to `level + 1`. */
@@ -85,7 +85,7 @@ export const BADGES = [
   { id: 'streak-30', name: 'Moon Cycle', hint: 'Hold a 30 night streak', icon: 'moon' },
   // `level` marks a badge for where you *are* rather than what you did, so it
   // comes off again if un-checking a task drops you back below it.
-  { id: 'level-5', name: 'Star Gazer', hint: 'Reach level 5', icon: 'star', level: 5 },
+  { id: 'level-5', name: 'Skyward', hint: 'Reach level 5', icon: 'star', level: 5 },
   { id: 'level-10', name: 'Deep Sky', hint: 'Reach level 10', icon: 'star', level: 10 },
   { id: 'combo-max', name: 'Chain Lightning', hint: 'Hit a x2.5 combo', icon: 'flame' },
   /* There was an "After Hours" badge here, for checking something off past 1am.
@@ -93,7 +93,7 @@ export const BADGES = [
      entire argument is that you should be asleep. These two are what it should
      always have been: the same recognition, pointed the other way. */
   { id: 'on-time', name: 'Turned In', hint: 'Stop for the night before your bedtime', icon: 'moon' },
-  { id: 'on-time-3', name: 'Three Early Nights', hint: 'Stop before bedtime three nights running', icon: 'flame' },
+  { id: 'on-time-3', name: 'Clockwork', hint: 'Stop before bedtime three nights running', icon: 'flame' },
   { id: 'collector', name: 'Collector', hint: 'Own 5 shop unlocks', icon: 'bag' },
   { id: 'constellation', name: 'Cartographer', hint: 'Complete a constellation', icon: 'map' },
   { id: 'companion', name: 'Best Friend', hint: 'Raise a companion to tier 3', icon: 'star' },

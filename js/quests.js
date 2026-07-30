@@ -78,7 +78,7 @@ export const QUEST_DEFS = [
   },
   {
     id: 'combo',
-    name: 'Chain Lightning',
+    name: 'Slipstream',
     describe: () => 'Reach a x2.0 combo',
     goal: 4,
     xp: 50,

@@ -75,7 +75,7 @@ it's the scroll.
 
 **The game**
 - XP with a level curve and titles: Dreamer → Night Owl → Star Gazer → Moon Walker →
-  Dusk Warden → Void Sailor → Constellation Keeper.
+  Dusk Warden → Void Sailor → Constellation Keeper → Well Slept.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
 - Badges for streaks, perfect nights, early nights and collection milestones. Nothing in
   the game rewards being awake late: there was a badge for checking something off past

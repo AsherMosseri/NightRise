@@ -5,7 +5,9 @@ import {
   xpForLevel, levelFromXp, titleForLevel, nextTitle, comboMultiplier, taskXp,
   stardustFor, grantXp, applyTaskCompletion, revokeTaskCompletion, chainLengthFor,
   nightCompletionBonus, checkBadges, COMBO_MAX, MOMENTUM_MIN_GAP_MS, momentumWindow,
+  TITLES, BADGES,
 } from '../js/game.js';
+import { QUEST_DEFS } from '../js/quests.js';
 import { createInitialState } from '../js/model.js';
 
 test('the level curve is monotonic and starts where we expect', () => {
@@ -29,7 +31,7 @@ test('titles unlock at their levels', () => {
   assert.equal(titleForLevel(1), 'Dreamer');
   assert.equal(titleForLevel(4), 'Night Owl');
   assert.equal(titleForLevel(5), 'Star Gazer');
-  assert.equal(titleForLevel(99), 'Keeper of the Long Dark');
+  assert.equal(titleForLevel(99), 'Well Slept');
   assert.equal(nextTitle(1).name, 'Night Owl');
   assert.equal(nextTitle(99), null);
 });
@@ -155,4 +157,33 @@ test('badges are only ever awarded once', () => {
   assert.ok(first.includes('streak-7'));
   const second = checkBadges(state, { total: 4, remaining: 2 });
   assert.deepEqual(second, []);
+});
+
+test('no two things you can earn share a name', () => {
+  const named = [
+    ...TITLES.map((t) => ['title', t.name]),
+    ...BADGES.map((b) => ['badge', b.name]),
+    ...QUEST_DEFS.map((q) => ['quest', q.name]),
+  ];
+  const seen = new Map();
+  for (const [kind, name] of named) {
+    const key = name.toLowerCase();
+    assert.equal(seen.has(key), false,
+      `"${name}" is both a ${seen.get(key)} and a ${kind}`);
+    seen.set(key, kind);
+  }
+});
+
+test('nothing in one ladder echoes another rung of it', () => {
+  const groups = { title: TITLES.map((t) => t.name), badge: BADGES.map((b) => b.name) };
+  for (const [kind, names] of Object.entries(groups)) {
+    const words = new Map();
+    for (const name of names) {
+      for (const word of name.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3)) {
+        assert.equal(words.has(word), false,
+          `${kind}s "${words.get(word)}" and "${name}" both hinge on "${word}"`);
+        words.set(word, name);
+      }
+    }
+  }
 });

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak,
+  advanceLightsOutStreak,
 } from '../js/night.js';
 import { createInitialState } from '../js/model.js';
 import { applyTaskCompletion, checkBadges, BADGES } from '../js/game.js';
@@ -292,4 +293,40 @@ test('a retired badge is dropped from a saved profile', () => {
   state.profile.badges = ['first-night', 'after-hours', 'perfect'];
   const loaded = normalizeState(JSON.parse(JSON.stringify(state)), new Date(2026, 6, 29, 22, 0));
   assert.deepEqual(loaded.profile.badges, ['first-night', 'perfect']);
+});
+
+test('the lights-out streak only counts nights that are actually in a row', () => {
+  const lights = { streak: 0, best: 0, lastKey: null };
+  advanceLightsOutStreak(lights, '2026-07-27', true);
+  assert.equal(lights.streak, 1);
+  advanceLightsOutStreak(lights, '2026-07-28', true);
+  advanceLightsOutStreak(lights, '2026-07-29', true);
+  assert.equal(lights.streak, 3, 'three consecutive nights');
+  assert.equal(lights.best, 3);
+
+  // A gap restarts it, however good the night was.
+  advanceLightsOutStreak(lights, '2026-08-05', true);
+  assert.equal(lights.streak, 1, 'a week later is not "running"');
+  assert.equal(lights.best, 3, 'but the best still stands');
+
+  // Pressing it twice on the same night changes nothing.
+  advanceLightsOutStreak(lights, '2026-08-05', true);
+  assert.equal(lights.streak, 1);
+
+  // And going to bed late breaks it.
+  advanceLightsOutStreak(lights, '2026-08-06', false);
+  assert.equal(lights.streak, 0);
+});
+
+test('Clockwork needs three nights that really were consecutive', () => {
+  const state = stateWithProgress(0);
+  const lights = state.profile.lightsOut;
+  for (const key of ['2026-07-01', '2026-07-10', '2026-07-20']) {
+    advanceLightsOutStreak(lights, key, true);
+  }
+  assert.equal(checkBadges(state, computeStats(state)).includes('on-time-3'), false,
+    'three scattered nights are not three nights running');
+
+  for (const key of ['2026-07-21', '2026-07-22']) advanceLightsOutStreak(lights, key, true);
+  assert.ok(checkBadges(state, computeStats(state)).includes('on-time-3'));
 });

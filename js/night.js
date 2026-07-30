@@ -186,6 +186,23 @@ export function rolloverIfNeeded(state, now = new Date()) {
 }
 
 /**
+ * The lights-out streak: nights you stopped before your bedtime, back to back.
+ *
+ * "In a row" has to mean consecutive dates. This used to add one whenever there
+ * was any previous on-time night at all, so three scattered across a month read
+ * as three nights running — and a badge that says "three nights running" has to
+ * be telling the truth.
+ */
+export function advanceLightsOutStreak(lights, key, onTime) {
+  if (!lights || lights.lastKey === key) return lights; // once per night, however many presses
+  const consecutive = Boolean(lights.lastKey) && keyDiffDays(lights.lastKey, key) === 1;
+  lights.streak = onTime ? (consecutive ? (lights.streak || 0) + 1 : 1) : 0;
+  lights.best = Math.max(lights.best || 0, lights.streak);
+  lights.lastKey = key;
+  return lights;
+}
+
+/**
  * Manual "start a fresh night" — bank what you did, then hand back a clean list
  * for the *same* night. It is still tonight; you have not gone to bed and woken
  * up, you have just decided to run the evening again.

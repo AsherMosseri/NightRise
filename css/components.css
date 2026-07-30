@@ -452,26 +452,90 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .insight__bar { height: 4px; border-radius: 999px; background: var(--panel-solid); overflow: hidden; margin: 6px 0 4px; }
 .insight__bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
 
-.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.badge {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+/* Achievements. A card is a family, not a badge: an icon that never changes,
+   a name that does, and a bar. The bar is what makes it worth opening. */
+
+.achs { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 10px; }
+.ach {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 11px;
   padding: 11px;
   border-radius: var(--r-md);
   border: 1px dashed var(--border);
-  color: var(--muted);
-  opacity: 0.6;
+  background: color-mix(in srgb, var(--panel-2) 45%, transparent);
 }
-.badge.is-earned {
-  opacity: 1;
+.ach.is-earned {
   border-style: solid;
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
   background: var(--panel-2);
-  color: var(--accent);
 }
-.badge__name { font-size: 13px; font-weight: 650; color: var(--text); }
-.badge__hint { font-size: 11.5px; }
+.ach.is-maxed { border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+
+.ach__badge {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.ach.is-earned .ach__badge {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.ach.is-maxed .ach__badge {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 60%, transparent);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+}
+
+.ach__body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ach__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ach__name { font-size: 13.5px; font-weight: 650; color: var(--text); }
+.ach:not(.is-earned) .ach__name { color: var(--muted); }
+.ach__tier {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.ach.is-maxed .ach__tier { color: var(--warn); }
+
+.ach__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  overflow: hidden;
+}
+.ach__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ach.is-maxed .ach__bar > span { background: linear-gradient(90deg, var(--warn), var(--accent-2)); }
+.ach__hint { font-size: 11.5px; color: var(--muted); }
+
+.ach__pips { grid-column: 2; display: flex; gap: 4px; }
+.ach__pip {
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+.ach__pip.is-lit { background: color-mix(in srgb, var(--accent) 75%, transparent); }
+.ach.is-maxed .ach__pip.is-lit { background: color-mix(in srgb, var(--warn) 80%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ach__bar > span { transition: none; }
+}
 
 /* ------------------------------------------------------------ bedtime chart */
 
@@ -1364,10 +1428,9 @@ body.has-sheet { overflow: hidden; }
   width: min(420px, calc(100% - 28px));
 }
 
-/* Unearned badge hints were 3.4:1 — the opacity, not the colour, was the problem. */
-.badge { opacity: 1; color: var(--muted); }
-.badge:not(.is-earned) { border-style: dashed; }
-.badge:not(.is-earned) .badge__name { color: var(--muted); }
+/* Locked cards are dimmed with colour, never opacity: the hints on the old
+   badge grid fell to 3.4:1 the moment 0.6 opacity was laid over muted text. */
+.ach { opacity: 1; }
 
 /* The tap target belongs on the checkbox, not spilling 16px into the title. */
 @media (max-width: 640px) {

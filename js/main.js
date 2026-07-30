@@ -17,7 +17,8 @@ import { initToasts, toast, celebrate } from './toast.js';
 import { initSky, setMoonFill, setTrail, setConstellations, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations } from './constellations.js';
 import { initKeys, parseQuickAdd } from './keys.js';
-import { badgeById, titleForLevel } from './game.js';
+import { titleForLevel } from './game.js';
+import { checkAchievements } from './achievements.js';
 import * as audio from './audio.js';
 import { storageAvailable, flushPersist, STORAGE_KEY, normalizeState } from './storage.js';
 import { plural } from './util.js';
@@ -128,10 +129,17 @@ function wireEffects() {
     });
   });
 
-  on('badge', (ids) => {
-    for (const id of ids) {
-      const badge = badgeById(id);
-      if (badge) toast(`Badge: ${badge.name}`, { tone: 'win', iconName: badge.icon, detail: badge.hint });
+  on('achievement', (earned) => {
+    for (const step of earned) announceTier(step);
+  });
+
+  on('achievement:lost', (lost) => {
+    for (const step of lost) {
+      toast(`${step.name} lost`, {
+        tone: 'warn',
+        iconName: 'undo',
+        detail: 'You dropped back below it. Earn the level again and it comes back.',
+      });
     }
   });
 
@@ -202,10 +210,19 @@ function announceRollover(result) {
     detail: `${parts.join(' · ')} · streak now ${result.streakAfter}`,
     duration: 6500,
   });
-  for (const id of result.badges || []) {
-    const badge = badgeById(id);
-    if (badge) toast(`Badge: ${badge.name}`, { tone: 'win', iconName: badge.icon, detail: badge.hint });
-  }
+  for (const step of result.achievements || []) announceTier(step);
+}
+
+/** One tier reached. Says which rung of how many, and what it paid. */
+function announceTier(step) {
+  const rung = step.tiers > 1 ? ` · tier ${step.tier} of ${step.tiers}` : '';
+  const paid = step.dust ? ` · +${step.dust} stardust` : '';
+  toast(step.name, {
+    tone: 'win',
+    iconName: step.icon,
+    detail: `${step.hint}${rung}${paid}`,
+    duration: 6000,
+  });
 }
 
 function checkRollover() {
@@ -237,6 +254,14 @@ function watchScrolling() {
 }
 
 function boot() {
+  // Settle the achievement ladders before anything renders. A save can arrive
+  // already past a rung it never recorded — an old badge list migrated, a night
+  // banked in another tab, a save edited by hand — and a card that showed the
+  // tier while the profile held the one below would be promising something
+  // nothing had actually written down. No toasts: these are not news, they
+  // happened before this launch.
+  update((s) => { checkAchievements(s, computeStats(s)); });
+
   watchScrolling();
   initToasts($('#toasts'), $('#toasts-modal'));
   initChecklist($('#sections'));

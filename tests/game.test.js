@@ -4,9 +4,10 @@ import assert from 'node:assert/strict';
 import {
   xpForLevel, levelFromXp, titleForLevel, nextTitle, comboMultiplier, taskXp,
   stardustFor, grantXp, applyTaskCompletion, revokeTaskCompletion, chainLengthFor,
-  nightCompletionBonus, checkBadges, COMBO_MAX, MOMENTUM_MIN_GAP_MS, momentumWindow,
-  TITLES, BADGES, titleLadder,
+  nightCompletionBonus, COMBO_MAX, MOMENTUM_MIN_GAP_MS, momentumWindow,
+  TITLES, titleLadder,
 } from '../js/game.js';
+import { ACHIEVEMENTS } from '../js/achievements.js';
 import { QUEST_DEFS } from '../js/quests.js';
 import { createInitialState } from '../js/model.js';
 
@@ -148,21 +149,12 @@ test('the completion bonus grows with the size of the night', () => {
   assert.ok(nightCompletionBonus({ total: 12 }).xp > nightCompletionBonus({ total: 3 }).xp);
 });
 
-test('badges are only ever awarded once', () => {
-  const state = createInitialState();
-  state.profile.streak = 7;
-  state.profile.nightsLogged = 2;
-  const first = checkBadges(state, { total: 4, remaining: 2 });
-  assert.ok(first.includes('streak-3'));
-  assert.ok(first.includes('streak-7'));
-  const second = checkBadges(state, { total: 4, remaining: 2 });
-  assert.deepEqual(second, []);
-});
+const TIER_NAMES = ACHIEVEMENTS.flatMap((a) => a.tiers.map((t) => t.name));
 
 test('no two things you can earn share a name', () => {
   const named = [
     ...TITLES.map((t) => ['title', t.name]),
-    ...BADGES.map((b) => ['badge', b.name]),
+    ...TIER_NAMES.map((name) => ['achievement', name]),
     ...QUEST_DEFS.map((q) => ['quest', q.name]),
   ];
   const seen = new Map();
@@ -175,7 +167,9 @@ test('no two things you can earn share a name', () => {
 });
 
 test('nothing in one ladder echoes another rung of it', () => {
-  const groups = { title: TITLES.map((t) => t.name), badge: BADGES.map((b) => b.name) };
+  // Across families too, not just within one: a tier called "First Buy" beside
+  // a tier called "First Light" is two rungs you cannot tell apart in a toast.
+  const groups = { title: TITLES.map((t) => t.name), achievement: TIER_NAMES };
   for (const [kind, names] of Object.entries(groups)) {
     const words = new Map();
     for (const name of names) {

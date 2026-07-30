@@ -94,71 +94,11 @@ export function levelUpDust(level) {
   return 40 + level * 10;
 }
 
-export const BADGES = [
-  { id: 'first-night', name: 'First Light', hint: 'Bank your first night', icon: 'moon' },
-  // Named for the percentage it actually measures. "Flawless Night" sounded
-  // like a night that went well in every way, bedtime included; this one is
-  // only ever about clearing the list.
-  { id: 'perfect', name: 'Full Marks', hint: 'Finish a night at 100%', icon: 'check' },
-  { id: 'streak-3', name: 'Three in a Row', hint: 'Hold a 3 night streak', icon: 'flame' },
-  { id: 'streak-7', name: 'Week of Nights', hint: 'Hold a 7 night streak', icon: 'flame' },
-  { id: 'streak-30', name: 'Moon Cycle', hint: 'Hold a 30 night streak', icon: 'moon' },
-  // `level` marks a badge for where you *are* rather than what you did, so it
-  // comes off again if un-checking a task drops you back below it.
-  { id: 'level-5', name: 'Skyward', hint: 'Reach level 5', icon: 'star', level: 5 },
-  { id: 'level-10', name: 'Deep Sky', hint: 'Reach level 10', icon: 'star', level: 10 },
-  { id: 'combo-max', name: 'Chain Lightning', hint: 'Hit a x2.5 combo', icon: 'flame' },
-  /* There was an "After Hours" badge here, for checking something off past 1am.
-     A reward for still being awake at one in the morning, in the app whose
-     entire argument is that you should be asleep. These two are what it should
-     always have been: the same recognition, pointed the other way. */
-  { id: 'on-time', name: 'Turned In', hint: 'Stop for the night before your bedtime', icon: 'moon' },
-  { id: 'on-time-3', name: 'Clockwork', hint: 'Stop before bedtime three nights running', icon: 'flame' },
-  { id: 'collector', name: 'Collector', hint: 'Own 5 shop unlocks', icon: 'bag' },
-  { id: 'constellation', name: 'Cartographer', hint: 'Complete a constellation', icon: 'map' },
-  { id: 'companion', name: 'Best Friend', hint: 'Raise a companion to tier 3', icon: 'star' },
-];
-
-export function badgeById(id) {
-  return BADGES.find((b) => b.id === id) || null;
-}
-
-function inventorySize(profile) {
-  return Object.values(profile.inventory).reduce((sum, list) => sum + list.length, 0);
-}
-
-/** Returns ids of badges newly earned by the current state. */
-export function checkBadges(state, stats) {
-  const { profile } = state;
-  const owned = new Set(profile.badges);
-  const earned = [];
-  const award = (id, condition) => {
-    if (condition && !owned.has(id)) {
-      owned.add(id);
-      earned.push(id);
-    }
-  };
-
-  award('first-night', profile.nightsLogged >= 1);
-  award('perfect', Object.values(state.history).some((h) => h.pct >= 100 && h.total > 0)
-    || (stats && stats.total > 0 && stats.remaining === 0));
-  award('streak-3', profile.streak >= 3);
-  award('streak-7', profile.streak >= 7);
-  award('streak-30', profile.streak >= 30);
-  for (const badge of BADGES) {
-    if (badge.level) award(badge.id, profile.level >= badge.level);
-  }
-  award('combo-max', (state.night.maxCombo || 1) >= COMBO_MAX);
-  const lights = profile.lightsOut || {};
-  award('on-time', (lights.best || 0) >= 1);
-  award('on-time-3', (lights.best || 0) >= 3);
-  award('collector', inventorySize(profile) >= 9); // 4 freebies + 5 unlocks
-  award('constellation', Object.values(profile.constellations).some((c) => c && c.complete));
-  award('companion', (profile.companion?.tier || 0) >= 3);
-
-  if (earned.length) profile.badges = Array.from(owned);
-  return earned;
-}
+/* The badge shelf used to live here as a flat list of thirteen one-shots. It is
+   now `js/achievements.js`: tiered families measured off numbers, with progress
+   bars. It imports COMBO_MAX from this module, so nothing here may import it
+   back — falling out of a tier is reported by `dropUnearnedTiers`, which the
+   actions call after a revoke has settled. */
 
 /**
  * Grant XP (and optional stardust). Returns the levels crossed.
@@ -252,17 +192,6 @@ function refundLevelUps(profile) {
   }
 }
 
-/** Badges you can fall out of: the ones that describe where you are. */
-export function dropUnearnedBadges(state) {
-  const { profile } = state;
-  const lost = BADGES
-    .filter((badge) => badge.level && profile.level < badge.level)
-    .map((badge) => badge.id)
-    .filter((id) => profile.badges.includes(id));
-  if (lost.length) profile.badges = profile.badges.filter((id) => !lost.includes(id));
-  return lost;
-}
-
 /** Reverses a grant exactly, including anything the level it bought paid out. */
 export function revokeGrant(state, xp, dust) {
   const { profile } = state;
@@ -271,10 +200,9 @@ export function revokeGrant(state, xp, dust) {
   profile.stardust = Math.max(0, profile.stardust - (dust || 0));
   profile.level = levelFromXp(profile.xp).level;
   refundLevelUps(profile);
-  const lostBadges = dropUnearnedBadges(state);
   const levelsLost = [];
   for (let lvl = before; lvl > profile.level; lvl -= 1) levelsLost.push(lvl);
-  return { levelsLost, lostBadges };
+  return { levelsLost };
 }
 
 export function revokeTaskCompletion(state, taskId) {

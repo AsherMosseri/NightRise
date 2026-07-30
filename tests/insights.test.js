@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { nightsFullyCleared, overallRate } from '../js/insights.js';
-import { BADGES } from '../js/game.js';
+import { ACHIEVEMENTS } from '../js/achievements.js';
 
 /** A banked night. `done` excludes rain checks; `pct` is over what counted. */
 function night({ total, done, skipped = 0 }) {
@@ -48,14 +48,15 @@ test('the stat has nothing to do with bedtime', () => {
   assert.equal(nightsFullyCleared({ '2026-07-29': late }), 1);
 });
 
-test('no badge name claims a bedtime it does not measure', () => {
-  // The two that *are* about bedtime, and nothing else may sound like them.
-  const bedtimeBadges = new Set(['on-time', 'on-time-3']);
+test('no achievement name claims a bedtime it does not measure', () => {
+  // One family *is* about bedtime. Nothing else may sound like it.
   const claims = /\b(perfect|flawless|early|bed|bedtime|asleep|sleep)\b/i;
-  for (const badge of BADGES) {
-    if (bedtimeBadges.has(badge.id)) continue;
-    assert.equal(claims.test(badge.name), false,
-      `badge "${badge.name}" sounds like it is about sleep, but it measures: ${badge.hint}`);
+  for (const family of ACHIEVEMENTS) {
+    if (family.id === 'ontime') continue;
+    for (const step of family.tiers) {
+      assert.equal(claims.test(step.name), false,
+        `"${step.name}" sounds like sleep, but ${family.id} measures: ${family.goal(step.at)}`);
+    }
   }
 });
 

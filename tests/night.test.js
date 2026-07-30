@@ -6,7 +6,8 @@ import {
   advanceLightsOutStreak,
 } from '../js/night.js';
 import { createInitialState } from '../js/model.js';
-import { applyTaskCompletion, checkBadges, BADGES } from '../js/game.js';
+import { applyTaskCompletion } from '../js/game.js';
+import { ACHIEVEMENTS, checkAchievements, heldTier } from '../js/achievements.js';
 import { normalizeState } from '../js/storage.js';
 import { openEnvelope, envelopeWaiting } from '../js/envelope.js';
 
@@ -179,6 +180,10 @@ test('a second run at the same night can only improve its history entry', () => 
 test('starting fresh does not hand out a second envelope or quest reward', () => {
   const state = stateWithProgress(9);
   openEnvelope(state);
+  // This profile has banked a night before, and its First Light tier is already
+  // settled — so the stardust below can only move if the envelope paid again.
+  state.profile.nightsLogged = 1;
+  checkAchievements(state, computeStats(state));
   const dust = state.profile.stardust;
   const freezes = state.profile.tokens.freeze;
   const rainchecks = state.profile.tokens.raincheck;
@@ -268,31 +273,43 @@ test('an unbroken run reports no risk', () => {
 
 /* --------------------------------------------------------------- badges */
 
-test('there is no badge for still being awake at 1am', () => {
-  const ids = BADGES.map((b) => b.id);
-  assert.equal(ids.includes('after-hours'), false);
-  for (const badge of BADGES) {
-    assert.doesNotMatch(`${badge.name} ${badge.hint}`, /1am|past midnight|late night/i,
-      `${badge.id} should not reward staying up`);
+test('there is no achievement for still being awake at 1am', () => {
+  for (const family of ACHIEVEMENTS) {
+    for (const step of family.tiers) {
+      assert.doesNotMatch(`${step.name} ${family.goal(step.at)}`, /1am|past midnight|late night/i,
+        `${family.id} should not reward staying up`);
+    }
   }
 });
 
-test('stopping before bedtime is what earns a badge now', () => {
+test('stopping before bedtime is what climbs the on-time ladder', () => {
   const state = stateWithProgress(9);
-  assert.deepEqual(checkBadges(state, computeStats(state)).filter((id) => id.startsWith('on-time')), []);
+  checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'ontime'), 0, 'nothing yet');
 
   state.profile.lightsOut = { streak: 1, best: 1, lastKey: '2026-07-29' };
-  assert.ok(checkBadges(state, computeStats(state)).includes('on-time'));
+  const first = checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'ontime'), 1);
+  assert.equal(first.find((e) => e.id === 'ontime').name, 'Turned In');
 
   state.profile.lightsOut.best = 3;
-  assert.ok(checkBadges(state, computeStats(state)).includes('on-time-3'));
+  const second = checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'ontime'), 2);
+  assert.equal(second.find((e) => e.id === 'ontime').name, 'Clockwork');
 });
 
-test('a retired badge is dropped from a saved profile', () => {
+test('an old badge list is carried over as tiers, retired ids and all', () => {
   const state = stateWithProgress(0);
-  state.profile.badges = ['first-night', 'after-hours', 'perfect'];
+  state.profile.badges = ['first-night', 'after-hours', 'streak-7'];
+  delete state.profile.tiers;
   const loaded = normalizeState(JSON.parse(JSON.stringify(state)), new Date(2026, 6, 29, 22, 0));
-  assert.deepEqual(loaded.profile.badges, ['first-night', 'perfect']);
+  assert.equal(heldTier(loaded.profile, 'nights'), 1, 'First Light became tier 1');
+  assert.equal(heldTier(loaded.profile, 'streak'), 2, 'a 7 night streak is the second rung');
+  assert.equal(loaded.profile.badges, undefined, 'the old shape is gone');
+  // "After Hours" no longer maps to anything, and must not invent a tier.
+  assert.equal(Object.keys(loaded.profile.tiers).length, 2);
+  // Nothing is paid retroactively for what a save already had.
+  assert.equal(loaded.profile.tiersPaid.streak, 2);
 });
 
 test('the lights-out streak only counts nights that are actually in a row', () => {
@@ -324,9 +341,11 @@ test('Clockwork needs three nights that really were consecutive', () => {
   for (const key of ['2026-07-01', '2026-07-10', '2026-07-20']) {
     advanceLightsOutStreak(lights, key, true);
   }
-  assert.equal(checkBadges(state, computeStats(state)).includes('on-time-3'), false,
+  checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'ontime'), 1,
     'three scattered nights are not three nights running');
 
   for (const key of ['2026-07-21', '2026-07-22']) advanceLightsOutStreak(lights, key, true);
-  assert.ok(checkBadges(state, computeStats(state)).includes('on-time-3'));
+  checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'ontime'), 2);
 });

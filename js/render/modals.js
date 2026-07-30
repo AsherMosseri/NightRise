@@ -10,9 +10,10 @@ import {
 } from '../shop.js';
 import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost } from '../constellations.js';
 import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../companion.js';
-import { BADGES, levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
+import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
+import { achievementBoard, totalTiers } from '../achievements.js';
 import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
-import { forceNewNight } from '../night.js';
+import { forceNewNight, computeStats } from '../night.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
 } from '../time.js';
@@ -500,13 +501,30 @@ VIEWS.insights = () => {
   const reliable = reliableTasks(state);
   const level = levelFromXp(state.profile.xp);
 
-  const badgeGrid = h('div', { class: 'badges' }, ...BADGES.map((badge) => {
-    const earned = state.profile.badges.includes(badge.id);
-    return h('div', { class: `badge ${earned ? 'is-earned' : ''}`.trim(), title: badge.hint },
-      icon(badge.icon, { size: 18 }),
-      h('span', { class: 'badge__name' }, badge.name),
-      h('span', { class: 'badge__hint' }, earned ? 'Earned' : badge.hint));
-  }));
+  const board = achievementBoard(state, computeStats(state));
+  const badgeGrid = h('div', { class: 'achs' }, ...board.map((a) => h('div', {
+    class: `ach ${a.earned ? 'is-earned' : ''} ${a.complete ? 'is-maxed' : ''}`.trim(),
+    title: a.complete ? `${a.name} — every tier earned` : a.goal,
+  },
+  h('div', { class: 'ach__badge' }, icon(a.icon, { size: 20 })),
+  h('div', { class: 'ach__body' },
+    h('div', { class: 'ach__head' },
+      h('span', { class: 'ach__name' }, a.name),
+      // Which rung of how many, so a family that has levelled reads as one
+      // thing that grew rather than a badge whose name quietly changed.
+      h('span', { class: 'ach__tier' }, `${a.tier}/${a.tiers}`)),
+    h('div', {
+      class: 'ach__bar',
+      role: 'progressbar',
+      'aria-valuenow': String(a.pct),
+      'aria-valuemin': '0',
+      'aria-valuemax': '100',
+      'aria-label': a.goal,
+    }, h('span', { style: { width: `${a.pct}%` } })),
+    h('span', { class: 'ach__hint' }, a.complete ? 'Every tier earned' : `${a.progress} · ${a.goal.toLowerCase()}`)),
+  h('div', { class: 'ach__pips' }, ...Array.from({ length: a.tiers }, (_, i) => h('span', {
+    class: `ach__pip ${i < a.tier ? 'is-lit' : ''}`.trim(), 'aria-hidden': 'true',
+  }))))));
 
   const table = rows.length
     ? h('ul', { class: 'insight-list' }, ...rows.slice(0, 20).map((row) => h('li', { class: 'insight' },
@@ -527,7 +545,10 @@ VIEWS.insights = () => {
         h('div', { class: 'stat-box' }, h('strong', {}, String(level.level)), h('span', {}, titleForLevel(level.level))),
         h('div', { class: 'stat-box' }, h('strong', {}, formatNumber(state.profile.xp)), h('span', {}, 'total XP')),
         h('div', { class: 'stat-box' }, h('strong', {}, formatNumber(state.profile.stardust)), h('span', {}, 'stardust')),
-        h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.badges.length)), h('span', {}, 'badges'))),
+        h('div', {
+          class: 'stat-box',
+          title: 'Achievement tiers you hold, counted across every family',
+        }, h('strong', {}, String(totalTiers(state.profile))), h('span', {}, 'tiers earned'))),
       h('h3', { class: 'modal__section' }, 'Bedtime'),
       bedtimeSection(state),
       reliable.length
@@ -535,7 +556,8 @@ VIEWS.insights = () => {
         : null,
       h('h3', { class: 'modal__section' }, 'Task by task'),
       table,
-      h('h3', { class: 'modal__section' }, 'Badges'),
+      h('h3', { class: 'modal__section' }, 'Achievements'),
+      h('p', { class: 'muted small' }, 'Each one levels up. You get the number you are working toward; the name of the next tier is a surprise.'),
       badgeGrid,
       h('h3', { class: 'modal__section' }, 'Titles'),
       h('p', { class: 'muted small' }, 'You find out what each one is called when you get there.'),

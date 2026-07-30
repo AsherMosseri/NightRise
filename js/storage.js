@@ -6,7 +6,12 @@ import {
   createSection, emptyTemplate, DEFAULT_MINUTES,
 } from './model.js';
 import { nightKeyOf } from './time.js';
-import { BADGES } from './game.js';
+import { ACHIEVEMENTS, migrateBadges } from './achievements.js';
+
+/** A tier index a save claims, kept inside what the family actually has. */
+function clampTier(value, cap) {
+  return Math.max(0, Math.min(cap, Math.round(Number(value) || 0)));
+}
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -144,13 +149,27 @@ export function normalizeState(raw, now = new Date()) {
     lastKey: typeof profile.lightsOut?.lastKey === 'string' ? profile.lightsOut.lastKey : null,
   };
   profile.lightsOut.best = Math.max(profile.lightsOut.best, profile.lightsOut.streak);
-  // Only badges the app still has. A retired one — "After Hours", which paid
-  // you for being awake at 1am in an app about going to bed — should stop
-  // showing up in your count, not linger as an id nothing can render.
-  const known = new Set(BADGES.map((b) => b.id));
-  profile.badges = Array.isArray(profile.badges)
-    ? profile.badges.filter((b) => typeof b === 'string' && known.has(b))
-    : [];
+  // Badges were a flat list of ids; they are tiered families now. Whatever a
+  // save had earned is carried over at the rung it stood for, and written to
+  // `tiersPaid` at the same time so an old save is not a stardust windfall.
+  // Read from the raw save, not the merged profile: mergeDefaults has already
+  // supplied an empty `tiers: {}`, which would look like a save that simply had
+  // no achievements and quietly discard the badges an old one did have.
+  const savedTiers = isObject(raw.profile?.tiers) ? raw.profile.tiers : migrateBadges(profile.badges);
+  const savedPaid = isObject(raw.profile?.tiersPaid) ? raw.profile.tiersPaid : {};
+  profile.tiers = {};
+  profile.tiersPaid = {};
+  for (const family of ACHIEVEMENTS) {
+    const cap = family.tiers.length;
+    const held = clampTier(savedTiers[family.id], cap);
+    if (held > 0) profile.tiers[family.id] = held;
+    // Never below what is held: a tier you can see must already have been paid,
+    // or checkAchievements would pay for it again on the next tick.
+    const paid = Math.max(held, clampTier(savedPaid[family.id], cap));
+    if (paid > 0) profile.tiersPaid[family.id] = paid;
+  }
+  delete profile.badges;
+  profile.bestCombo = Math.max(1, Number(profile.bestCombo) || 1);
   const defaultInventory = createProfile().inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
     const list = Array.isArray(profile.inventory[kind]) ? profile.inventory[kind] : [];

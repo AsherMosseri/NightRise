@@ -2,7 +2,8 @@
 
 import { createNight } from './model.js';
 import { nightKeyOf, keyDiffDays, bedtimeInstant } from './time.js';
-import { STREAK_THRESHOLD_PCT, checkBadges } from './game.js';
+import { STREAK_THRESHOLD_PCT } from './game.js';
+import { checkAchievements } from './achievements.js';
 
 /** Live view of tonight — used by the header, sky, quests and pacing. */
 export function computeStats(state) {
@@ -180,7 +181,7 @@ export function bankNight(state, stats) {
 
   updateTaskStats(state, stats);
   result.streakAfter = profile.streak;
-  result.badges = checkBadges(state, stats);
+  result.achievements = checkAchievements(state, stats);
   return result;
 }
 

@@ -4,10 +4,11 @@ import { getState, update, emit } from './state.js';
 import { createSection, createTask, DEFAULT_MINUTES } from './model.js';
 import { moveItem, deepClone, clamp, roundMinutes } from './util.js';
 import {
-  applyTaskCompletion, revokeTaskCompletion, checkBadges, nightCompletionBonus, grantXp,
+  applyTaskCompletion, revokeTaskCompletion, nightCompletionBonus, grantXp,
   revokeGrant,
 } from './game.js';
 import { computeStats } from './night.js';
+import { checkAchievements, dropUnearnedTiers } from './achievements.js';
 import { evaluateQuest, questById } from './quests.js';
 
 const undoStack = [];
@@ -237,8 +238,13 @@ export function moveTaskByStep(taskId, delta) {
  */
 function afterProgress(state) {
   const stats = computeStats(state);
-  const badges = checkBadges(state, stats);
-  if (badges.length) emit('badge', badges);
+  // Order matters: drop first, then award. Un-checking a task can push you out
+  // of a level tier, and reporting the loss before the gains keeps a single
+  // toggle from claiming a tier it just took away.
+  const lost = dropUnearnedTiers(state);
+  if (lost.length) emit('achievement:lost', lost);
+  const earned = checkAchievements(state, stats);
+  if (earned.length) emit('achievement', earned);
 
   const complete = stats.total > 0 && stats.remaining === 0 && stats.counted > 0;
   if (complete && !state.night.bonus) {
@@ -324,7 +330,8 @@ export function claimQuest() {
     const levels = grantXp(state, def.xp, def.dust);
     emit('quest:claim', { quest, def, levels });
     if (levels.length) emit('level', levels);
-    checkBadges(state, stats);
+    const earned = checkAchievements(state, stats);
+    if (earned.length) emit('achievement', earned);
     return { quest, def, levels };
   });
 }

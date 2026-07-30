@@ -51,7 +51,12 @@ export function createProfile() {
     // One envelope and one quest reward per date, not per fresh start.
     lastEnvelopeKey: null,
     lastQuestKey: null,
-    badges: [],
+    // Achievement tiers held, by family id, and the highest tier each family
+    // has ever been paid for — the same high-water trick as maxLevelRewarded,
+    // so falling out of a tier and climbing back is not a stardust faucet.
+    tiers: {},
+    tiersPaid: {},
+    bestCombo: 1,
     inventory: {
       themes: ['midnight'],
       sounds: ['chime'],

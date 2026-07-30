@@ -108,7 +108,12 @@ const APPLY = {
       xp: 0,
       level: 1,
       maxLevelRewarded: 1,
-      badges: [],
+      // Tiers and what they were paid for go together. Leaving `tiersPaid`
+      // behind would be the polite half of a reset and the stingy half of a
+      // fresh start: the shelf empties, and refilling it earns nothing.
+      tiers: {},
+      tiersPaid: {},
+      bestCombo: 1,
     });
     // The night's awards recorded XP that no longer exists; un-checking later
     // must not subtract it a second time.

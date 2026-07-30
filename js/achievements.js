@@ -1,0 +1,348 @@
+/* Achievements, in tiers.
+ *
+ * There were thirteen badges and every one of them was a light switch: off,
+ * then on, forever. "Turned In" for one night on time and "Clockwork" for
+ * three sat side by side as if they were unrelated, "Skyward" and "Deep Sky"
+ * likewise, and a shelf of switches tells you nothing about where you are —
+ * only which ones happen to be lit.
+ *
+ * So each one is now a family that levels: a single icon you keep, a name that
+ * changes as you climb, and a bar showing how far into the next rung you are.
+ * The bar is the point. "0 of 13 badges" is a scoreboard; "4 of 7 nights" is a
+ * reason to do something tonight.
+ *
+ * Two rules hold the whole thing together:
+ *
+ *  1. Every family is a *number*, not an event. A tier is reached when the
+ *     number passes a threshold, so progress can always be drawn and nothing
+ *     depends on the app being open at the right moment.
+ *  2. The wording is generated from that threshold. `goal(at)` is handed the
+ *     same number the comparison uses, so a hint cannot come to say seven while
+ *     the check says three — the failure this app keeps finding in its own copy.
+ */
+
+import { COMBO_MAX } from './game.js';
+import { nightsFullyCleared } from './insights.js';
+import { plural } from './util.js';
+
+/** Stardust for reaching a tier, paid once per tier ever. */
+export function tierDust(tier) {
+  return 20 + tier * 15;
+}
+
+function inventorySize(profile) {
+  return Object.values(profile.inventory).reduce((sum, list) => sum + list.length, 0);
+}
+
+/** Unlocks you actually chose. Four packs are free and were never an achievement. */
+const FREE_UNLOCKS = 4;
+
+export const ACHIEVEMENTS = [
+  {
+    id: 'nights',
+    icon: 'moon',
+    noun: 'nights',
+    goal: (at) => (at === 1 ? 'Bank your first night' : `Bank ${at} nights`),
+    measure: (state) => state.profile.nightsLogged,
+    tiers: [
+      { at: 1, name: 'First Light' },
+      { at: 10, name: 'Regular' },
+      { at: 30, name: 'Old Hand' },
+      { at: 100, name: 'Centenary' },
+    ],
+  },
+  {
+    id: 'streak',
+    icon: 'flame',
+    noun: 'nights',
+    goal: (at) => `Hold a ${plural(at, 'night', 'night')} streak`,
+    // The best you have ever held, not the one you are on. A streak achievement
+    // that falls off when you miss a Tuesday is a punishment, and this app has
+    // enough ways to tell you that you missed a night.
+    measure: (state) => state.profile.bestStreak,
+    tiers: [
+      { at: 3, name: 'Three in a Row' },
+      { at: 7, name: 'Week of Nights' },
+      { at: 14, name: 'Fortnight' },
+      { at: 30, name: 'Moon Cycle' },
+      { at: 100, name: 'Unbroken' },
+    ],
+  },
+  {
+    id: 'ontime',
+    icon: 'calendar',
+    noun: 'nights',
+    goal: (at) => (at === 1
+      ? 'Stop for the night before your bedtime'
+      : `Stop before bedtime ${at} nights running`),
+    measure: (state) => state.profile.lightsOut?.best || 0,
+    tiers: [
+      { at: 1, name: 'Turned In' },
+      { at: 3, name: 'Clockwork' },
+      { at: 7, name: 'Sound Asleep' },
+      { at: 21, name: 'Second Nature' },
+      { at: 60, name: 'Nocturne' },
+    ],
+  },
+  {
+    id: 'cleared',
+    icon: 'check',
+    noun: 'nights',
+    goal: (at) => (at === 1 ? 'Tick off every task in a night' : `Clear the whole list ${at} nights`),
+    // Every task ticked — the same strict count the history panel shows, so the
+    // badge and the tile can never disagree. A rain check excuses a task from
+    // the percentage; it does not do the task.
+    measure: (state, stats) => nightsFullyCleared(state.history)
+      + (stats && stats.total > 0 && stats.done >= stats.total ? 1 : 0),
+    tiers: [
+      { at: 1, name: 'Nothing Missed' },
+      { at: 5, name: 'Spotless' },
+      { at: 15, name: 'Full House' },
+      { at: 40, name: 'Immaculate' },
+    ],
+  },
+  {
+    id: 'level',
+    icon: 'star',
+    noun: 'levels',
+    goal: (at) => `Reach level ${at}`,
+    // The one family you can fall out of. It says where you are, and un-checking
+    // your way back down to level 4 should not leave you holding level 5's badge.
+    volatile: true,
+    measure: (state) => state.profile.level,
+    tiers: [
+      { at: 5, name: 'Skyward' },
+      { at: 10, name: 'Deep Sky' },
+      { at: 20, name: 'Far Horizon' },
+      { at: 35, name: 'Escape Velocity' },
+      { at: 50, name: 'Orbit' },
+    ],
+  },
+  {
+    id: 'combo',
+    icon: 'chart',
+    noun: 'multiplier',
+    goal: (at) => `Hit a x${at.toFixed(2).replace(/0$/, '')} momentum multiplier`,
+    format: (n) => `x${n.toFixed(2).replace(/0$/, '')}`,
+    base: 1,
+    measure: (state) => Math.max(state.profile.bestCombo || 1, state.night.maxCombo || 1),
+    tiers: [
+      { at: 1.5, name: 'Momentum' },
+      { at: 2, name: 'Chain Lightning' },
+      { at: COMBO_MAX, name: 'Runaway' },
+    ],
+  },
+  {
+    id: 'collector',
+    icon: 'bag',
+    noun: 'unlocks',
+    goal: (at) => `Buy ${plural(at, 'thing', 'things')} from the shop`,
+    measure: (state) => Math.max(0, inventorySize(state.profile) - FREE_UNLOCKS),
+    tiers: [
+      { at: 1, name: 'Impulse Buy' },
+      { at: 5, name: 'Collector' },
+      { at: 12, name: 'Curator' },
+      { at: 25, name: 'Completionist' },
+    ],
+  },
+  {
+    id: 'constellation',
+    icon: 'map',
+    noun: 'constellations',
+    goal: (at) => `Finish ${plural(at, 'constellation', 'constellations')}`,
+    measure: (state) => Object.values(state.profile.constellations)
+      .filter((c) => c && c.complete).length,
+    tiers: [
+      { at: 1, name: 'Cartographer' },
+      { at: 3, name: 'Star Charter' },
+      { at: 7, name: 'Whole Sky' },
+    ],
+  },
+  {
+    id: 'companion',
+    icon: 'bulb',
+    noun: 'tiers',
+    goal: (at) => `Raise a companion to tier ${at}`,
+    // A profile with no companion still carries `tier: 1`, which read as being
+    // halfway to Bonded before you had adopted anything.
+    measure: (state) => (state.profile.companion?.type ? state.profile.companion.tier || 0 : 0),
+    tiers: [
+      { at: 2, name: 'Bonded' },
+      { at: 3, name: 'Best Friend' },
+      { at: 4, name: 'Inseparable' },
+    ],
+  },
+];
+
+export function achievementById(id) {
+  return ACHIEVEMENTS.find((a) => a.id === id) || null;
+}
+
+/** How many tiers a measure has cleared. 0 means the family is still locked. */
+export function tierAt(family, measure) {
+  let tier = 0;
+  // A small epsilon, because the combo multiplier is built by repeated addition
+  // of 0.25 and 1.4999999999999998 should count as 1.5.
+  for (const step of family.tiers) if (measure >= step.at - 1e-9) tier += 1;
+  return tier;
+}
+
+/** The tier recorded on the profile, which is what you are actually holding. */
+export function heldTier(profile, id) {
+  return Math.max(0, Number(profile.tiers?.[id]) || 0);
+}
+
+function fmt(family, n) {
+  return family.format ? family.format(n) : String(Math.floor(n));
+}
+
+/**
+ * Everything the card needs: where you are, what is next, and how far along.
+ *
+ * The name of a tier you have not reached is withheld, the same way an
+ * unreached title is. You get the number you are working toward — which is the
+ * part that helps — and the name stays a reveal.
+ */
+export function tierState(family, state, stats) {
+  const measure = family.measure(state, stats);
+  // What the profile holds, never what the measure merely qualifies for. The
+  // two agree because achievements are settled on load, and a card that ran
+  // ahead of the profile would promise a tier nothing had recorded or paid.
+  const held = family.volatile ? tierAt(family, measure) : heldTier(state.profile, family.id);
+  const current = held > 0 ? family.tiers[held - 1] : null;
+  const next = held < family.tiers.length ? family.tiers[held] : null;
+  // Where the scale starts. The combo multiplier bottoms out at x1, so without
+  // this an untouched profile showed the first bar already two thirds full.
+  const from = current ? current.at : (family.base || 0);
+  const span = next ? next.at - from : 0;
+
+  return {
+    id: family.id,
+    icon: family.icon,
+    noun: family.noun,
+    measure,
+    tier: held,
+    tiers: family.tiers.length,
+    // Locked families show the name of the rung you are climbing toward, so the
+    // shelf reads as a list of things to do rather than a row of question marks.
+    name: current ? current.name : family.tiers[0].name,
+    earned: held > 0,
+    complete: !next,
+    goal: family.goal(next ? next.at : (current?.at ?? family.tiers[0].at)),
+    next: next ? next.at : null,
+    progress: next
+      ? `${fmt(family, Math.min(measure, next.at))} / ${fmt(family, next.at)}`
+      : fmt(family, measure),
+    pct: next ? Math.round(Math.max(0, Math.min(1, (measure - from) / (span || 1))) * 100) : 100,
+  };
+}
+
+/** Every family, in the order they are declared. */
+export function achievementBoard(state, stats) {
+  return ACHIEVEMENTS.map((family) => tierState(family, state, stats));
+}
+
+/** Tiers held across every family — the number the "badges" stat shows. */
+export function totalTiers(profile) {
+  return ACHIEVEMENTS.reduce((sum, family) => sum + heldTier(profile, family.id), 0);
+}
+
+/**
+ * Record any tier newly reached, and pay for it.
+ *
+ * Stardust is paid against `tiersPaid`, the same high-water mark that stops a
+ * level boundary being crossed twice for the same bonus. Volatile families pay
+ * nothing at all: levelling up already pays stardust of its own, and a badge
+ * that pays again on the way up would have to claw it back on the way down.
+ */
+export function checkAchievements(state, stats) {
+  const { profile } = state;
+  if (!profile.tiers) profile.tiers = {};
+  if (!profile.tiersPaid) profile.tiersPaid = {};
+  // The best chain you ever held has to be remembered somewhere; `night.maxCombo`
+  // is gone at 4am.
+  profile.bestCombo = Math.max(profile.bestCombo || 1, state.night.maxCombo || 1);
+
+  const earned = [];
+  for (const family of ACHIEVEMENTS) {
+    const reached = tierAt(family, family.measure(state, stats));
+    const held = heldTier(profile, family.id);
+    const now = family.volatile ? reached : Math.max(held, reached);
+    if (now === held) continue;
+    profile.tiers[family.id] = now;
+    if (now < held) continue; // a fall is not an award; dropUnearnedTiers reports it
+
+    for (let tier = held + 1; tier <= now; tier += 1) {
+      const step = family.tiers[tier - 1];
+      let dust = 0;
+      if (!family.volatile && tier > (Number(profile.tiersPaid[family.id]) || 0)) {
+        dust = tierDust(tier);
+        profile.stardust += dust;
+        profile.tiersPaid[family.id] = tier;
+      }
+      earned.push({
+        id: family.id, tier, name: step.name, icon: family.icon,
+        hint: family.goal(step.at), dust, tiers: family.tiers.length,
+      });
+    }
+  }
+  return earned;
+}
+
+/**
+ * Tiers you have fallen out of. Only volatile families can, but the call is
+ * unconditional so the caller never has to know which those are.
+ */
+export function dropUnearnedTiers(state) {
+  const { profile } = state;
+  if (!profile.tiers) profile.tiers = {};
+  const lost = [];
+  for (const family of ACHIEVEMENTS) {
+    if (!family.volatile) continue;
+    const reached = tierAt(family, family.measure(state, null));
+    const held = heldTier(profile, family.id);
+    for (let tier = held; tier > reached; tier -= 1) {
+      lost.push({ id: family.id, tier, name: family.tiers[tier - 1].name, icon: family.icon });
+    }
+    if (reached !== held) profile.tiers[family.id] = reached;
+  }
+  return lost;
+}
+
+/* ------------------------------------------------------------- old saves */
+
+/** Which family and rung each retired badge id stood for. */
+const LEGACY = {
+  'first-night': ['nights', 1],
+  perfect: ['cleared', 1],
+  'streak-3': ['streak', 1],
+  'streak-7': ['streak', 2],
+  'streak-30': ['streak', 4],
+  'level-5': ['level', 1],
+  'level-10': ['level', 2],
+  'combo-max': ['combo', 3],
+  'on-time': ['ontime', 1],
+  'on-time-3': ['ontime', 2],
+  collector: ['collector', 2],
+  constellation: ['constellation', 1],
+  companion: ['companion', 2],
+};
+
+/**
+ * Turn a saved list of badge ids into tiers.
+ *
+ * Whatever you had earned, you keep — at the rung it corresponds to. Nothing is
+ * paid retroactively: the migrated tier is written to `tiersPaid` as well, so
+ * loading an old save is not a stardust windfall.
+ */
+export function migrateBadges(badges) {
+  const tiers = {};
+  if (!Array.isArray(badges)) return tiers;
+  for (const id of badges) {
+    const entry = LEGACY[id];
+    if (!entry) continue;
+    const [family, tier] = entry;
+    tiers[family] = Math.max(tiers[family] || 0, tier);
+  }
+  return tiers;
+}

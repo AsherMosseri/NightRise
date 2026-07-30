@@ -80,13 +80,23 @@ it's the scroll.
   one arrives at but never what it is called until you get there — a list of every name you
   will ever be given is a list of endings, and the reveal is the reward.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
-- Badges for streaks, clearing the list, stopping early and collection milestones. Nothing in
-  the game rewards being awake late: there was a badge for checking something off past
-  1am, in the app whose whole argument is that you should be asleep, and it has been
-  replaced by two for stopping *before* your bedtime.
+- **Achievements that level up.** Nine families — nights banked, list streak, nights on
+  time, nights cleared, level, momentum, unlocks, constellations, companion — each with
+  three to five rungs and a progress bar. They were thirteen separate on/off badges, so
+  "Turned In" for one night on time and "Clockwork" for three sat side by side as though
+  they were unrelated things; now they are the first two rungs of one ladder, and the
+  card tells you it is 3 of 7 rather than that you have 4 of 13 badges. Every family is
+  a *number*, and each tier's wording is generated from the very threshold it compares
+  against, so a hint cannot come to say seven while the check says three. You see the
+  next rung's requirement but never its name — same as the titles. Reaching one pays
+  stardust, once per rung, ever. Nothing in the game rewards being awake late: there was
+  a badge for checking something off past 1am, in the app whose whole argument is that
+  you should be asleep, and it is gone.
 - Un-checking a task reverses its exact award, and if that drops you below a level it
-  takes the level with it: the level-up stardust goes back and a level badge comes off
-  again. The completion bonus is banked so it can be paid once and taken back precisely.
+  takes the level with it: the level-up stardust goes back and the level tier comes off
+  again. The completion bonus is banked so it can be paid once and taken back precisely,
+  and every achievement tier's stardust is paid against a high-water mark, so falling out
+  of one and climbing back is not a way to print it.
   Nothing you can un-tick leaves you holding what it paid for.
 
 **Spending stardust**
@@ -180,6 +190,7 @@ index.html            app shell
 css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
 js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
+js/achievements.js    tiered achievement families, measured off live numbers
 js/reset.js           what each part of "reset" actually clears
 js/timer.js           the card clock: countdown, overtime, pause
 js/bedtime.js         the bedtime record: averages, trend, on-time rate

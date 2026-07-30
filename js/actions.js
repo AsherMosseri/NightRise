@@ -261,9 +261,16 @@ export function toggleTask(id) {
     const task = state.template.tasks[id];
     if (!task) return null;
     if (state.night.done[id] !== undefined) {
+      // The whole un-check has to settle before we can say what it cost: the
+      // task's own award and the completion bonus it may have unlocked both
+      // come off, and either can be the one that drops you a level.
+      const levelBefore = state.profile.level;
       revokeTaskCompletion(state, id);
       emit('task:undone', { task });
       afterProgress(state);
+      if (state.profile.level < levelBefore) {
+        emit('level:lost', { from: levelBefore, to: state.profile.level });
+      }
       return { done: false, task };
     }
     if (state.night.skipped[id]) {

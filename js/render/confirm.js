@@ -1,4 +1,4 @@
-/* Our own "are you sure", because the browser's is not ours.
+/* Our own "are you sure" and "which of these", because the browser's are not.
  *
  * `window.confirm` hands the moment to the operating system: a grey slab at the
  * top of the screen in a font we do not choose, with buttons labelled OK and
@@ -68,5 +68,86 @@ export function confirmAction({
     // The safe choice keeps the focus: a stray Enter should not erase anything.
     (danger ? dialog.querySelector('.btn:not(.btn--danger)') : confirmButton)
       ?.focus({ preventScroll: true });
+  });
+}
+
+/* -------------------------------------------------------------- the chooser */
+
+let chooser = null;
+
+function ensureChooser() {
+  if (chooser) return chooser;
+  chooser = h('dialog', { class: 'confirm confirm--wide' });
+  document.body.appendChild(chooser);
+  return chooser;
+}
+
+/**
+ * Pick from a list of things. `options` is `[{ id, label, hint }]`.
+ *
+ * @returns {Promise<string[]|null>} the chosen ids, or null if they backed out.
+ */
+export function chooseAction({
+  title,
+  body = '',
+  options = [],
+  confirmLabel = 'Continue',
+  cancelLabel = 'Cancel',
+  danger = false,
+  iconName = null,
+} = {}) {
+  const dialog = ensureChooser();
+
+  return new Promise((resolve) => {
+    let answered = false;
+    const chosen = new Set();
+
+    const finish = (value) => {
+      if (answered) return;
+      answered = true;
+      resolve(value);
+      if (dialog.open) dialog.close();
+    };
+
+    const go = h('button', {
+      type: 'button',
+      class: `btn ${danger ? 'btn--danger' : 'btn--primary'}`,
+      disabled: true,
+      onClick: () => finish([...chosen]),
+    }, confirmLabel);
+
+    const rows = options.map((option) => {
+      const box = h('input', { type: 'checkbox' });
+      box.addEventListener('change', () => {
+        if (box.checked) chosen.add(option.id);
+        else chosen.delete(option.id);
+        // Nothing ticked is not a request, so there is nothing to confirm.
+        go.disabled = chosen.size === 0;
+      });
+      return h('label', { class: 'picker__row' },
+        box,
+        h('span', { class: 'picker__mark', 'aria-hidden': 'true' }, icon('check', { size: 13 })),
+        h('span', { class: 'picker__body' },
+          h('span', { class: 'picker__label' }, option.label),
+          option.hint ? h('span', { class: 'picker__hint' }, option.hint) : null));
+    });
+
+    dialog.className = `confirm confirm--wide ${danger ? 'confirm--danger' : ''}`.trim();
+    dialog.replaceChildren(h('div', { class: 'confirm__inner' },
+      iconName ? h('span', { class: 'confirm__icon' }, icon(iconName, { size: 22 })) : null,
+      h('h2', { class: 'confirm__title' }, title),
+      body ? h('p', { class: 'confirm__body' }, body) : null,
+      h('div', { class: 'picker' }, ...rows),
+      h('div', { class: 'confirm__actions' },
+        h('button', { type: 'button', class: 'btn', onClick: () => finish(null) }, cancelLabel),
+        go)));
+
+    dialog.addEventListener('close', () => finish(null), { once: true });
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) finish(null);
+    }, { once: true });
+
+    dialog.showModal();
+    rows[0]?.querySelector('input')?.focus({ preventScroll: true });
   });
 }

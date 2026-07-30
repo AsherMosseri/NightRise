@@ -72,9 +72,10 @@ it's the scroll.
   Dusk Warden → Void Sailor → Constellation Keeper.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
 - Badges for streaks, perfect nights, late-night finishes and collection milestones.
-- Un-checking a task reverses its exact award, the completion bonus is banked so it can
-  be paid once and taken back precisely, and level-up stardust is paid against a
-  high-water mark. The economy does not move when you fiddle with a checkbox.
+- Un-checking a task reverses its exact award, and if that drops you below a level it
+  takes the level with it: the level-up stardust goes back and a level badge comes off
+  again. The completion bonus is banked so it can be paid once and taken back precisely.
+  Nothing you can un-tick leaves you holding what it paid for.
 
 **Spending stardust**
 - **Skies** — Midnight, Aurora, Deep Space, City Skyline, Frost, Blood Moon. Each one
@@ -95,6 +96,10 @@ it's the scroll.
   which have quietly slipped six nights running.
 - Sleep-safe dim mode (which reaches the dialogs and sheets too), sound effects (muted by
   default), full keyboard control, and `prefers-reduced-motion` support throughout.
+- **Reset what you actually mean.** Settings asks which of six things should go —
+  tonight's checkmarks, the list, history, level and streak, stardust and unlocks,
+  settings — and then confirms exactly those. Clearing tonight's checkmarks hands back
+  the XP and stardust they paid, so it is not a way to farm the same night twice.
 - Two tabs stay in sync instead of clobbering each other, pending writes are flushed when
   the tab is backgrounded, and unreadable saved data is preserved under
   `nightcheck.v1.corrupt` rather than silently discarded.
@@ -149,6 +154,7 @@ index.html            app shell
 css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
 js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
+js/reset.js           what each part of "reset" actually clears
 js/updates.js         keeps an installed copy from booting last week's build
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator

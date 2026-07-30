@@ -551,6 +551,45 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .confirm__body { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
 .confirm__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
 .confirm__actions .btn { min-height: 42px; }
+.confirm--wide { width: min(460px, calc(100vw - 24px)); }
+
+/* A list you tick, for choosing what a destructive thing applies to. */
+.picker { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 2px; }
+.picker__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
+}
+.picker__row:hover { background: var(--panel-2); }
+.picker__row input { position: absolute; opacity: 0; width: 0; height: 0; }
+.picker__mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 7px;
+  border: 1.6px solid var(--border-strong);
+  background: var(--panel-2);
+  color: transparent;
+  transition: all var(--speed) var(--ease);
+}
+.picker__row input:checked ~ .picker__mark {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  color: #0a0c1c;
+}
+.picker__row:has(input:checked) { background: var(--panel-2); border-color: var(--border); }
+.picker__row input:focus-visible ~ .picker__mark { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+.picker__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.picker__label { font-size: 14px; font-weight: 600; }
+.picker__hint { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }

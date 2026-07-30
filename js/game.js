@@ -83,8 +83,10 @@ export const BADGES = [
   { id: 'streak-3', name: 'Three in a Row', hint: 'Hold a 3 night streak', icon: 'flame' },
   { id: 'streak-7', name: 'Week of Nights', hint: 'Hold a 7 night streak', icon: 'flame' },
   { id: 'streak-30', name: 'Moon Cycle', hint: 'Hold a 30 night streak', icon: 'moon' },
-  { id: 'level-5', name: 'Star Gazer', hint: 'Reach level 5', icon: 'star' },
-  { id: 'level-10', name: 'Deep Sky', hint: 'Reach level 10', icon: 'star' },
+  // `level` marks a badge for where you *are* rather than what you did, so it
+  // comes off again if un-checking a task drops you back below it.
+  { id: 'level-5', name: 'Star Gazer', hint: 'Reach level 5', icon: 'star', level: 5 },
+  { id: 'level-10', name: 'Deep Sky', hint: 'Reach level 10', icon: 'star', level: 10 },
   { id: 'combo-max', name: 'Chain Lightning', hint: 'Hit a x2.5 combo', icon: 'flame' },
   { id: 'after-hours', name: 'After Hours', hint: 'Check something off past 1am', icon: 'moon' },
   { id: 'collector', name: 'Collector', hint: 'Own 5 shop unlocks', icon: 'bag' },
@@ -118,8 +120,9 @@ export function checkBadges(state, stats) {
   award('streak-3', profile.streak >= 3);
   award('streak-7', profile.streak >= 7);
   award('streak-30', profile.streak >= 30);
-  award('level-5', profile.level >= 5);
-  award('level-10', profile.level >= 10);
+  for (const badge of BADGES) {
+    if (badge.level) award(badge.id, profile.level >= badge.level);
+  }
   award('combo-max', (state.night.maxCombo || 1) >= COMBO_MAX);
   award('after-hours', Object.values(state.night.done).some((ts) => {
     const hour = new Date(ts).getHours();
@@ -207,10 +210,47 @@ export function applyTaskCompletion(state, task, at = Date.now()) {
 }
 
 /** Take back an exact amount, keeping the level in step. */
+/**
+ * Falling back below a level takes the level's reward with it. Reaching level 5
+ * and then un-checking your way back to level 4 should leave you at level 4 in
+ * every sense — not level 4 holding level 5's stardust.
+ *
+ * The one exception is dust you have already spent. It cannot be clawed out of
+ * a purchase, and a negative balance is not an answer, so the high-water mark
+ * stays up instead: you keep it, and that level is never paid a second time.
+ */
+function refundLevelUps(profile) {
+  while ((profile.maxLevelRewarded || 1) > profile.level) {
+    const dust = levelUpDust(profile.maxLevelRewarded);
+    if (profile.stardust < dust) break;
+    profile.stardust -= dust;
+    profile.maxLevelRewarded -= 1;
+  }
+}
+
+/** Badges you can fall out of: the ones that describe where you are. */
+export function dropUnearnedBadges(state) {
+  const { profile } = state;
+  const lost = BADGES
+    .filter((badge) => badge.level && profile.level < badge.level)
+    .map((badge) => badge.id)
+    .filter((id) => profile.badges.includes(id));
+  if (lost.length) profile.badges = profile.badges.filter((id) => !lost.includes(id));
+  return lost;
+}
+
+/** Reverses a grant exactly, including anything the level it bought paid out. */
 export function revokeGrant(state, xp, dust) {
-  state.profile.xp = Math.max(0, state.profile.xp - (xp || 0));
-  state.profile.stardust = Math.max(0, state.profile.stardust - (dust || 0));
-  state.profile.level = levelFromXp(state.profile.xp).level;
+  const { profile } = state;
+  const before = profile.level;
+  profile.xp = Math.max(0, profile.xp - (xp || 0));
+  profile.stardust = Math.max(0, profile.stardust - (dust || 0));
+  profile.level = levelFromXp(profile.xp).level;
+  refundLevelUps(profile);
+  const lostBadges = dropUnearnedBadges(state);
+  const levelsLost = [];
+  for (let lvl = before; lvl > profile.level; lvl -= 1) levelsLost.push(lvl);
+  return { levelsLost, lostBadges };
 }
 
 export function revokeTaskCompletion(state, taskId) {

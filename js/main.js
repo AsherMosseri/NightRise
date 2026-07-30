@@ -118,6 +118,16 @@ function wireEffects() {
     celebrate(`Level ${top}`, `${titleForLevel(top)} · bonus stardust awarded`);
   });
 
+  // Taking XP back can take a level with it. Saying so is kinder than letting
+  // the number in the corner quietly change on its own.
+  on('level:lost', ({ to }) => {
+    toast(`Back to level ${to}`, {
+      tone: 'warn',
+      iconName: 'undo',
+      detail: `${titleForLevel(to)} · that level's bonus went back too.`,
+    });
+  });
+
   on('badge', (ids) => {
     for (const id of ids) {
       const badge = badgeById(id);

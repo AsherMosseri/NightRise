@@ -23,7 +23,8 @@ import { previewPack } from '../audio.js';
 import { setSkyPaused } from '../sky.js';
 import { toast } from '../toast.js';
 import { formatNumber, plural } from '../util.js';
-import { confirmAction } from './confirm.js';
+import { confirmAction, chooseAction } from './confirm.js';
+import { RESET_PARTS, resetPartById, applyReset } from '../reset.js';
 import { refreshApp, runningVersion } from '../updates.js';
 
 let dialog = null;
@@ -604,29 +605,64 @@ VIEWS.settings = () => {
         h('button', {
           type: 'button',
           class: 'btn btn--sm btn--danger',
-          onClick: async () => {
-            const go = await confirmAction({
-              title: 'Erase everything?',
-              body: 'Every task, section, level, streak and unlock goes. There is no undo, and no copy anywhere else unless you exported one.',
-              confirmLabel: 'Erase it all',
-              cancelLabel: 'Never mind',
-              danger: true,
-              iconName: 'trash',
-            });
-            if (!go) return;
-            clearStorage();
-            replaceState(createInitialState());
-            emit('imported', getState());
-            toast('Everything reset', { tone: 'warn', iconName: 'undo' });
-            closeModal();
-          },
-        }, 'Reset everything')),
+          onClick: () => runReset(),
+        }, 'Choose what to reset…')),
       h('p', { class: 'muted small' },
         'A night rolls over at 4am, so anything you check off at 1am still counts for the night before.'),
       h('h3', { class: 'modal__section' }, 'This app'),
       appVersionPanel()),
   };
 };
+
+/**
+ * Pick what to throw away, then confirm exactly that. One button that erased
+ * your list, your level, your unlocks and your settings together was the only
+ * answer the app had to "I just want the boxes unticked".
+ */
+async function runReset() {
+  const chosen = await chooseAction({
+    title: 'What should go?',
+    body: 'Everything you leave unticked is kept exactly as it is.',
+    options: RESET_PARTS,
+    confirmLabel: 'Reset these',
+    cancelLabel: 'Cancel',
+    danger: true,
+    iconName: 'undo',
+  });
+  if (!chosen || !chosen.length) return;
+
+  const names = chosen.map((id) => resetPartById(id).label.toLowerCase());
+  const listed = names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const everything = chosen.length === RESET_PARTS.length;
+
+  const go = await confirmAction({
+    title: everything ? 'Erase everything?' : 'Reset these?',
+    body: everything
+      ? 'Every task, section, level, streak, unlock and setting goes. There is no undo, and no copy anywhere else unless you exported one.'
+      : `This clears ${listed}. There is no undo.`,
+    confirmLabel: everything ? 'Erase it all' : 'Reset',
+    cancelLabel: 'Never mind',
+    danger: true,
+    iconName: 'trash',
+  });
+  if (!go) return;
+
+  if (everything) {
+    clearStorage();
+    replaceState(createInitialState());
+    emit('imported', getState());
+    toast('Everything reset', { tone: 'warn', iconName: 'undo' });
+    closeModal();
+    return;
+  }
+
+  update((state) => applyReset(state, chosen));
+  emit('imported', getState()); // same shape of change: re-apply cosmetics, re-render
+  toast(`Reset ${listed}`, { tone: 'warn', iconName: 'undo', detail: 'Everything else is untouched.' });
+  refreshModal();
+}
 
 /**
  * Installed to a home screen, the app is a cache that boots — and it will

@@ -2,8 +2,30 @@
    never rerolls, and every `measure` is a pure read of state + stats. */
 
 import { hashString, seededRandom } from './util.js';
+import { bedtimeInstant } from './time.js';
 
 const SPRINT_WINDOW_MS = 5 * 60 * 1000;
+/** "Front loaded" means done with an hour still on the clock. */
+const FRONT_LOAD_LEAD_MS = 60 * 60 * 1000;
+
+/** The moment after which a completion is no longer early. */
+function frontLoadCutoff(state) {
+  const target = bedtimeInstant(state.night.key, state.profile?.settings?.bedtime);
+  return target ? target.getTime() - FRONT_LOAD_LEAD_MS : null;
+}
+
+function clockLabel(ms) {
+  return new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * Cleared means you did the work. Rain-checking every task in a section leaves
+ * nothing remaining, which used to count — two rain checks and a two-task
+ * section was a quest reward for doing nothing at all.
+ */
+function clearedSections(stats) {
+  return stats.sections.filter((s) => s.total > 0 && s.remaining === 0 && s.done > 0).length;
+}
 
 /** Largest number of completions falling inside one sliding window. */
 function busiestWindow(doneTimes, windowMs) {
@@ -34,7 +56,7 @@ export const QUEST_DEFS = [
     goal: 1,
     xp: 40,
     dust: 20,
-    measure: (state, stats) => stats.sections.filter((s) => s.total > 0 && s.remaining === 0).length,
+    measure: (state, stats) => clearedSections(stats),
   },
   {
     id: 'twoSections',
@@ -43,7 +65,7 @@ export const QUEST_DEFS = [
     goal: 2,
     xp: 55,
     dust: 30,
-    measure: (state, stats) => stats.sections.filter((s) => s.total > 0 && s.remaining === 0).length,
+    measure: (state, stats) => clearedSections(stats),
   },
   {
     id: 'sixTasks',
@@ -91,11 +113,24 @@ export const QUEST_DEFS = [
   {
     id: 'halfBefore',
     name: 'Front Loaded',
-    describe: () => 'Complete 4 tasks before the countdown hits an hour',
+    // It said "before the countdown hits an hour" and measured `stats.done`,
+    // which is not that at all: four tasks twenty minutes *past* bedtime
+    // completed it. The clock is the whole quest, so the clock is measured.
+    describe: (state) => {
+      const cutoff = state ? frontLoadCutoff(state) : null;
+      return cutoff
+        ? `Finish 4 tasks before ${clockLabel(cutoff)}`
+        : 'Finish 4 tasks over an hour before bedtime';
+    },
     goal: 4,
     xp: 45,
     dust: 24,
-    measure: (state, stats) => stats.done,
+    measure: (state) => {
+      const cutoff = frontLoadCutoff(state);
+      // No readable bedtime, no deadline to be early for.
+      if (cutoff === null) return Object.keys(state.night.done).length;
+      return Object.values(state.night.done).filter((at) => at <= cutoff).length;
+    },
   },
 ];
 
@@ -119,7 +154,7 @@ export function evaluateQuest(state, stats) {
     def,
     id: def.id,
     name: def.name,
-    description: def.describe(),
+    description: def.describe(state),
     progress,
     goal: def.goal,
     complete: progress >= def.goal,

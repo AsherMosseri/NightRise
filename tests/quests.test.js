@@ -61,11 +61,62 @@ test('no-rainchecks needs both the percentage and a clean sheet', () => {
   assert.equal(evaluateQuest(state, computeStats(state)).complete, false);
 });
 
+test('front loaded counts only what you did early', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 20, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.quest = { id: 'halfBefore', progress: 0, claimed: false };
+  const tasks = Object.values(state.template.tasks);
+  const at = (h, m) => new Date(2026, 6, 29, h, m).getTime();
+
+  // Four tasks, all of them after bedtime — the shape of the bug.
+  for (let i = 0; i < 4; i += 1) applyTaskCompletion(state, tasks[i], at(23, 50));
+  let quest = evaluateQuest(state, computeStats(state));
+  assert.equal(quest.progress, 0, 'past bedtime is not front loaded');
+  assert.equal(quest.complete, false);
+
+  // The cutoff is an hour before 23:30. 22:29 counts, 22:31 does not.
+  applyTaskCompletion(state, tasks[4], at(22, 29));
+  applyTaskCompletion(state, tasks[5], at(22, 31));
+  quest = evaluateQuest(state, computeStats(state));
+  assert.equal(quest.progress, 1, 'only the one inside the hour');
+
+  for (let i = 6; i < 9; i += 1) applyTaskCompletion(state, tasks[i], at(21, 0));
+  quest = evaluateQuest(state, computeStats(state));
+  assert.equal(quest.progress, 4);
+  assert.equal(quest.complete, true);
+});
+
+test('front loaded says which time it means', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 20, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.quest = { id: 'halfBefore', progress: 0, claimed: false };
+  const quest = evaluateQuest(state, computeStats(state));
+  assert.match(quest.description, /Finish 4 tasks before /);
+  assert.match(quest.description, /10:30/, 'an hour before the bedtime that is actually set');
+});
+
+test('a section you rain-checked into silence is not cleared', () => {
+  const state = createInitialState();
+  state.night.quest = { id: 'clearSection', progress: 0, claimed: false };
+  const section = state.template.sections[state.template.order[0]];
+  for (const id of section.taskIds) state.night.skipped[id] = true;
+
+  assert.equal(computeStats(state).sections[0].remaining, 0, 'nothing is left, technically');
+  assert.equal(evaluateQuest(state, computeStats(state)).complete, false, 'but nothing was done');
+
+  // One real completion among the excuses is enough to have cleared it.
+  const [first] = section.taskIds;
+  delete state.night.skipped[first];
+  applyTaskCompletion(state, state.template.tasks[first]);
+  assert.equal(evaluateQuest(state, computeStats(state)).complete, true);
+});
+
 test('every quest definition is well formed', () => {
   for (const def of QUEST_DEFS) {
     assert.equal(questById(def.id), def);
     assert.ok(def.goal > 0);
     assert.ok(def.xp > 0 && def.dust > 0);
-    assert.equal(typeof def.describe(), 'string');
+    assert.equal(typeof def.describe(createInitialState()), 'string');
+    assert.equal(typeof def.describe(), 'string', 'and it survives being asked without state');
   }
 });

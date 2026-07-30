@@ -24,6 +24,7 @@ import { setSkyPaused } from '../sky.js';
 import { toast } from '../toast.js';
 import { formatNumber, plural } from '../util.js';
 import { confirmAction } from './confirm.js';
+import { refreshApp, runningVersion } from '../updates.js';
 
 let dialog = null;
 let bodyHost = null;
@@ -621,9 +622,51 @@ VIEWS.settings = () => {
           },
         }, 'Reset everything')),
       h('p', { class: 'muted small' },
-        'A night rolls over at 4am, so anything you check off at 1am still counts for the night before.')),
+        'A night rolls over at 4am, so anything you check off at 1am still counts for the night before.'),
+      h('h3', { class: 'modal__section' }, 'This app'),
+      appVersionPanel()),
   };
 };
+
+/**
+ * Installed to a home screen, the app is a cache that boots — and it will
+ * happily boot last week's copy for days. This is the lever for when it does.
+ */
+function appVersionPanel() {
+  const line = h('p', { class: 'muted small' }, 'Checking which version is running…');
+  runningVersion().then((version) => {
+    line.textContent = version
+      ? `Running ${version}. It updates itself on launch; this is for when it hasn't.`
+      : 'Running from the network, so you always have the newest one.';
+  });
+
+  const button = h('button', {
+    type: 'button',
+    class: 'btn btn--sm',
+    onClick: async () => {
+      button.disabled = true;
+      button.replaceChildren(icon('undo', { size: 14 }), 'Refreshing…');
+      const outcome = await refreshApp();
+      if (outcome === 'offline') {
+        button.disabled = false;
+        button.replaceChildren(icon('undo', { size: 14 }), 'Refresh the app');
+        toast('No connection', {
+          tone: 'warn',
+          iconName: 'download',
+          detail: 'A refresh has to fetch the new version first.',
+        });
+      }
+      // Every other outcome ends in a reload, so there is nothing to restore.
+    },
+  }, icon('undo', { size: 14 }), 'Refresh the app');
+
+  return h('div', { class: 'field' },
+    h('div', { class: 'row' }, button),
+    line,
+    h('p', { class: 'muted small' },
+      'Nothing you have done is stored in the app itself — your night, streak, '
+      + 'stardust and unlocks live in this browser and are untouched by a refresh.'));
+}
 
 /* ------------------------------------------------------------------- help */
 

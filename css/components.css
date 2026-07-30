@@ -253,7 +253,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   left: 50%;
   bottom: calc(22px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  z-index: 60;
+  /* Above the sheet (70). A toast with a button on it — "Undo", "Load it" —
+     is useless underneath the scrim, and that is exactly when one appears. */
+  z-index: 75;
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;

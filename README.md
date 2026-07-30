@@ -98,7 +98,14 @@ it's the scroll.
 - Two tabs stay in sync instead of clobbering each other, pending writes are flushed when
   the tab is backgrounded, and unreadable saved data is preserved under
   `nightcheck.v1.corrupt` rather than silently discarded.
-- Installable as a PWA and fully offline-capable.
+- Installable as a PWA and fully offline-capable — and it can actually update
+  itself. An installed app is a cache that boots, so this asks the service worker
+  to look for a new build on launch and on every return to the foreground, then
+  reloads on the spot if nothing is open, or offers a toast if you are mid-task.
+  Settings shows which build is running and has a **Refresh the app** button that
+  empties the caches and reloads — the effect of deleting and reinstalling the
+  app, without deleting anything. Your night, streak and unlocks are in
+  `localStorage` and are never touched by it.
 
 ## Running it locally
 
@@ -142,6 +149,7 @@ index.html            app shell
 css/                  base tokens, themes, layout, components
 js/                   state, actions, game rules, canvas sky, renderers
 js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
+js/updates.js         keeps an installed copy from booting last week's build
 tests/                node --test suites over the pure modules
 tools/make-icons.mjs  PWA icon generator
 sw.js                 cache-first service worker

@@ -1,7 +1,10 @@
 /* Cache-first service worker. Bump CACHE when shipping changes — the old
-   cache is dropped on activate, so an update never leaves a half-stale app. */
+   cache is dropped on activate, so an update never leaves a half-stale app.
 
-const CACHE = 'nightcheck-v6';
+   js/updates.js drives this from the page: it asks the registration to check
+   on launch and on foreground, and messages SKIP_WAITING to take a new build. */
+
+const CACHE = 'nightcheck-v7';
 
 const ASSETS = [
   './',
@@ -41,6 +44,7 @@ const ASSETS = [
   './js/render/goodnight.js',
   './js/envelope.js',
   './js/optical.js',
+  './js/updates.js',
   './assets/icon.svg',
   './assets/icon-192.png',
   './assets/icon-512.png',
@@ -49,7 +53,15 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      .then((cache) => cache.addAll(ASSETS))
+      // `cache: 'reload'` matters more than it looks. Without it these go
+      // through the HTTP cache, so a new worker could fill its brand-new cache
+      // with the same stale files the old one was already serving, and the
+      // "update" would change nothing.
+      .then((cache) => cache.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
+      // Take over as soon as the new files are safely stored. Waiting for every
+      // client to close is precisely the state an installed app never reaches —
+      // the page decides when to *reload*, but the worker must not be stuck
+      // behind an old page that has no idea it is waiting.
       .then(() => self.skipWaiting()),
   );
 });
@@ -60,6 +72,14 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener('message', (event) => {
+  const type = event.data?.type;
+  if (type === 'SKIP_WAITING') self.skipWaiting();
+  // So Settings can show which build is actually running, rather than which
+  // build the files on the server say they are.
+  if (type === 'VERSION') event.ports?.[0]?.postMessage(CACHE);
 });
 
 self.addEventListener('fetch', (event) => {

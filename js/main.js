@@ -22,6 +22,7 @@ import * as audio from './audio.js';
 import { storageAvailable, flushPersist, STORAGE_KEY, normalizeState } from './storage.js';
 import { plural } from './util.js';
 import { initOptical, applyOpticalNudge } from './optical.js';
+import { initUpdates, applyUpdate } from './updates.js';
 
 const TOPBAR_ICON_SIZE = 18;
 
@@ -351,11 +352,15 @@ function boot() {
   });
   motionQuery.addEventListener?.('change', () => applyCosmetics());
 
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
-  }
+  initUpdates({
+    onUpdateReady: () => toast('A new version is ready', {
+      tone: 'info',
+      iconName: 'download',
+      duration: 15000,
+      detail: 'Your night, streak and unlocks all stay put.',
+      action: { label: 'Load it', onClick: () => applyUpdate() },
+    }),
+  });
 
   // Small dev hatch, documented in the README, used for testing the night cycle.
   window.__nightcheck = {

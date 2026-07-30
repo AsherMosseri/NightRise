@@ -6,6 +6,7 @@ import {
 } from '../js/night.js';
 import { createInitialState } from '../js/model.js';
 import { applyTaskCompletion } from '../js/game.js';
+import { openEnvelope, envelopeWaiting } from '../js/envelope.js';
 
 function stateWithProgress(doneCount, skipCount = 0) {
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
@@ -136,18 +137,70 @@ test('a night key is never banked twice', () => {
   assert.equal(state.profile.tokens.freeze, 1, 'no freeze is burned');
 });
 
-test('starting a fresh night moves to the next key so 4am cannot re-bank it', () => {
+test('starting a fresh night stays on tonight', () => {
   const state = stateWithProgress(9);
-  forceNewNight(state);
-  assert.equal(state.night.key, '2026-07-30');
-  assert.ok(state.history['2026-07-29'], 'the finished night was banked');
+  forceNewNight(state, null, new Date(2026, 6, 29, 22, 0));
+  assert.equal(state.night.key, '2026-07-29', 'it is still tonight, not tomorrow');
+  assert.deepEqual(state.night.done, {}, 'with a clean list');
+  assert.ok(state.history['2026-07-29'], 'and the finished night was banked');
+});
 
+test('4am after a fresh start rolls the night without re-banking it', () => {
+  const state = stateWithProgress(9);
+  forceNewNight(state, null, new Date(2026, 6, 29, 22, 0));
   const streak = state.profile.streak;
+  const logged = state.profile.nightsLogged;
   const banked = { ...state.history['2026-07-29'] };
-  assert.equal(rolloverIfNeeded(state, new Date(2026, 6, 30, 5, 0)), null,
-    'the 4am boundary has nothing left to do');
-  assert.equal(state.profile.streak, streak);
-  assert.deepEqual(state.history['2026-07-29'], banked);
+
+  rolloverIfNeeded(state, new Date(2026, 6, 30, 5, 0));
+  assert.equal(state.night.key, '2026-07-30', 'tomorrow starts normally');
+  assert.equal(state.profile.streak, streak, 'the streak is not touched twice');
+  assert.equal(state.profile.nightsLogged, logged);
+  assert.deepEqual(state.history['2026-07-29'], banked, 'the empty second run did not overwrite it');
+});
+
+test('a second run at the same night can only improve its history entry', () => {
+  const state = stateWithProgress(9);
+  forceNewNight(state, null, new Date(2026, 6, 29, 22, 0));
+  const first = { ...state.history['2026-07-29'] };
+  assert.ok(first.pct > 0);
+
+  // Do every task this time round, then let 4am bank it.
+  for (const id of Object.keys(state.template.tasks)) state.night.done[id] = Date.now();
+  rolloverIfNeeded(state, new Date(2026, 6, 30, 5, 0));
+  const second = state.history['2026-07-29'];
+  assert.equal(second.pct, 100, 'the better run is what the date is remembered by');
+  assert.ok(second.done > first.done);
+  assert.equal(state.profile.nightsLogged, 1, 'still one night, counted once');
+});
+
+test('starting fresh does not hand out a second envelope or quest reward', () => {
+  const state = stateWithProgress(9);
+  openEnvelope(state);
+  const dust = state.profile.stardust;
+  const freezes = state.profile.tokens.freeze;
+  const rainchecks = state.profile.tokens.raincheck;
+
+  forceNewNight(state, null, new Date(2026, 6, 29, 22, 0));
+  assert.equal(envelopeWaiting(state), false, 'the same night owes you nothing more');
+  assert.equal(openEnvelope(state), null);
+  assert.equal(state.profile.stardust, dust);
+  assert.equal(state.profile.tokens.freeze, freezes);
+  assert.equal(state.profile.tokens.raincheck, rainchecks);
+
+  // A real new night is a different story.
+  rolloverIfNeeded(state, new Date(2026, 6, 30, 5, 0));
+  assert.equal(envelopeWaiting(state), true);
+});
+
+test('a night dated tomorrow is pulled back to tonight, not banked', () => {
+  const state = stateWithProgress(9);
+  state.night.key = '2026-07-30'; // what the old "start fresh" left behind
+  const banked = Object.keys(state.history).length;
+
+  assert.equal(rolloverIfNeeded(state, new Date(2026, 6, 29, 21, 30)), null);
+  assert.equal(state.night.key, '2026-07-29', 'the header stops claiming it is tomorrow');
+  assert.equal(Object.keys(state.history).length, banked, 'nothing ended, so nothing was banked');
 });
 
 test('a clock that jumps backwards never re-banks an old night', () => {

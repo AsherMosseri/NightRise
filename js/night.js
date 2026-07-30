@@ -1,7 +1,7 @@
 /* The nightly cycle: live stats, rollover, banking, streaks and freezes. */
 
 import { createNight } from './model.js';
-import { nightKeyOf, keyDiffDays, shiftKey } from './time.js';
+import { nightKeyOf, keyDiffDays } from './time.js';
 import { STREAK_THRESHOLD_PCT, checkBadges } from './game.js';
 
 /** Live view of tonight — used by the header, sky, quests and pacing. */
@@ -104,8 +104,22 @@ export function bankNight(state, stats) {
   // followed by the 4am rollover banked the same key twice: the second pass saw
   // an empty night, overwrote a 100% history entry with 0%, burned a freeze and
   // reset the streak.
+  //
+  // The history entry is the exception. Starting fresh gives the same date a
+  // second run, and what you did on a date is the best you got to on it — so
+  // the entry may improve, while the streak, the freezes and the per-task
+  // stats stay counted exactly once.
   if (profile.lastBankedKey === night.key) {
     result.alreadyBanked = true;
+    const previous = state.history[night.key];
+    if (stats.total > 0 && (!previous || stats.pct > previous.pct)) {
+      const better = summarizeForHistory(stats, xp);
+      better.quest = Boolean(night.quest?.claimed) || Boolean(previous?.quest);
+      better.lightsOutAt = night.lightsOutAt || previous?.lightsOutAt || null;
+      better.onTime = Boolean(night.lightsOutOnTime) || Boolean(previous?.onTime);
+      better.frozen = Boolean(previous?.frozen);
+      state.history[night.key] = better;
+    }
     return result;
   }
 
@@ -153,7 +167,18 @@ export function rolloverIfNeeded(state, now = new Date()) {
   if (state.night.key === key) return null;
   // Only ever roll forward. A clock correction, a timezone hop westward or a
   // manually-set date could otherwise re-bank an old key and overwrite history.
-  if (keyDiffDays(state.night.key, key) < 0) return null;
+  //
+  // A night dated exactly one day ahead is not a rollover, it is a mistake to
+  // undo: "start fresh" used to jump a day forward, which left the app
+  // insisting it was tomorrow — tomorrow's date in the header, and "24h 32m
+  // left" until a bedtime half an hour away. Retitle it to tonight. Nothing has
+  // ended, so nothing is banked. A bigger gap is a wrong clock rather than our
+  // bug, and renaming a night across a week could land on a real history entry.
+  const drift = keyDiffDays(state.night.key, key);
+  if (drift < 0) {
+    if (drift === -1) state.night.key = key;
+    return null;
+  }
   const stats = computeStats(state);
   const result = bankNight(state, stats);
   state.night = createNight(key);
@@ -161,14 +186,19 @@ export function rolloverIfNeeded(state, now = new Date()) {
 }
 
 /**
- * Manual "start a fresh night" — banks the current one and moves on to the next
- * key. Re-using the current key left a duplicate night that the 4am rollover
- * banked a second time, as 0%.
+ * Manual "start a fresh night" — bank what you did, then hand back a clean list
+ * for the *same* night. It is still tonight; you have not gone to bed and woken
+ * up, you have just decided to run the evening again.
+ *
+ * This used to advance to the next key, as a workaround for the 4am rollover
+ * banking the same night twice. Banking is idempotent per key now, so the
+ * workaround only did harm: it dated the night a day into the future, so the
+ * header showed tomorrow and the bedtime countdown read a full day.
  */
-export function forceNewNight(state, key) {
+export function forceNewNight(state, key, now = new Date()) {
   const stats = computeStats(state);
   const result = bankNight(state, stats);
-  state.night = createNight(key || shiftKey(state.night.key, 1));
+  state.night = createNight(key || nightKeyOf(now));
   return result;
 }
 

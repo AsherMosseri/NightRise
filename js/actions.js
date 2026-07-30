@@ -308,7 +308,11 @@ export function claimQuest() {
     const stats = computeStats(state);
     const quest = evaluateQuest(state, stats);
     if (!quest || !quest.complete || quest.claimed) return null;
+    // Paid once per date. Starting the night fresh clears `claimed`, which
+    // would otherwise let one quest be claimed as many times as you press it.
+    if (state.profile.lastQuestKey === state.night.key) return null;
     state.night.quest.claimed = true;
+    state.profile.lastQuestKey = state.night.key;
     const def = questById(quest.id);
     const levels = grantXp(state, def.xp, def.dust);
     emit('quest:claim', { quest, def, levels });

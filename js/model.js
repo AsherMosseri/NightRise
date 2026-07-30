@@ -48,6 +48,9 @@ export function createProfile() {
     bestStreak: 0,
     nightsLogged: 0,
     lastBankedKey: null,
+    // One envelope and one quest reward per date, not per fresh start.
+    lastEnvelopeKey: null,
+    lastQuestKey: null,
     badges: [],
     inventory: {
       themes: ['midnight'],

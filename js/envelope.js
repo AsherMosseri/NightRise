@@ -92,15 +92,19 @@ export function dropById(id) {
  * it, and recorded so it can only ever pay out once.
  */
 export function openEnvelope(state) {
-  if (state.night.envelope?.opened) return null;
+  if (!envelopeWaiting(state)) return null;
   const rand = seededRandom(hashString(`envelope:${state.night.key}:${state.profile.nightsLogged}`));
   const drop = pick(rand);
   const amount = drop.apply(state, rand);
   state.night.envelope = { opened: Date.now(), id: drop.id, amount };
   state.profile.envelopesOpened = (state.profile.envelopesOpened || 0) + 1;
+  state.profile.lastEnvelopeKey = state.night.key;
   return { drop, amount };
 }
 
 export function envelopeWaiting(state) {
-  return !state.night.envelope?.opened;
+  if (state.night.envelope?.opened) return false;
+  // One per date, not one per night object. "Bank tonight and start fresh"
+  // hands back a clean night; it must not hand back the prize with it.
+  return state.profile.lastEnvelopeKey !== state.night.key;
 }

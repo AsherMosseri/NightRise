@@ -74,8 +74,9 @@ it's the scroll.
   supposed to be rescuing you from. A deliberate second tap still gets you in.
 
 **The game**
-- XP with a level curve and titles: Dreamer → Night Owl → Star Gazer → Moon Walker →
-  Dusk Warden → Void Sailor → Constellation Keeper → Well Slept.
+- XP with a level curve and eight titles, from Dreamer upward. You can see the level each
+  one arrives at but never what it is called until you get there — a list of every name you
+  will ever be given is a list of endings, and the reveal is the reward.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
 - Badges for streaks, perfect nights, early nights and collection milestones. Nothing in
   the game rewards being awake late: there was a badge for checking something off past

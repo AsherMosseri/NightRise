@@ -60,6 +60,23 @@ export function nextTitle(level) {
   return TITLES.find((entry) => entry.level > level) || null;
 }
 
+/** What an unreached title shows instead of its name. */
+export const HIDDEN_TITLE = '· · ·';
+
+/**
+ * The ladder as it should be shown: you can see how far away each rung is, but
+ * not what it is called until you are standing on it. A list of every name you
+ * will ever be given is a list of endings, and reading it is most of the fun
+ * gone — the reveal is the reward.
+ */
+export function titleLadder(level) {
+  return TITLES.map((entry) => ({
+    level: entry.level,
+    earned: level >= entry.level,
+    name: level >= entry.level ? entry.name : null,
+  }));
+}
+
 /** Multiplier for the nth task in a back-to-back chain (1-based). */
 export function comboMultiplier(chainLength) {
   return clamp(1 + (Math.max(1, chainLength) - 1) * COMBO_STEP, 1, COMBO_MAX);

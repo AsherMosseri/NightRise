@@ -483,6 +483,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   opacity: 0.55;
 }
 .titles li.is-earned { opacity: 1; border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--panel-2); }
+/* A rung you have not reached shows how far off it is, not what it is called. */
+.titles li.is-locked { border-style: dashed; }
+.titles li.is-locked strong { color: var(--muted); letter-spacing: 0.18em; font-weight: 500; }
 
 /* settings */
 .settings { display: flex; flex-direction: column; gap: 16px; }

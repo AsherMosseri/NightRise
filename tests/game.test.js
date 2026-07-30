@@ -5,7 +5,7 @@ import {
   xpForLevel, levelFromXp, titleForLevel, nextTitle, comboMultiplier, taskXp,
   stardustFor, grantXp, applyTaskCompletion, revokeTaskCompletion, chainLengthFor,
   nightCompletionBonus, checkBadges, COMBO_MAX, MOMENTUM_MIN_GAP_MS, momentumWindow,
-  TITLES, BADGES,
+  TITLES, BADGES, titleLadder,
 } from '../js/game.js';
 import { QUEST_DEFS } from '../js/quests.js';
 import { createInitialState } from '../js/model.js';
@@ -186,4 +186,25 @@ test('nothing in one ladder echoes another rung of it', () => {
       }
     }
   }
+});
+
+test('a title you have not reached does not tell you its name', () => {
+  const ladder = titleLadder(5);
+  const reached = ladder.filter((t) => t.earned);
+  const ahead = ladder.filter((t) => !t.earned);
+
+  assert.ok(reached.length >= 3 && ahead.length >= 3, 'level 5 sits in the middle of the ladder');
+  for (const rung of reached) assert.equal(typeof rung.name, 'string');
+  for (const rung of ahead) {
+    assert.equal(rung.name, null, `level ${rung.level} should still be a secret`);
+    assert.ok(rung.level > 5, 'but you can still see how far away it is');
+  }
+});
+
+test('every name is out by the top of the ladder, and none at the bottom', () => {
+  const top = TITLES[TITLES.length - 1].level;
+  assert.deepEqual(titleLadder(top).map((t) => t.name), TITLES.map((t) => t.name));
+  const first = titleLadder(1);
+  assert.equal(first[0].name, TITLES[0].name, 'the one you start with is yours');
+  assert.deepEqual(first.slice(1).map((t) => t.name), first.slice(1).map(() => null));
 });

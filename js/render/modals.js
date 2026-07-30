@@ -10,7 +10,7 @@ import {
 } from '../shop.js';
 import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost } from '../constellations.js';
 import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../companion.js';
-import { BADGES, levelFromXp, titleForLevel, TITLES } from '../game.js';
+import { BADGES, levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
 import { taskInsights, reliableTasks, overallRate } from '../insights.js';
 import { forceNewNight } from '../night.js';
 import {
@@ -406,9 +406,13 @@ VIEWS.insights = () => {
       h('h3', { class: 'modal__section' }, 'Badges'),
       badgeGrid,
       h('h3', { class: 'modal__section' }, 'Titles'),
-      h('ul', { class: 'titles' }, ...TITLES.map((t) => h('li', {
-        class: level.level >= t.level ? 'is-earned' : '',
-      }, h('strong', {}, t.name), h('span', { class: 'muted small' }, `level ${t.level}`))))),
+      h('p', { class: 'muted small' }, 'You find out what each one is called when you get there.'),
+      h('ul', { class: 'titles' }, ...titleLadder(level.level).map((t) => h('li', {
+        class: t.earned ? 'is-earned' : 'is-locked',
+        'aria-label': t.earned ? `${t.name}, level ${t.level}` : `Unknown title, level ${t.level}`,
+      },
+      h('strong', {}, t.name ?? HIDDEN_TITLE),
+      h('span', { class: 'muted small' }, `level ${t.level}`))))),
   };
 };
 

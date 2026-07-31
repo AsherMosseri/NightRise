@@ -23,7 +23,7 @@
 
 import { COMBO_MAX } from './game.js';
 import { nightsFullyCleared } from './insights.js';
-import { plural } from './util.js';
+import { plural, formatMultiplier } from './util.js';
 
 /** Stardust for reaching a tier, paid once per tier ever. */
 export function tierDust(tier) {
@@ -126,8 +126,8 @@ export const ACHIEVEMENTS = [
     id: 'combo',
     icon: 'chart',
     noun: 'multiplier',
-    goal: (at) => `Hit a x${at.toFixed(2).replace(/0$/, '')} momentum multiplier`,
-    format: (n) => `x${n.toFixed(2).replace(/0$/, '')}`,
+    goal: (at) => `Hit a ${formatMultiplier(at)} momentum multiplier`,
+    format: (n) => formatMultiplier(n),
     base: 1,
     measure: (state) => Math.max(state.profile.bestCombo || 1, state.night.maxCombo || 1),
     tiers: [

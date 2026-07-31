@@ -386,3 +386,23 @@ test('an all-rain-checked night is not a finished night', () => {
   assert.equal(stats.done, 0, 'and nothing was done');
   assert.equal(stats.pct, 0, 'so it scores nothing, and the copy must agree');
 });
+
+test('the header promises a freeze only when it will actually be spent', () => {
+  // bankNight is all-or-nothing — it spends freezes only when it holds enough
+  // to cover every missed night. Reporting min(missed, held) meant one freeze
+  // against two missed nights read as "1 streak freeze will cover some of it",
+  // and then 4am spent nothing and took the streak anyway.
+  const state = stateWithProgress(0);
+  state.profile.streak = 6;
+  state.profile.lastBankedKey = '2026-07-26'; // two nights missed
+  state.profile.tokens.freeze = 1;
+  const short = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  assert.equal(short.missed, 2);
+  assert.equal(short.covered, 0, 'one freeze covers none of two, not one of two');
+  assert.equal(short.streak, 0, 'and the streak is gone');
+
+  state.profile.tokens.freeze = 2;
+  const enough = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  assert.equal(enough.covered, 2);
+  assert.equal(enough.streak, 6, 'covered in full, so it stands');
+});

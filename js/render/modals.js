@@ -370,7 +370,10 @@ VIEWS.history = () => {
           ? `, lights out ${new Date(entry.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}${entry.onTime ? ' (on time)' : ''}`
           : '';
         detail.textContent = entry
-          ? `${formatNightLabel(key)} — ${entry.done} of ${entry.total} done, ${entry.pct}%, ${entry.xp} XP${stopped}${entry.quest ? ', quest claimed' : ''}${entry.frozen ? ', streak freeze used' : ''}.`
+          // The percentage is over what counted, not over the raw total, so
+          // printing "4 of 11 done, 100%" side by side read as a plain
+          // arithmetic error. Say the denominator the percentage actually used.
+          ? `${formatNightLabel(key)} — ${entry.done} of ${Math.max(0, entry.total - (entry.skipped || 0))} counted done, ${entry.pct}%${entry.skipped ? `, ${entry.skipped} rain-checked` : ''}, ${entry.xp} XP${stopped}${entry.quest ? ', quest claimed' : ''}${entry.frozen ? ', streak freeze used' : ''}.`
           : `${formatNightLabel(key)} — nothing recorded.`;
       },
     });
@@ -390,8 +393,10 @@ VIEWS.history = () => {
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.bestStreak)), h('span', {}, 'best streak')),
         h('div', {
           class: 'stat-box',
-          title: 'Nights you called it before your target bedtime — the number this app actually cares about',
-        }, h('strong', {}, String(state.profile.lightsOut?.streak || 0)), h('span', {}, 'to bed on time')),
+          // A consecutive run, sitting in a row of lifetime totals. The label
+          // said "to bed on time" and read as a count of nights.
+          title: 'Nights in a row you called it before your target bedtime — the number this app actually cares about',
+        }, h('strong', {}, String(state.profile.lightsOut?.streak || 0)), h('span', {}, 'on time in a row')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.nightsLogged)), h('span', {}, 'nights logged')),
         h('div', { class: 'stat-box' }, h('strong', {}, `${overallRate(state) ?? 0}%`), h('span', {}, 'average night')),
         h('div', {
@@ -593,7 +598,7 @@ VIEWS.insights = () => {
       h('h3', { class: 'modal__section' }, 'Task by task'),
       table,
       h('h3', { class: 'modal__section' }, 'Achievements'),
-      h('p', { class: 'muted small' }, 'Each one levels up. You get the number you are working toward; the name of the next tier is a surprise.'),
+      h('p', { class: 'muted small' }, 'Each one levels up. You can see the rung you are climbing toward; every name past it is a surprise.'),
       badgeGrid,
       h('h3', { class: 'modal__section' }, 'Titles'),
       h('p', { class: 'muted small' }, 'You find out what each one is called when you get there.'),

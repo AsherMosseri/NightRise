@@ -173,3 +173,16 @@ export function stepMinutes(current, direction) {
   })();
   return roundMinutes(m + (up ? size : -size));
 }
+
+/**
+ * One way to print a momentum multiplier.
+ *
+ * There were three. `.replace(/0$/, '')` strips a single zero, so an exact 2
+ * printed as "x2." in two places; `.replace(/0+$/, '').replace(/\.$/, '')`
+ * printed "x2" in two others — and two of them sat side by side on the same
+ * screen showing the same number differently.
+ */
+export function formatMultiplier(value) {
+  const n = Number(value) || 1;
+  return `x${n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
+}

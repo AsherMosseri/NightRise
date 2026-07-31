@@ -117,10 +117,15 @@ export function renderStats() {
       const title = live.atRisk
         ? `${plural(live.missed, 'night', 'nights')} missed since you last banked one.`
           + (live.covered
-            ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover ${live.covered === live.missed ? 'it' : 'some of it'}.`
-            : ' Nothing to cover it, so the streak is gone.')
-        : `Nights running you finished at least 60% of your list — this one is about the`
-          + ` list, not the clock. Best: ${profile.bestStreak}. Freezes held: ${profile.tokens.freeze}`;
+            ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover it.`
+            : ` ${live.held ? `${plural(live.held, 'freeze', 'freezes')} is not enough to cover all of them, and a freeze is never spent unless it saves the streak. ` : ''}The streak is gone.`)
+        // "60% of your list" is not what is measured: the percentage is over
+        // the tasks that counted, and a rain check takes one out of the
+        // denominator entirely. Four of eleven done with seven rain-checked is
+        // 100%, and it extends this streak.
+        : `Nights running you reached 60% of what counted — rain checks are left`
+          + ` out of the sum. About the list, not the clock.`
+          + ` Best: ${profile.bestStreak}. Freezes held: ${profile.tokens.freeze}`;
       return statChip({
         iconName: 'flame',
         value: String(live.streak),
@@ -422,7 +427,7 @@ function renderTonightInner() {
             ? h('span', {
               class: 'chip chip--combo',
               title: 'Momentum rises when you work through the list at a real pace.',
-            }, icon('flame', { size: 13 }), `x${state.night.combo.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} momentum`)
+            }, icon('flame', { size: 13 }), `${formatMultiplier(state.night.combo)} momentum`)
             : null,
           h('span', { class: 'chip', title: 'Rain checks excuse a task from tonight\'s percentage' },
             icon('skip', { size: 13 }), `${state.profile.tokens.raincheck} rain ${state.profile.tokens.raincheck === 1 ? 'check' : 'checks'}`),

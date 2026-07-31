@@ -1,7 +1,7 @@
 /* Nightly bonus quests. The roll is seeded by the night key so a reload
    never rerolls, and every `measure` is a pure read of state + stats. */
 
-import { hashString, seededRandom } from './util.js';
+import { hashString, seededRandom, formatMultiplier } from './util.js';
 import { bedtimeInstant } from './time.js';
 
 const SPRINT_WINDOW_MS = 5 * 60 * 1000;
@@ -84,7 +84,7 @@ export const QUEST_DEFS = [
     xp: 50,
     dust: 28,
     measure: (state) => Math.max(0, (state.night.maxCombo || 1) - 1) * 4,
-    progressLabel: (state) => `x${(state.night.maxCombo || 1).toFixed(2).replace(/0$/, '')}`,
+    progressLabel: (state) => formatMultiplier(state.night.maxCombo || 1),
   },
   {
     id: 'noRainchecks',

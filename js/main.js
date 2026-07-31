@@ -125,8 +125,7 @@ function wireEffects() {
     // all, which is why the shop felt disconnected from the checklist.
     if (award.dust > 0) flyBetween(lastCheckRect, rectOf(document.querySelector('.stat--stardust')));
     if (award.multiplier >= 2) {
-      const label = `x${award.multiplier.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
-      toast(`${label} combo`, { tone: 'win', iconName: 'flame', duration: 2200, detail: `+${award.dust} stardust` });
+      toast(`${formatMultiplier(award.multiplier)} combo`, { tone: 'win', iconName: 'flame', duration: 2200, detail: `+${award.dust} stardust` });
     }
   });
 
@@ -136,16 +135,25 @@ function wireEffects() {
   on('level', (levels) => {
     audio.play('level');
     const top = levels[levels.length - 1];
-    celebrate(`Level ${top}`, `${titleForLevel(top)} · bonus stardust awarded`);
+    // Only if it paid. Crossing a boundary you have crossed before pays nothing
+    // — the high-water mark sees to that — and this said otherwise regardless.
+    const paid = levels.dust || 0;
+    celebrate(`Level ${top}`, paid
+      ? `${titleForLevel(top)} · +${paid} stardust`
+      : titleForLevel(top));
   });
 
   // Taking XP back can take a level with it. Saying so is kinder than letting
   // the number in the corner quietly change on its own.
-  on('level:lost', ({ to }) => {
+  on('level:lost', ({ to, reclaimed }) => {
     toast(`Back to level ${to}`, {
       tone: 'warn',
       iconName: 'undo',
-      detail: `${titleForLevel(to)} · that level's bonus went back too.`,
+      // The refund breaks out the moment the balance cannot cover it, and this
+      // announced it unconditionally — claiming a reclaim that never happened.
+      detail: reclaimed
+        ? `${titleForLevel(to)} · ${reclaimed} stardust went back too.`
+        : `${titleForLevel(to)} · you keep the stardust it paid.`,
     });
   });
 

@@ -264,12 +264,20 @@ export function effectiveStreak(state, now = new Date()) {
   if (missed === 0) {
     return { streak: state.profile.streak, missed: 0, covered: 0, atRisk: false };
   }
-  const covered = Math.min(missed, held);
-  const survives = covered >= missed && state.profile.streak > 0;
+  // bankNight is all-or-nothing: it spends freezes only when it holds enough to
+  // cover every missed night, and otherwise spends none and resets the streak.
+  // This used to report `min(missed, held)`, so with one freeze against two
+  // missed nights the header cheerfully said a freeze would cover it — and then
+  // 4am spent nothing and took the streak anyway. It reports what will actually
+  // happen: either the whole gap is covered or none of it is.
+  const enough = held >= missed;
+  const covered = enough ? missed : 0;
+  const survives = enough && state.profile.streak > 0;
   return {
     streak: survives ? state.profile.streak : 0,
     missed,
     covered,
+    held,
     atRisk: true,
   };
 }

@@ -326,11 +326,11 @@ export function toggleTask(id) {
       // task's own award and the completion bonus it may have unlocked both
       // come off, and either can be the one that drops you a level.
       const levelBefore = state.profile.level;
-      revokeTaskCompletion(state, id);
+      const revoked = revokeTaskCompletion(state, id);
       emit('task:undone', { task });
       afterProgress(state);
       if (state.profile.level < levelBefore) {
-        emit('level:lost', { from: levelBefore, to: state.profile.level });
+        emit('level:lost', { from: levelBefore, to: state.profile.level, reclaimed: revoked?.reclaimed || 0 });
       }
       return { done: false, task };
     }

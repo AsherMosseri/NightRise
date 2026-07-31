@@ -134,13 +134,23 @@ export function grantXp(state, xp, dust = 0) {
   const after = levelFromXp(profile.xp).level;
   profile.level = after;
   const levelsGained = [];
+  // How much the level-ups actually paid. The high-water mark means crossing a
+  // boundary you have crossed before pays nothing, and the toast said "bonus
+  // stardust awarded" regardless — a claim that was simply false any time you
+  // had fallen back a level and climbed it again.
+  let paid = 0;
   for (let lvl = before + 1; lvl <= after; lvl += 1) {
     levelsGained.push(lvl);
     if (lvl > (profile.maxLevelRewarded || 1)) {
-      addDust(profile, levelUpDust(lvl));
+      const dustPaid = levelUpDust(lvl);
+      addDust(profile, dustPaid);
+      paid += dustPaid;
       profile.maxLevelRewarded = lvl;
     }
   }
+  // Non-enumerable: callers treat this as a plain array of levels and compare
+  // it with deepEqual, so the extra fact rides along without changing its shape.
+  Object.defineProperty(levelsGained, 'dust', { value: paid });
   return levelsGained;
 }
 
@@ -202,12 +212,15 @@ export function applyTaskCompletion(state, task, at = Date.now()) {
  * stays up instead: you keep it, and that level is never paid a second time.
  */
 function refundLevelUps(profile) {
+  let reclaimed = 0;
   while ((profile.maxLevelRewarded || 1) > profile.level) {
     const dust = levelUpDust(profile.maxLevelRewarded);
     if (profile.stardust < dust) break;
     profile.stardust -= dust;
     profile.maxLevelRewarded -= 1;
+    reclaimed += dust;
   }
+  return reclaimed;
 }
 
 /** Reverses a grant exactly, including anything the level it bought paid out. */
@@ -224,10 +237,14 @@ export function revokeGrant(state, xp, dust) {
   profile.stardust -= taken;
   if (owed > taken) profile.dustDebt = Math.max(0, profile.dustDebt || 0) + (owed - taken);
   profile.level = levelFromXp(profile.xp).level;
-  refundLevelUps(profile);
+  // How much of the level bonus actually came back. It breaks out the moment
+  // the balance cannot cover it, and the toast announced "that level's bonus
+  // went back too" either way — telling you something had been reclaimed when
+  // nothing had.
+  const reclaimed = refundLevelUps(profile);
   const levelsLost = [];
   for (let lvl = before; lvl > profile.level; lvl -= 1) levelsLost.push(lvl);
-  return { levelsLost };
+  return { levelsLost, reclaimed };
 }
 
 export function revokeTaskCompletion(state, taskId) {
@@ -236,7 +253,8 @@ export function revokeTaskCompletion(state, taskId) {
   delete night.done[taskId];
   delete night.awards[taskId];
   if (!award) return null;
-  revokeGrant(state, award.xp, award.dust);
+  const undone = revokeGrant(state, award.xp, award.dust);
+  award.reclaimed = undone.reclaimed;
   // Only the most recent completion owns the current chain.
   if (award.at !== undefined && night.lastDoneAt === award.at) {
     night.combo = award.prevCombo ?? 1;

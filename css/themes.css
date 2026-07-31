@@ -173,6 +173,18 @@
 }
 .is-dim #dim-veil { opacity: 1; }
 
+/* Dimming costs contrast, and secondary text pays it twice: measured across all
+   six skies, muted copy fell from 6.9–8.6:1 to 3.1–3.5:1 the moment sleep-safe
+   mode came on — below AA, at midnight, for a tired reader. The answer is not
+   less dimming, it is a lighter muted tone underneath it, so the veil lands on
+   text that can afford it. On `body`, not on the root: the themes define
+   --muted on <html> and so does .is-dim, and a custom property that references
+   itself on the same element is a cycle the browser throws away. */
+.is-dim body {
+  --muted: color-mix(in srgb, var(--muted) 34%, var(--text));
+  --border: color-mix(in srgb, var(--border) 55%, var(--text));
+}
+
 /* The veil cannot cover the dialog (top layer) or anything fixed above z-40, so
    those surfaces are warmed directly — otherwise the brightest things on the
    screen were exactly the ones sleep-safe mode missed.

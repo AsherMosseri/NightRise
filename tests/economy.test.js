@@ -10,7 +10,10 @@ import {
 } from '../js/actions.js';
 import { createInitialState } from '../js/model.js';
 import { computeStats } from '../js/night.js';
-import { grantXp, revokeGrant } from '../js/game.js';
+import {
+  grantXp, revokeGrant, applyTaskStart, applyTaskCompletion, revokeTaskCompletion,
+  nightCompletionBonus, START_ADVANCE_XP,
+} from '../js/game.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
 import { equipItem } from '../js/shop.js';
 
@@ -318,4 +321,68 @@ test('each companion keeps its own feeding', () => {
   equipItem('owl');
   assert.equal(getState().profile.companion.fed, 14, 'and the owl remembers');
   assert.equal(getState().profile.companion.tier, 3);
+});
+
+test('starting then finishing pays exactly what finishing alone paid', () => {
+  // The advance is moved, not added. The whole economy paid at the far end of a
+  // task, which for a person who dreads the task puts 100% of the reward on the
+  // other side of the moment they bail — so a small fixed amount moves to the
+  // moment of highest resistance, and comes off what finishing pays.
+  const plain = reset();
+  const task = Object.values(plain.template.tasks)[0];
+  applyTaskCompletion(plain, task, 1000);
+  const paidStraight = plain.profile.xp;
+
+  const staged = reset();
+  applyTaskStart(staged, task, 500);
+  assert.equal(staged.profile.xp, START_ADVANCE_XP, 'a little, up front');
+  applyTaskCompletion(staged, task, 1000);
+  assert.equal(staged.profile.xp, paidStraight, 'and the total is unchanged');
+  assert.equal(staged.profile.stardust, plain.profile.stardust, 'stardust is untouched by starting');
+});
+
+test('starting twice pays once', () => {
+  const state = reset();
+  const task = Object.values(state.template.tasks)[0];
+  assert.ok(applyTaskStart(state, task, 500));
+  assert.equal(applyTaskStart(state, task, 900), null);
+  assert.equal(state.profile.xp, START_ADVANCE_XP);
+});
+
+test('starting does not feed momentum', () => {
+  // Starting is not finishing. If it moved the combo, a night of pressing Start
+  // on everything would build a multiplier out of nothing done.
+  const state = reset();
+  const [a, b] = Object.values(state.template.tasks);
+  applyTaskStart(state, a, 1000);
+  applyTaskStart(state, b, 60000);
+  assert.equal(state.night.combo, 1);
+  assert.equal(state.night.lastDoneAt, 0);
+  assert.equal(computeStats(state).done, 0, 'and it does not move the percentage');
+  assert.equal(computeStats(state).pct, 0);
+});
+
+test('un-checking a started task keeps the advance and takes back the rest', () => {
+  // Starting happened; un-checking cannot un-happen it. What comes back is
+  // exactly what the completion paid, which is the reduced figure.
+  const state = reset();
+  const task = Object.values(state.template.tasks)[0];
+  applyTaskStart(state, task, 500);
+  applyTaskCompletion(state, task, 1000);
+  revokeTaskCompletion(state, task.id);
+  assert.equal(state.profile.xp, START_ADVANCE_XP);
+  assert.ok(state.night.started[task.id], 'the record of having started stays');
+});
+
+test('starting everything and finishing nothing has a small ceiling', () => {
+  // The one way to earn without finishing. The bound is stated here so it stays
+  // bounded: the whole list started and nothing done is worth less than a
+  // single night's completion bonus.
+  const state = reset();
+  const tasks = Object.values(state.template.tasks);
+  for (const task of tasks) applyTaskStart(state, task, 1000);
+  assert.equal(state.profile.xp, tasks.length * START_ADVANCE_XP);
+  assert.ok(state.profile.xp < nightCompletionBonus(computeStats(state)).xp,
+    'less than finishing the list pays as a bonus, on its own');
+  assert.equal(state.profile.stardust, 0);
 });

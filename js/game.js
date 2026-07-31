@@ -177,6 +177,39 @@ export function chainLengthFor(night, at, lastMinutes = 0) {
 }
 
 /**
+ * An advance, paid for saying you have started.
+ *
+ * The whole economy pays at the far end of a task, which for someone who dreads
+ * the task means 100% of the reward sits on the other side of the exact moment
+ * they bail. This moves a small fixed amount to the moment of highest
+ * resistance — and `applyTaskCompletion` deducts it from what finishing pays,
+ * so the total for a task is unchanged and nothing is printed.
+ *
+ * The ceiling on earning-without-finishing is deliberate and small: twelve
+ * tasks started and none finished is 36 XP, less than the completion bonus for
+ * a single night. It buys no stardust at all.
+ */
+export const START_ADVANCE_XP = 3;
+
+export function applyTaskStart(state, task, at = Date.now()) {
+  const night = state.night;
+  if (night.started[task.id] || night.done[task.id] !== undefined) return null;
+  // Not a completion: it must not touch the combo, `lastDoneAt` or
+  // `lastMinutes`. Momentum is for work you finished.
+  night.started[task.id] = { at, xp: START_ADVANCE_XP };
+  grantXp(state, START_ADVANCE_XP, 0);
+  return { xp: START_ADVANCE_XP, at };
+}
+
+/** Give back an advance — used when the task itself is deleted. */
+export function revokeTaskStart(state, taskId) {
+  const record = state.night.started[taskId];
+  delete state.night.started[taskId];
+  if (record) revokeGrant(state, record.xp, 0);
+  return record || null;
+}
+
+/**
  * Award a task completion. Mutates `state` and records the exact award so
  * un-checking can reverse it precisely.
  */
@@ -184,8 +217,14 @@ export function applyTaskCompletion(state, task, at = Date.now()) {
   const night = state.night;
   const chain = chainLengthFor(night, at, night.lastMinutes || 0);
   const multiplier = comboMultiplier(chain);
-  const xp = taskXp(task.minutes, multiplier);
-  const dust = stardustFor(xp);
+  // The advance comes off the top. Finishing a task you started pays what
+  // finishing it would always have paid, minus what starting already gave you —
+  // never less than 1, and the reduced figure is what goes into `awards`, so
+  // un-checking still reverses exactly what was paid.
+  const full = taskXp(task.minutes, multiplier);
+  const advance = night.started[task.id]?.xp || 0;
+  const xp = Math.max(1, full - advance);
+  const dust = stardustFor(full);
 
   night.done[task.id] = at;
   delete night.skipped[task.id];

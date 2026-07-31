@@ -6,7 +6,7 @@ import { getState } from '../state.js';
 import {
   addTask, deleteSection, deleteTask, moveSection, moveTaskByStep, moveTaskTo,
   renameSection, renameTask, reorderSection, setTaskMinutes, toggleSectionCollapsed,
-  toggleSkip, toggleTask, undo,
+  toggleSkip, toggleTask, undo, startTask,
 } from '../actions.js';
 import { initDragAndDrop } from '../dnd.js';
 import { toast } from '../toast.js';
@@ -194,6 +194,13 @@ function taskActions(state, task) {
       hint: skipped ? 'Count it against tonight again' : 'Excuse it from tonight’s percentage',
       run: () => rainCheck(task.id),
     },
+    done || state.night.started[task.id] ? null : {
+      key: 'start',
+      icon: 'play',
+      label: 'Start it',
+      hint: 'Say you have begun — a little of what it pays, up front',
+      run: () => startTask(task.id),
+    },
     { key: 'edit', icon: 'pencil', label: 'Rename', immediate: true, run: () => startRenameTask(task.id) },
     { key: 'up', icon: 'up', label: 'Move up', run: () => { focusNext(`task:${task.id}`); expectReorder(); moveTaskByStep(task.id, -1); } },
     { key: 'down', icon: 'down', label: 'Move down', run: () => { focusNext(`task:${task.id}`); expectReorder(); moveTaskByStep(task.id, 1); } },
@@ -280,7 +287,13 @@ function taskRow(state, task, index, total = 0) {
     },
   }, icon('check', { size: 15 })),
   h('div', { class: 'task__body' }, title,
-    skipped ? h('span', { class: 'task__flag' }, 'rain check') : null),
+    skipped ? h('span', { class: 'task__flag' }, 'rain check') : null,
+    // A row you have started but not finished says so. Not a badge for having
+    // begun — a reminder that coming back to this one is cheaper than the
+    // others, which is the whole reason starting is paid for.
+    !done && !skipped && state.night.started[task.id]
+      ? h('span', { class: 'task__flag task__flag--started' }, 'started')
+      : null),
   minutesChip,
   h('div', { class: 'task__actions' },
     // "Delete task" five times over is five identical buttons to a screen

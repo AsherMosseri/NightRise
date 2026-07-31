@@ -7,7 +7,8 @@
 
 import { h, icon, iconButton } from '../dom.js';
 import { getState } from '../state.js';
-import { toggleTask, toggleSkip } from '../actions.js';
+import { toggleTask, toggleSkip, startTask } from '../actions.js';
+import { taskXp, comboMultiplier, chainLengthFor } from '../game.js';
 import { computeStats } from '../night.js';
 import { plural, formatMinutesLong } from '../util.js';
 import { openSheet } from './sheet.js';
@@ -131,6 +132,18 @@ function flash(rect, text) {
   ], { duration: 900, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }, 1100);
 }
 
+/**
+ * What finishing this task pays right now, at the momentum you are carrying.
+ *
+ * The same call chain `applyTaskCompletion` uses, so the number shown before
+ * the tap and the number paid after it cannot drift — the house rule the README
+ * states for achievement hints, applied to the card.
+ */
+export function worthOf(state, task) {
+  const chain = chainLengthFor(state.night, Date.now(), state.night.lastMinutes || 0);
+  return taskXp(task.minutes, comboMultiplier(chain));
+}
+
 /* --------------------------------------------------------------- the timer */
 
 /** Repaints the clock in place. Re-rendering the card every second would
@@ -170,7 +183,7 @@ export function toggleCardTimer() {
   return true;
 }
 
-function timerFace(state, task) {
+function timerFace(state, task, { started = false } = {}) {
   const spoken = formatMinutesLong(task.minutes);
   const value = h('span', { class: 'onecard__clock' }, '');
   const caption = h('span', { class: 'onecard__clock-note' }, '');
@@ -194,7 +207,9 @@ function timerFace(state, task) {
     h('div', { class: 'onecard__clock-row' }, value),
     caption,
     h('span', { class: 'onecard__clock-track', 'aria-hidden': 'true' }, bar),
-    h('div', { class: 'onecard__timer-actions' }, toggle, reset));
+    // Before you have started, the big button below is the one way in and this
+    // row would be a second Start beside it. After, it is the pause.
+    h('div', { class: 'onecard__timer-actions' }, started ? toggle : null, started ? reset : null));
 
   face = { root, value, caption, bar, toggle, reset, spoken };
   paintTimer();
@@ -259,6 +274,8 @@ export function renderCards() {
     timer = createTimer(task.id, task.minutes, Boolean(state.profile.settings.autoTimer));
   }
 
+  const started = state.night.started[task.id];
+
   const check = h('button', {
     type: 'button',
     class: 'onecard__check',
@@ -276,10 +293,40 @@ export function renderCards() {
     },
   }, icon('check', { size: 30 }), h('span', {}, 'Done'));
 
+  /**
+   * The button that asks for three seconds instead of fifteen minutes.
+   *
+   * Deliberately the same size as Done and sitting above it, never instead of
+   * it: a night that ends with nine started tasks and nothing finished is a
+   * person who feels busy and is not in bed, which is the failure this mode
+   * exists to prevent. Once you have started, it is gone and Done is all there
+   * is.
+   */
+  const startButton = started ? null : h('button', {
+    type: 'button',
+    class: 'onecard__start',
+    onClick: (event) => {
+      const rect = rectOf(event.currentTarget);
+      const result = startTask(task.id);
+      if (result) flash(rect, `+${result.xp} XP`);
+      if (!isRunning(timer)) timer = toggleTimer(timer);
+      renderCards();
+    },
+  }, icon('play', { size: 20 }), h('span', {}, 'Start it'));
+
   const body = h('div', { class: 'onecard__body' },
     h('p', { class: 'onecard__section' }, section.title),
     h('h2', { class: 'onecard__title' }, task.title),
-    timerFace(state, task));
+    // What this one pays, before you do it. Computed with the identical call
+    // chain applyTaskCompletion uses, so the promise and the payment cannot
+    // drift. Rendered once and left stale on purpose: the multiplier decays
+    // with wall-clock time, and a number ticking down while you decide is a
+    // pressure clock at midnight, which is the wrong instrument entirely.
+    h('p', { class: 'onecard__worth' },
+      started
+        ? `+${Math.max(1, worthOf(state, task) - started.xp)} XP left on this one`
+        : `+${worthOf(state, task)} XP`),
+    timerFace(state, task, { started: Boolean(started) }));
 
   const undoable = lastChecked && state.night.done[lastChecked.id] !== undefined
     ? lastChecked
@@ -320,7 +367,7 @@ export function renderCards() {
       }),
     }, icon('more', { size: 15 }), 'More'));
 
-  const inner = h('div', { class: 'onecard__inner' }, head, body, check, row);
+  const inner = h('div', { class: 'onecard__inner' }, head, body, startButton, check, row);
   host.replaceChildren(inner);
   // renderCards is wired into the global subscriber, so it runs on every store
   // notification — including ones raised from a modal or a sheet layered over

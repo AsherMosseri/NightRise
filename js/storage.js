@@ -102,8 +102,13 @@ function normalizeNight(raw, template, now) {
   night.done = isObject(night.done) ? night.done : {};
   night.skipped = isObject(night.skipped) ? night.skipped : {};
   night.awards = isObject(night.awards) ? night.awards : {};
+  night.started = isObject(night.started) ? night.started : {};
   for (const id of Object.keys(night.done)) if (!template.tasks[id]) delete night.done[id];
   for (const id of Object.keys(night.skipped)) if (!template.tasks[id]) delete night.skipped[id];
+  for (const [id, record] of Object.entries(night.started)) {
+    if (!template.tasks[id] || !isObject(record)) delete night.started[id];
+    else night.started[id] = { at: Number(record.at) || 0, xp: Math.max(0, Number(record.xp) || 0) };
+  }
   for (const [id, award] of Object.entries(night.awards)) {
     // Coerced, not just filtered by task id. `xp: {}` made `profile.xp - xp`
     // NaN on the next un-tick, JSON.stringify wrote it as null, and the reload

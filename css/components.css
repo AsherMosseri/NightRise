@@ -172,6 +172,13 @@
   border-radius: 999px;
   padding: 1px 7px;
 }
+/* "started" is a different kind of note from "rain check": one says you are
+   partway in, the other says it is excused. Accent, not warning. */
+.task__flag--started {
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 40%, transparent);
+}
+
 .task__minutes {
   font-size: 12px;
   color: var(--muted);
@@ -1633,6 +1640,37 @@ body.has-sheet { overflow: hidden; }
 .onecard__timer-btn[hidden] { display: none; }
 
 /* The target is the bottom half of the screen: no aiming, one hand, dark room. */
+/* The three-second ask, above the fifteen-minute one.
+   Same width and a real presence, but quieter than Done: pressing this is
+   progress, and finishing is still the thing. It disappears once pressed, so
+   the card never offers two ways to feel done. */
+.onecard__start {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 56px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+  transition: transform 120ms var(--ease), background var(--speed) var(--ease),
+              border-color var(--speed) var(--ease);
+}
+.onecard__start:hover { background: var(--panel-hover); border-color: var(--accent); }
+.onecard__start:active { transform: scale(0.985); }
+
+/* What finishing pays, said before you decide. One line, never animated. */
+.onecard__worth {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+
 .onecard__check {
   position: relative;
   display: flex;
@@ -1794,5 +1832,6 @@ body.has-sheet { overflow: hidden; }
   .focus-btn:hover { background: var(--panel-2); border-color: var(--border-strong); }
   .onecard__timer-btn:hover { border-color: var(--border-strong); color: var(--text); }
   .onecard__check:hover { filter: none; }
+  .onecard__start:hover { background: var(--panel-2); border-color: var(--border-strong); }
   .onecard__minor:hover:not(:disabled) { color: var(--muted); background: none; }
 }

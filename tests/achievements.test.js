@@ -8,9 +8,11 @@ import {
   ACHIEVEMENTS, achievementById, tierAt, heldTier, tierState, achievementBoard,
   checkAchievements, dropUnearnedTiers, totalTiers, tierDust, migrateBadges,
 } from '../js/achievements.js';
-import { createInitialState } from '../js/model.js';
+import { createInitialState, createProfile } from '../js/model.js';
 import { COMBO_MAX, comboMultiplier } from '../js/game.js';
 import { computeStats, bankNight } from '../js/night.js';
+import { allItems } from '../js/shop.js';
+import { CONSTELLATIONS } from '../js/constellations.js';
 
 function fresh() {
   return createInitialState(new Date(2026, 6, 29, 22, 0));
@@ -343,4 +345,24 @@ test('every family says which of the two kinds it is', () => {
   // the thing that earned it with a tap. Exactly two families can.
   const undoable = ACHIEVEMENTS.filter((f) => f.floor).map((f) => f.id);
   assert.deepEqual(undoable, ['cleared', 'level']);
+});
+
+test('every ladder can actually be climbed to the top', () => {
+  // The collector family asked for 25 purchases against a catalog of 18
+  // buyable things, so the last rung read "18 / 25" forever for someone who
+  // owned everything. A hint the app cannot keep is the project's oldest bug.
+  const profile = createProfile();
+  for (const item of allItems()) {
+    profile.inventory[item.bucket] = [...new Set([...(profile.inventory[item.bucket] || []), item.id])];
+  }
+  const collector = ACHIEVEMENTS.find((f) => f.id === 'collector');
+  const top = collector.tiers[collector.tiers.length - 1].at;
+  assert.ok(collector.measure({ profile }, null) >= top,
+    `owning the whole catalog measures ${collector.measure({ profile }, null)}, top rung asks ${top}`);
+
+  // And the same for the constellation family, whose ceiling is the star map.
+  const constellation = ACHIEVEMENTS.find((f) => f.id === 'constellation');
+  const conTop = constellation.tiers[constellation.tiers.length - 1].at;
+  assert.ok(CONSTELLATIONS.length >= conTop,
+    `${CONSTELLATIONS.length} constellations exist, top rung asks ${conTop}`);
 });

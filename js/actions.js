@@ -5,7 +5,7 @@ import { createSection, createTask, DEFAULT_MINUTES, clampTitle, TITLE_MAX } fro
 import { moveItem, deepClone, clamp, roundMinutes } from './util.js';
 import {
   applyTaskCompletion, revokeTaskCompletion, nightCompletionBonus, grantXp,
-  revokeGrant,
+  revokeGrant, applyTaskStart, revokeTaskStart,
 } from './game.js';
 import { computeStats } from './night.js';
 import { checkAchievements, dropUnearnedTiers } from './achievements.js';
@@ -27,6 +27,7 @@ function snapshot(state) {
     done: deepClone(state.night.done),
     skipped: deepClone(state.night.skipped),
     awards: deepClone(state.night.awards),
+    started: deepClone(state.night.started),
   };
 }
 
@@ -63,6 +64,21 @@ function restoreAwards(state, target) {
  * wholesale. Un-skip a task (token back), then undo an older deletion, and the
  * task was rain-checked again with the token still in your pocket.
  */
+/**
+ * Same rule again for the start advance: the record and the balance move
+ * together, or undoing a delete hands the row back with the advance still paid
+ * and the record gone — so starting it again would pay twice.
+ */
+function restoreStarted(state, target) {
+  for (const [id, record] of Object.entries(state.night.started)) {
+    if (!target[id]) revokeGrant(state, record.xp, 0);
+  }
+  for (const [id, record] of Object.entries(target)) {
+    if (!state.night.started[id]) grantXp(state, record.xp, 0);
+  }
+  state.night.started = deepClone(target);
+}
+
 function restoreSkipped(state, target) {
   for (const id of Object.keys(state.night.skipped)) {
     if (!target[id]) state.profile.tokens.raincheck += 1;
@@ -91,6 +107,7 @@ export function undo(id = null) {
     state.night.done = entry.data.done;
     restoreSkipped(state, entry.data.skipped);
     restoreAwards(state, entry.data.awards);
+    restoreStarted(state, entry.data.started || {});
     afterProgress(state);
   });
   return entry.label;
@@ -122,6 +139,7 @@ export function deleteSection(id) {
     if (!section) return null;
     for (const taskId of section.taskIds) {
       revokeTaskCompletion(state, taskId); // same debt as deleting one task
+      revokeTaskStart(state, taskId);
       if (state.night.skipped[taskId]) state.profile.tokens.raincheck += 1;
       delete state.template.tasks[taskId];
       delete state.night.done[taskId];
@@ -216,6 +234,8 @@ export function deleteTask(id) {
     // you had ticked used to keep its XP and stardust with nothing left to
     // revoke them, so add-a-task, tick it, delete it, repeat printed money.
     revokeTaskCompletion(state, id);
+    // The advance goes back with it: a deleted task cannot have been started.
+    revokeTaskStart(state, id);
     // A rain check spent on a task you then delete is a token gone for nothing,
     // and it also left undo double-spending when it put the task back.
     if (state.night.skipped[id]) state.profile.tokens.raincheck += 1;
@@ -343,6 +363,26 @@ export function toggleTask(id) {
     if (award.levels.length) emit('level', award.levels);
     afterProgress(state);
     return { done: true, task, award };
+  });
+}
+
+/**
+ * Say you are starting this one.
+ *
+ * The point of the whole mechanic: the ask stops being "finish this", which is
+ * a prediction about the next fifteen minutes, and becomes "press this and
+ * stand up", which is a prediction about the next three seconds. It cannot be
+ * undone — starting happened — and it does not move the percentage, the streak
+ * or anything else that scores the night.
+ */
+export function startTask(id) {
+  return update((state) => {
+    const task = state.template.tasks[id];
+    if (!task) return null;
+    const started = applyTaskStart(state, task);
+    if (!started) return null;
+    emit('task:start', { task, ...started });
+    return { task, ...started };
   });
 }
 

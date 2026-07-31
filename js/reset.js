@@ -12,7 +12,7 @@
  */
 
 import { createProfile, emptyTemplate } from './model.js';
-import { revokeTaskCompletion, revokeGrant } from './game.js';
+import { revokeTaskCompletion, revokeGrant, revokeTaskStart } from './game.js';
 import { dropUnearnedTiers } from './achievements.js';
 import { computeStats } from './night.js';
 
@@ -72,6 +72,9 @@ export function resetPartById(id) {
  */
 function clearTonight(state) {
   for (const taskId of Object.keys(state.night.done)) revokeTaskCompletion(state, taskId);
+  // The advances go back too, or resetting tonight's checkmarks and starting
+  // the same tasks again would pay for starting them twice.
+  for (const taskId of Object.keys(state.night.started)) revokeTaskStart(state, taskId);
   if (state.night.bonus) {
     revokeGrant(state, state.night.bonus.xp, state.night.bonus.dust);
     state.night.bonus = null;
@@ -79,6 +82,7 @@ function clearTonight(state) {
   state.night.done = {};
   state.night.skipped = {};
   state.night.awards = {};
+  state.night.started = {};
   state.night.combo = 1;
   state.night.maxCombo = 1;
   state.night.lastDoneAt = 0;
@@ -132,8 +136,9 @@ const APPLY = {
       dustDebt: 0,
     });
     // The night's awards recorded XP that no longer exists; un-checking later
-    // must not subtract it a second time.
+    // must not subtract it a second time. Same for the start advances.
     state.night.awards = {};
+    state.night.started = {};
     state.night.bonus = null;
   },
 

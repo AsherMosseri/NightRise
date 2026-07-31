@@ -38,6 +38,10 @@ export function createNight(key) {
     done: {},
     skipped: {},
     awards: {},
+    // Tasks you have said you are starting. Same shape as `awards` so the
+    // advance can be reversed exactly, and deliberately separate from `done`:
+    // starting is not finishing and must never count as it.
+    started: {},
     combo: 1,
     maxCombo: 1,
     lastDoneAt: 0,

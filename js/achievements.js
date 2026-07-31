@@ -146,7 +146,11 @@ export const ACHIEVEMENTS = [
       { at: 1, name: 'Impulse Buy' },
       { at: 5, name: 'Collector' },
       { at: 12, name: 'Curator' },
-      { at: 25, name: 'Completionist' },
+      // 18, not 25. The catalog is 22 items and four are seeded free, so the
+      // most anyone can ever measure is 18 — someone who owns literally
+      // everything read "18 / 25 · buy 25 things from the shop" forever. The
+      // top rung of a collection has to be reachable by collecting it.
+      { at: 18, name: 'Completionist' },
     ],
   },
   {

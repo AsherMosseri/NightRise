@@ -139,6 +139,11 @@ function wireEffects() {
   on('task:undone', () => audio.play('uncheck'));
   on('task:skip', () => toast('Rain check used', { tone: 'info', iconName: 'skip', detail: 'It will not count against tonight.' }));
 
+  // A sound and nothing else. The advance already floats off the button, and a
+  // toast for having started something is the app congratulating you for
+  // standing up — noise, at the moment you are trying to leave the phone.
+  on('task:start', () => audio.play('uncheck'));
+
   on('level', (levels) => {
     audio.play('level');
     const top = levels[levels.length - 1];

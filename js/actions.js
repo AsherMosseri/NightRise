@@ -57,6 +57,25 @@ function restoreAwards(state, target) {
 }
 
 /**
+ * The same problem one field over: rain checks are spent and refunded on
+ * `profile.tokens`, which the snapshot never captured, while the record of
+ * which tasks are excused lives on `night.skipped`, which it restored
+ * wholesale. Un-skip a task (token back), then undo an older deletion, and the
+ * task was rain-checked again with the token still in your pocket.
+ */
+function restoreSkipped(state, target) {
+  for (const id of Object.keys(state.night.skipped)) {
+    if (!target[id]) state.profile.tokens.raincheck += 1;
+  }
+  for (const id of Object.keys(target)) {
+    if (!state.night.skipped[id]) {
+      state.profile.tokens.raincheck = Math.max(0, state.profile.tokens.raincheck - 1);
+    }
+  }
+  state.night.skipped = deepClone(target);
+}
+
+/**
  * Undo a specific entry. The toast passes the id of the deletion it announced,
  * so pressing Undo on the "Deleted Floss" toast restores Floss even if you have
  * deleted something else since — a bare LIFO pop restored the wrong thing.
@@ -70,7 +89,7 @@ export function undo(id = null) {
   update((state) => {
     state.template = entry.data.template;
     state.night.done = entry.data.done;
-    state.night.skipped = entry.data.skipped;
+    restoreSkipped(state, entry.data.skipped);
     restoreAwards(state, entry.data.awards);
     afterProgress(state);
   });
@@ -103,6 +122,7 @@ export function deleteSection(id) {
     if (!section) return null;
     for (const taskId of section.taskIds) {
       revokeTaskCompletion(state, taskId); // same debt as deleting one task
+      if (state.night.skipped[taskId]) state.profile.tokens.raincheck += 1;
       delete state.template.tasks[taskId];
       delete state.night.done[taskId];
       delete state.night.skipped[taskId];
@@ -177,11 +197,15 @@ export function setTaskMinutes(id, minutes) {
 }
 
 /**
- * Deleting never touches the economy. XP you earned by actually doing the thing
- * stays earned, and a spent rain check stays spent — only un-checking takes an
- * award back. That keeps undo (which restores the template and the night, but
- * deliberately not your profile) exactly reversible: restore the row, the award
- * record comes back with it, and un-checking later subtracts it exactly once.
+ * Deleting settles the economy, and undo settles it back.
+ *
+ * This comment used to say the opposite — "deleting never touches the economy,
+ * XP you earned stays earned" — which was a defensible position right up until
+ * you notice that add-a-task, tick it, delete it, repeat is three taps and
+ * prints XP and stardust forever. The app cannot tell tidying your list apart
+ * from farming it, so a deletion hands back exactly what the task paid and
+ * refunds any rain check spent on it. Undo restores the row *and* the balances,
+ * so nothing is lost by pressing the wrong thing.
  */
 export function deleteTask(id) {
   const undoId = pushUndo('task');
@@ -192,6 +216,9 @@ export function deleteTask(id) {
     // you had ticked used to keep its XP and stardust with nothing left to
     // revoke them, so add-a-task, tick it, delete it, repeat printed money.
     revokeTaskCompletion(state, id);
+    // A rain check spent on a task you then delete is a token gone for nothing,
+    // and it also left undo double-spending when it put the task back.
+    if (state.night.skipped[id]) state.profile.tokens.raincheck += 1;
     delete state.template.tasks[id];
     delete state.night.done[id];
     delete state.night.skipped[id];

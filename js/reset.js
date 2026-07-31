@@ -84,6 +84,11 @@ function clearTonight(state) {
   state.night.lastDoneAt = 0;
   state.night.lastMinutes = 0;
   state.night.celebrated = false;
+  if (state.night.lightsOutAward) {
+    revokeGrant(state, state.night.lightsOutAward.xp, state.night.lightsOutAward.dust);
+    state.night.lightsOutAward = null;
+  }
+  state.profile.lastLightsOutKey = null;
   state.night.lightsOutAt = null;
   state.night.lightsOutOnTime = false;
 }
@@ -160,6 +165,7 @@ const APPLY = {
       equipped: fresh.equipped,
       tokens: fresh.tokens,
       companion: fresh.companion,
+      companions: {},
       constellations: {},
     });
   },

@@ -33,6 +33,8 @@ export function createNight(key) {
     lightsOutAt: null, // when you actually stopped for the night
     lightsOutOnTime: false,
     reopenedAfterLightsOut: false,
+    // What stopping paid, so clearing tonight can hand it back.
+    lightsOutAward: null,
     envelope: null, // { opened: ms|null } — tonight's unconditional reward
     quest: rollQuest(key),
   };
@@ -82,6 +84,9 @@ export function createProfile() {
     tokens: { freeze: 1, raincheck: 2 },
     lightsOut: { streak: 0, best: 0, lastKey: null },
     companion: { type: null, name: '', tier: 1, fed: 0 },
+    // Per-species progress, so switching companions does not destroy the
+    // feeding you paid hundreds of stardust for.
+    companions: {},
     constellations: {},
     taskStats: {},
     settings: {

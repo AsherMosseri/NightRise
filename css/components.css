@@ -1219,6 +1219,8 @@ body.has-sheet { overflow: hidden; }
   /* It floats over the list, so while the list is moving it gets out of the
      way — it was landing squarely on top of "Add a task". It comes back half a
      second after you stop, which is when you might actually want it. */
+  /* ...but never while the finale is pointing at it. */
+  .is-scrolling #nightend.is-arriving .lightsout { opacity: 1; transform: none; pointer-events: auto; }
   .is-scrolling .lightsout:not(.lightsout--done) {
     opacity: 0;
     transform: translateY(14px);

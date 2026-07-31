@@ -105,6 +105,9 @@ function normalizeNight(raw, template, now) {
   night.lightsOutAt = Number(night.lightsOutAt) || null;
   night.lightsOutOnTime = Boolean(night.lightsOutOnTime);
   night.reopenedAfterLightsOut = Boolean(night.reopenedAfterLightsOut);
+  night.lightsOutAward = isObject(night.lightsOutAward)
+    ? { xp: Number(night.lightsOutAward.xp) || 0, dust: Number(night.lightsOutAward.dust) || 0 }
+    : null;
   night.envelope = isObject(night.envelope) ? night.envelope : null;
   if (!isObject(night.quest)) night.quest = createNight(key).quest;
   return night;
@@ -189,7 +192,7 @@ export function normalizeState(raw, now = new Date()) {
   // with a fresh start. Every field the app dereferences without checking gets
   // its default back rather than being trusted.
   const fresh = createProfile();
-  for (const key of ['inventory', 'equipped', 'tokens', 'companion', 'constellations', 'taskStats', 'settings']) {
+  for (const key of ['inventory', 'equipped', 'tokens', 'companion', 'companions', 'constellations', 'taskStats', 'settings']) {
     if (!isObject(profile[key])) profile[key] = deepClone(fresh[key]);
   }
   const defaultInventory = fresh.inventory;

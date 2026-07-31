@@ -63,12 +63,16 @@ export function playFinale({ from = null } = {}) {
   if (end) {
     end.classList.add('is-arriving');
     after(2400, () => end.classList.remove('is-arriving'));
-    // Pointing at the door is worth nothing if the door is below the fold, and
-    // on a phone it is. The list is finished; there is nothing above to look at.
-    after(520, () => end.scrollIntoView({
-      behavior: still() ? 'auto' : 'smooth',
-      block: 'end',
-    }));
+    // Only when the button is actually out of reach. On a phone it is a fixed
+    // pill that is always on screen — and scrolling toward it sets
+    // `is-scrolling`, which fades that very pill out. The beat that points at
+    // the door was closing the door on its way past.
+    const pill = end.querySelector('.lightsout');
+    const box = pill?.getBoundingClientRect();
+    const offscreen = box && (box.bottom > window.innerHeight || box.top < 0);
+    if (offscreen) {
+      after(520, () => end.scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'end' }));
+    }
   }
 
   if (still()) {

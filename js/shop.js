@@ -121,12 +121,23 @@ export function equipItem(itemId) {
     if (!owns(state, item)) return null;
     state.profile.equipped[item.kind] = item.id;
     if (item.kind === 'companion') {
+      // Each companion keeps its own progress. `profile.companion` is a single
+      // slot, so switching used to reset the outgoing one to tier 1 / fed 0
+      // with nothing stored anywhere else — an owl fed fourteen times, 210
+      // stardust, silently destroyed by trying the cat for one night.
       const current = state.profile.companion || {};
+      if (!state.profile.companions) state.profile.companions = {};
+      if (current.type) {
+        state.profile.companions[current.type] = {
+          name: current.name, tier: current.tier || 1, fed: current.fed || 0,
+        };
+      }
+      const kept = state.profile.companions[item.id];
       state.profile.companion = {
         type: item.id,
-        name: current.type === item.id ? current.name : item.name,
-        tier: current.type === item.id ? current.tier || 1 : 1,
-        fed: current.type === item.id ? current.fed || 0 : 0,
+        name: kept?.name || item.name,
+        tier: kept?.tier || 1,
+        fed: kept?.fed || 0,
       };
     }
     emit('equip', { item });

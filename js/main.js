@@ -167,7 +167,17 @@ function wireEffects() {
     // Only the first time tonight. Un-ticking and re-ticking the last task
     // pays the bonus again, correctly, but must not replay the ceremony.
     if (!first) return;
-    playFinale({ from: lastCheckRect });
+    // One Card is the likeliest route here — it is the mode for the night you
+    // dread everything — and under it `.app`, `.lightsout` and the top bar are
+    // all display:none and the sky is paused, so the finale played to nobody.
+    // The mode getting out of the way is the first beat: let its own 260ms fade
+    // run, then the sky is visible and the Lights out pill is back.
+    if (cardsActive()) {
+      exitCards();
+      setTimeout(() => playFinale({ from: null }), 300);
+    } else {
+      playFinale({ from: lastCheckRect });
+    }
     // In still mode the sky cannot announce anything, so the sentence does it.
     if (still()) {
       celebrate('Night complete', `${plural(stats.done, 'task', 'tasks')} done · +${bonus.xp} XP · +${bonus.dust} stardust`);

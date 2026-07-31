@@ -11,6 +11,8 @@ import {
 import { createInitialState } from '../js/model.js';
 import { computeStats } from '../js/night.js';
 import { grantXp, revokeGrant } from '../js/game.js';
+import { lightsOutReward } from '../js/render/goodnight.js';
+import { equipItem } from '../js/shop.js';
 
 function reset() {
   replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
@@ -265,4 +267,55 @@ test('dust spent before un-ticking is owed, not forgiven', () => {
 
   grantXp(state, 0, 20); // and after that, earnings are yours again
   assert.equal(state.profile.stardust, 20);
+});
+
+test('undo does not print rain checks', () => {
+  // The token lives on `profile`, which the snapshot never captured, while the
+  // record of what is excused lives on `night.skipped`, which it restored
+  // wholesale. Un-skip, then undo an older deletion, and the task came back
+  // rain-checked with the token still in your pocket.
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const [a, b] = Object.keys(getState().template.tasks);
+  const held = getState().profile.tokens.raincheck;
+
+  toggleSkip(a);
+  assert.equal(getState().profile.tokens.raincheck, held - 1);
+  const undoId = deleteTask(b).undoId;
+  toggleSkip(a); // un-skip: token back
+  assert.equal(getState().profile.tokens.raincheck, held);
+
+  undo(undoId); // restores skipped:{a}
+  assert.equal(getState().profile.tokens.raincheck, held - 1,
+    'the task is excused again, so the token is spent again');
+});
+
+test('deleting a rain-checked task hands the token back', () => {
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const [a] = Object.keys(getState().template.tasks);
+  const held = getState().profile.tokens.raincheck;
+  toggleSkip(a);
+  deleteTask(a);
+  assert.equal(getState().profile.tokens.raincheck, held, 'spent on a task that no longer exists');
+});
+
+test('stopping on a night with nothing on the list pays the floor', () => {
+  const empty = { total: 0, done: 0 };
+  const real = { total: 6, done: 6 };
+  assert.deepEqual(lightsOutReward(90, empty), { xp: 15, dust: 3 });
+  assert.ok(lightsOutReward(90, real).xp > 100, 'a night you worked through still pays properly');
+});
+
+test('each companion keeps its own feeding', () => {
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const state = getState();
+  state.profile.stardust = 5000;
+  state.profile.inventory.companions = ['owl', 'cat'];
+  equipItem('owl');
+  Object.assign(getState().profile.companion, { tier: 3, fed: 14 });
+
+  equipItem('cat');
+  assert.equal(getState().profile.companion.fed, 0, 'a new companion starts fresh');
+  equipItem('owl');
+  assert.equal(getState().profile.companion.fed, 14, 'and the owl remembers');
+  assert.equal(getState().profile.companion.tier, 3);
 });

@@ -40,6 +40,12 @@ export function initGoodnight(node) {
 
 /** Reward stopping early: the whole point is that you are in bed, not here. */
 export function lightsOutReward(minutesEarly, stats) {
+  // A night with nothing on the list gets the floor. The formula scales with
+  // how early you stopped and how much you did, so an empty night paid its
+  // maximum — 128 XP and 38 stardust for opening the app and holding a button.
+  // You still stopped, and stopping still counts for the bedtime streak; it
+  // just is not worth more than a night you actually worked through.
+  if (!stats || stats.total === 0) return { xp: 15, dust: 3 };
   if (minutesEarly <= 0) return { xp: 15, dust: 3 };
   const capped = Math.min(minutesEarly, 90);
   return {
@@ -90,6 +96,11 @@ export function lightsOut() {
       state.profile.lastLightsOutKey = state.night.key;
       advanceLightsOutStreak(state.profile.lightsOut, state.night.key, onTime);
       grantXp(state, reward.xp, reward.dust);
+      // Written down so it can be handed back. Resetting tonight's checkmarks
+      // nulls lightsOutAt and promises in its own hint to return the XP and
+      // stardust — and the amounts were thrown away, so there was nothing to
+      // return and the reward could then be collected a second time.
+      state.night.lightsOutAward = { xp: reward.xp, dust: reward.dust };
     } else if (!state.night.lightsOutAt) {
       // Already paid for tonight; still record that you stopped.
       state.night.lightsOutAt = now;

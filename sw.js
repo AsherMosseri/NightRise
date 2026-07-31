@@ -4,7 +4,7 @@
    js/updates.js drives this from the page: it asks the registration to check
    on launch and on foreground, and messages SKIP_WAITING to take a new build. */
 
-const CACHE = 'nightcheck-v27';
+const CACHE = 'nightcheck-v28';
 
 const ASSETS = [
   './',
@@ -76,7 +76,12 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      // Only ours. `caches.keys()` returns every cache on the origin, and on
+      // GitHub Pages the origin is shared with every other project a user
+      // hosts — this was deleting other people's apps out from under them.
+      .then((keys) => Promise.all(keys
+        .filter((key) => key.startsWith('nightcheck-') && key !== CACHE)
+        .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });

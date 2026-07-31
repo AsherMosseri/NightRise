@@ -109,7 +109,7 @@ export function playEnvelopeOpen({ drop, amount, rect, key }) {
   const reel = h('div', { class: 'env-reel' },
     ...strip.map((d) => cellFor(d, d === drop ? amount : decoyAmount(d, rand))));
 
-  const card = h('div', { class: 'env-card', role: 'status', 'aria-live': 'polite' },
+  const card = h('div', { class: 'env-card' },
     h('div', { class: 'env-card__flap', 'aria-hidden': 'true' }),
     h('div', { class: 'env-card__note' },
       h('span', { class: 'env-card__eyebrow' }, 'Tonight’s envelope'),
@@ -118,8 +118,17 @@ export function playEnvelopeOpen({ drop, amount, rect, key }) {
 
   // pointer-events:none from birth to death. There is no scrim, nothing to
   // dismiss, and the tap that ends this also lands on whatever is underneath.
-  stage = h('div', { class: 'env-stage', 'aria-hidden': 'false' }, card);
+  // The whole ceremony is decoration and is hidden from assistive tech: it
+  // carried a live region wrapping the entire reel, so a screen reader was
+  // read all three seeded decoys as though you had won them, and then the
+  // count-up rewrote the winning cell every frame for 260ms, announcing it
+  // over and over. The result is said once, plainly, in its own live region.
+  stage = h('div', { class: 'env-stage', 'aria-hidden': 'true' }, card);
   document.body.appendChild(stage);
+  const said = h('p', { class: 'visually-hidden', role: 'status' },
+    `${drop.label}. ${drop.detail(amount)}`);
+  stage.after(said);
+  setTimeout(() => said.remove(), 4000);
 
   const box = card.getBoundingClientRect();
   const dx = (rect.left + rect.width / 2) - (box.left + box.width / 2);

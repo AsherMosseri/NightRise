@@ -148,7 +148,7 @@ function taskActions(state, task) {
   ];
 }
 
-function taskRow(state, task, index) {
+function taskRow(state, task, index, total = 0) {
   const done = state.night.done[task.id] !== undefined;
   const skipped = Boolean(state.night.skipped[task.id]);
   const actions = taskActions(state, task);
@@ -196,6 +196,10 @@ function taskRow(state, task, index) {
     dataset: { taskId: task.id, index, focus: `task:${task.id}` },
     draggable: 'true',
     tabIndex: 0,
+    // Alt+Arrow moves a row and restores focus to it, and without a declared
+    // position nothing announced that anything had happened at all.
+    'aria-posinset': String(index + 1),
+    'aria-setsize': String(total || 1),
     'aria-label': rowLabel,
     'aria-keyshortcuts': 'Space E X Delete Alt+ArrowUp Alt+ArrowDown',
   },
@@ -221,7 +225,9 @@ function taskRow(state, task, index) {
     skipped ? h('span', { class: 'task__flag' }, 'rain check') : null),
   minutesChip,
   h('div', { class: 'task__actions' },
-    ...actions.map((a) => iconButton(a.icon, a.key === 'skip' ? a.label : `${a.label} task`, (event) => {
+    // "Delete task" five times over is five identical buttons to a screen
+    // reader. The overflow button one line down already names the task.
+    ...actions.map((a) => iconButton(a.icon, `${a.label}: ${task.title}`, (event) => {
       event.stopPropagation();
       a.run();
     }, { class: a.danger ? 'icon-btn--danger' : '', dataset: { focus: `task-${a.key}:${task.id}` } }))),
@@ -411,6 +417,12 @@ function sectionNode(state, section, index) {
     class: 'section__head',
     tabIndex: 0,
     draggable: 'true',
+    // A focusable element with five key commands and no name at all told a
+    // screen reader nothing about what it was — or that Delete here takes the
+    // whole section and every task inside it.
+    role: 'group',
+    'aria-label': `${section.title} section, ${stats.done} of ${stats.total} done`,
+    'aria-keyshortcuts': 'Enter E Delete Alt+ArrowUp Alt+ArrowDown',
     dataset: { focus: `section:${section.id}` },
   },
   h('span', { class: 'section__grip', 'aria-hidden': 'true' }, icon('grip', { size: 15 })),
@@ -466,7 +478,7 @@ function sectionNode(state, section, index) {
     if (!task) return;
     if (state.profile.settings.hideCompleted && state.night.done[taskId] !== undefined) return;
     visible += 1;
-    list.appendChild(taskRow(state, task, taskIndex));
+    list.appendChild(taskRow(state, task, taskIndex, section.taskIds.length));
   });
 
   if (!visible) {

@@ -1,7 +1,7 @@
 /* Every panel that opens over the app: the Night Market, the star map,
    night history, insights, settings and the shortcut list. */
 
-import { h, svg, icon, replace, withFocus, downloadText } from '../dom.js';
+import { h, svg, icon, replace, withFocus, downloadText, rovingGroup } from '../dom.js';
 import { getState, update, replaceState, emit } from '../state.js';
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, COMPANION_ITEMS,
@@ -207,15 +207,23 @@ VIEWS.shop = () => {
   ];
   const active = tabs.find(([id]) => id === shopTab) || tabs[0];
 
-  const tabBar = h('div', { class: 'tabs', role: 'tablist' },
+  // The role was declared and none of the contract was kept: no tabpanel, no
+  // aria-controls, no arrow keys, and every tab its own tab stop. A screen
+  // reader told the user to arrow between six things and the arrows did
+  // nothing, which is a worse experience than plain unlabelled buttons.
+  const PANEL_ID = 'shop-panel';
+  const tabBar = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Night Market sections' },
     ...tabs.map(([id, label]) => h('button', {
       type: 'button',
+      id: `shop-tab-${id}`,
       class: `tab ${id === active[0] ? 'is-active' : ''}`.trim(),
       role: 'tab',
       'aria-selected': id === active[0] ? 'true' : 'false',
+      'aria-controls': PANEL_ID,
       dataset: { focus: `tab:${id}` },
       onClick: () => { shopTab = id; refreshModal(); },
     }, label)));
+  rovingGroup(tabBar, { onPick: (node) => node.click() });
 
   let content;
   if (active[0] === 'supplies') {
@@ -236,6 +244,10 @@ VIEWS.shop = () => {
     content = h('div', { class: 'cards' },
       ...active[2].map((item) => shopCard(state, item, { onPreview })));
   }
+  content.id = PANEL_ID;
+  content.setAttribute('role', 'tabpanel');
+  content.setAttribute('aria-labelledby', `shop-tab-${active[0]}`);
+  content.tabIndex = 0;
 
   return {
     title: 'Night Market',
@@ -622,9 +634,13 @@ function choiceRow(label, options, current, onPick) {
         other.setAttribute('aria-checked', on ? 'true' : 'false');
       }
       onPick(value);
+      sync();
     },
   }, text));
   row.append(...buttons);
+  // The role promises arrow keys and a single tab stop; without this it was six
+  // tab stops and arrows that did nothing, which is worse than plain buttons.
+  const sync = rovingGroup(row);
   return row;
 }
 
@@ -646,8 +662,10 @@ function bedtimePicker(current, onChange) {
       chip.classList.toggle('is-on', on);
       chip.setAttribute('aria-checked', on ? 'true' : 'false');
     }
+    rovingSync?.();
     onChange(value);
   };
+
 
   // The steppers used to wrap the whole 1440-minute clock, so sixteen taps of
   // "later" from midnight reached 4am — a time the night cycle reads as this
@@ -674,6 +692,7 @@ function bedtimePicker(current, onChange) {
       type: 'button', class: 'timeset__btn', 'aria-label': 'Fifteen minutes later', onClick: () => shift(BEDTIME_STEP),
     }, icon('plus', { size: 16 })));
 
+  let rovingSync = null;
   const row = h('div', { class: 'chipset', role: 'radiogroup', 'aria-label': 'Common bedtimes' });
   for (const preset of BEDTIME_PRESETS) {
     const chip = h('button', {
@@ -686,6 +705,7 @@ function bedtimePicker(current, onChange) {
     chips.push(chip);
     row.append(chip);
   }
+  rovingSync = rovingGroup(row);
 
   return h('div', { class: 'timepick' }, stepper, row);
 }

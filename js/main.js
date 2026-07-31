@@ -28,7 +28,7 @@ let lastCheckRect = null;
 import * as audio from './audio.js';
 import {
   storageAvailable, flushPersist, cancelPersist, STORAGE_KEY, normalizeState,
-  recoveredCorruptData, serializeState,
+  recoveredCorruptData, recoveredFutureSave, onSaveFailure, serializeState,
 } from './storage.js';
 import { plural } from './util.js';
 import { initOptical, applyOpticalNudge } from './optical.js';
@@ -433,6 +433,28 @@ function boot() {
   // it. So the promise — "preserved rather than silently discarded" — was true
   // of the data and false of the experience: you opened the app, your year of
   // nights was gone, and nothing said why or that anything had been kept.
+  // A refused write means everything from here on is going nowhere. Quota,
+  // private browsing, a full disk — all real, all previously a console warning
+  // nobody was going to read at 11:40pm.
+  onSaveFailure(() => {
+    toast('Tonight is not being saved', {
+      tone: 'warn',
+      iconName: 'download',
+      detail: 'This browser refused to store it. Export a copy before you close the app.',
+      duration: 0,
+      action: { label: 'Export', onClick: () => downloadText(serializeState(getState()), 'nightcheck-backup.json') },
+    });
+  });
+
+  if (recoveredFutureSave()) {
+    toast('This save came from a newer version', {
+      tone: 'info',
+      iconName: 'undo',
+      detail: 'It has been read as best this build can, and the original is kept safe.',
+      duration: 9000,
+    });
+  }
+
   const wreckage = recoveredCorruptData();
   if (wreckage) {
     toast('Your saved night could not be read', {

@@ -1,6 +1,7 @@
 /* localStorage persistence, schema normalisation and JSON export/import. */
 
-import { debounce, deepClone, roundMinutes } from './util.js';
+import { debounce, deepClone, roundMinutes, clamp } from './util.js';
+import { levelFromXp } from './game.js';
 import {
   SCHEMA_VERSION, STORAGE_KEY, createInitialState, createNight, createProfile,
   createSection, emptyTemplate, DEFAULT_MINUTES,
@@ -145,7 +146,12 @@ export function normalizeState(raw, now = new Date()) {
   profile.stardust = Math.max(0, Math.round(Number(profile.stardust) || 0));
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
-  profile.maxLevelRewarded = Math.max(1, Number(profile.maxLevelRewarded) || 1);
+  // Derived, never trusted. A save claiming level 40 against 100 XP showed 40
+  // in the header until the first check-off, at which point grantXp recomputed
+  // it and the number collapsed to 2 — a hand-edited or half-written save
+  // presenting as a catastrophic loss the moment you touched anything.
+  profile.level = levelFromXp(profile.xp).level;
+  profile.maxLevelRewarded = clamp(Math.round(Number(profile.maxLevelRewarded) || 1), 1, Math.max(1, profile.level));
   profile.lightsOut = {
     streak: Math.max(0, Number(profile.lightsOut?.streak) || 0),
     best: Math.max(0, Number(profile.lightsOut?.best) || 0),
@@ -228,7 +234,17 @@ export function loadState(now = new Date()) {
   try {
     const raw = store.getItem(STORAGE_KEY);
     if (!raw) return createInitialState(now);
-    return normalizeState(JSON.parse(raw), now);
+    const parsed = JSON.parse(raw);
+    // SCHEMA_VERSION had been written on every save since the first commit and
+    // read by nothing. This is the one thing it is actually for: a save from a
+    // future build is about to be normalised against today's field list, which
+    // drops anything this version has never heard of — so keep the original
+    // before that happens.
+    if (isObject(parsed) && Number(parsed.version) > SCHEMA_VERSION) {
+      futureSaveKey = keepAside('newer');
+      console.warn('NightCheck: this save was written by a newer version.');
+    }
+    return normalizeState(parsed, now);
   } catch (err) {
     // A corrupt blob used to mean a silent fresh start — a year of nights gone
     // with no warning and nothing to recover from. Keep the wreckage.
@@ -245,18 +261,41 @@ export function loadState(now = new Date()) {
 }
 
 let corruptBackupKey = null;
+let futureSaveKey = null;
+
+/** Set when the last load read a save from a newer build and stashed it aside. */
+export function recoveredFutureSave() {
+  return futureSaveKey;
+}
 
 /** Set when the last load found unreadable data and stashed it aside. */
 export function recoveredCorruptData() {
   return corruptBackupKey;
 }
 
+let writeFailed = false;
+let onWriteFailure = null;
+
+/** Called once, the first time a save is refused. */
+export function onSaveFailure(fn) {
+  onWriteFailure = fn;
+}
+
 function writeNow(state) {
   if (!store) return;
   try {
     store.setItem(STORAGE_KEY, JSON.stringify(state));
+    writeFailed = false;
   } catch (err) {
+    // A console warning is not a user-facing anything. Storage refuses writes
+    // for real reasons — quota, private browsing, a full disk — and every one
+    // of them means the night being checked off is going nowhere. Silence here
+    // costs somebody their evening.
     console.warn('NightCheck: could not save.', err);
+    if (!writeFailed) {
+      writeFailed = true;
+      onWriteFailure?.(err);
+    }
   }
 }
 
@@ -305,7 +344,36 @@ export function parseImport(text, now = new Date()) {
   if (!isObject(parsed) || !isObject(parsed.template)) {
     throw new Error('That file does not look like a NightCheck backup.');
   }
+  if (!isObject(parsed.template.tasks) || !isObject(parsed.template.sections)) {
+    throw new Error('That backup has no task list in it.');
+  }
+  // Importing replaces the only copy there is. Keep the outgoing one where it
+  // can be recovered rather than trusting that the incoming file is what the
+  // person thought it was.
+  keepAside('replaced');
   return normalizeState(parsed, now);
+}
+
+/**
+ * Copy the live save aside under a suffix.
+ *
+ * Used before an import replaces it, and when a save announces a schema newer
+ * than this build understands — normalizeState rebuilds history entries from a
+ * fixed field list, so an older build opening a newer save silently strips
+ * whatever it does not recognise and then writes the loss back 250ms later.
+ */
+function keepAside(suffix) {
+  if (!store) return null;
+  try {
+    const raw = store.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const key = `${STORAGE_KEY}.${suffix}`;
+    store.setItem(key, raw);
+    return key;
+  } catch (err) {
+    console.warn('NightCheck: could not set the old save aside.', err);
+    return null;
+  }
 }
 
 export { STORAGE_KEY };

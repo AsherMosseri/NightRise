@@ -255,3 +255,40 @@ export function downloadText(text, filename, type = 'application/json') {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * The keyboard contract that `role="radiogroup"` and `role="tablist"` promise.
+ *
+ * Declaring the role without it is worse than using plain buttons: a screen
+ * reader announces "1 of 6" and tells the user to arrow between them, and the
+ * arrows do nothing. Roving tabindex too — six radios were six tab stops, when
+ * the whole point of the role is that the group is one.
+ */
+export function rovingGroup(container, { selector = '[role="radio"], [role="tab"]', onPick } = {}) {
+  const items = () => Array.from(container.querySelectorAll(selector));
+  const sync = () => {
+    const all = items();
+    const active = all.findIndex((n) => n.getAttribute('aria-checked') === 'true'
+      || n.getAttribute('aria-selected') === 'true');
+    all.forEach((n, i) => { n.tabIndex = i === (active === -1 ? 0 : active) ? 0 : -1; });
+  };
+  container.addEventListener('keydown', (event) => {
+    const all = items();
+    const here = all.indexOf(document.activeElement);
+    if (here === -1) return;
+    let next = null;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (here + 1) % all.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (here - 1 + all.length) % all.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = all.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    all[next].focus();
+    // For radios, moving is choosing — that is the contract, unlike tabs.
+    if (all[next].getAttribute('role') === 'radio') all[next].click();
+    if (onPick) onPick(all[next]);
+  });
+  sync();
+  return sync;
+}

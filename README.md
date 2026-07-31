@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 14,000 lines, and all of it ships as written.
+About 18,000 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -77,10 +77,9 @@ About 14,000 lines, and all of it ships as written.
   whose whole argument is get off the phone — the highest-yield action in it was sitting
   in it typing rows — and it punished anyone whose list was honest.
 - `taskXp` is now a row's **face value** — what the row is worth on its own. What the
-  night *pays* for that face runs through one curve: the first 450 XP pays pound for pound,
-  which
-  covers a good honest night with headroom, and past that each further pound pays a little
-  less than the one before. No wall — a longer list always earns more, just never
+  night *pays* for that face runs through one curve: the first 450 XP pays pound for
+  pound, which covers a good honest night with headroom, and past that each further pound
+  pays a little less than the one before. No wall — a longer list earns more, just never
   proportionally more. The same evening now varies 6.1x across granularities instead of
   35x, and four hundred ten-hour rows at perfect momentum pay 1,439 XP instead of
   4,928,040.
@@ -425,8 +424,9 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 14,000 lines, of which roughly 9,000 are the app, 2,200 are tests and the rest is
-markup, styling and one icon generator. Nothing is generated, bundled or installed.
+About 18,200 lines: 11,400 of application JavaScript, 3,600 of tests, 2,800 of CSS, and
+the rest markup, the service worker and one icon generator. Nothing is generated, bundled
+or installed.
 
 ```
 index.html               app shell — every host element the renderers write into
@@ -473,7 +473,7 @@ js/render/sheet.js          the phone bottom sheet
 js/render/confirm.js        the app's own confirm and chooser dialogs
 js/render/add-task.js       the three-tap add flow and the number pad
 
-tests/                   14 suites, node --test, no dependencies
+tests/                   15 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
 ```
 

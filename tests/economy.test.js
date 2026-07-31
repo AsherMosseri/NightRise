@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { getState, replaceState, update } from '../js/state.js';
 import {
   toggleTask, toggleSkip, deleteTask, deleteSection, undo, claimQuest, addTask, addSection,
-  setTaskMinutes, pushUndo,
+  setTaskMinutes, pushUndo, startTask,
 } from '../js/actions.js';
 import { createInitialState, createSection, createTask, emptyTemplate } from '../js/model.js';
 import { computeStats, forceNewNight } from '../js/night.js';
@@ -636,4 +636,76 @@ test('stopping early pays the same whether your list was short or long', () => {
   // And earlier is still better than later, at every list size.
   assert.ok(lightsOutReward(90, { total: 5, counted: 5, done: 5 }).xp
     > lightsOutReward(10, { total: 5, counted: 5, done: 5 }).xp);
+});
+
+/**
+ * The invariant every targeted test in this file is a special case of: unwind a
+ * night completely and the balance goes back where it started.
+ *
+ * Every exploit this project has shipped was a sequence nobody thought to write
+ * a test for — settle-by-amount, settle-by-presence, the undo entry applied to
+ * the wrong night, the reset that forgot a ledger. So this one does not pick the
+ * sequence. It runs forty thousand random actions across a hundred nights,
+ * un-ticks and deletes everything, and asserts what is left.
+ *
+ * Seeded, so a failure names the exact run that produced it.
+ */
+test('no sequence of actions leaves you holding what you gave back', () => {
+  let seed = 12345;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const pick = (list) => list[Math.floor(rnd() * list.length)];
+  const MINUTES = [0.5, 5, 30, 120, 600];
+  const OPS = ['toggle', 'toggle', 'toggle', 'skip', 'minutes', 'delete', 'undo', 'add', 'start'];
+
+  let worstXp = 0;
+  let worstDust = 0;
+  for (let night = 0; night < 100; night += 1) {
+    const state = reset();
+    state.template = emptyTemplate();
+    const section = createSection('S');
+    state.template.sections[section.id] = section;
+    state.template.order.push(section.id);
+    for (let i = 0; i < 6; i += 1) {
+      const task = createTask(`t${i}`, pick(MINUTES));
+      state.template.tasks[task.id] = task;
+      section.taskIds.push(task.id);
+    }
+    // Zero, so anything left at the end is something the run created.
+    state.profile.xp = 0;
+    state.profile.stardust = 0;
+    replaceState(state);
+
+    withClock(45 * 1000, () => {
+      for (let step = 0; step < 400; step += 1) {
+        const ids = Object.keys(getState().template.tasks);
+        const id = ids.length ? pick(ids) : null;
+        const op = pick(OPS);
+        // Refusals are a legitimate outcome (no rain checks left, nothing to
+        // undo); a throw is not, and would fail the run here.
+        if (op === 'toggle' && id) toggleTask(id);
+        else if (op === 'skip' && id) toggleSkip(id);
+        else if (op === 'minutes' && id) setTaskMinutes(id, pick(MINUTES));
+        else if (op === 'start' && id) startTask(id);
+        else if (op === 'delete' && id) { pushUndo('fuzz'); deleteTask(id); }
+        else if (op === 'undo') undo();
+        else if (op === 'add') addTask(section.id, `x${step}`, pick(MINUTES));
+      }
+      for (const id of Object.keys(getState().night.done)) toggleTask(id);
+      for (const id of Object.keys(getState().template.tasks)) deleteTask(id);
+    });
+
+    worstXp = Math.max(worstXp, getState().profile.xp);
+    worstDust = Math.max(worstDust, getState().profile.stardust);
+  }
+
+  assert.equal(worstXp, 0, `a random night left ${worstXp} XP behind`);
+  // Stardust is allowed to survive, and only this much. Achievement rungs are
+  // paid once ever against a high-water mark and are records of something that
+  // did happen — reaching x2.5 momentum is not un-happened by un-ticking the
+  // row. The three momentum rungs are the only ones a single night can reach,
+  // they total 150, and the number must not grow with the length of the run.
+  assert.equal(worstDust, 150, `a random night left ${worstDust} stardust behind`);
 });

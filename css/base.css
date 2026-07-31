@@ -46,6 +46,7 @@ svg { display: block; }
 .onecard__timer-btn > svg,
 .tonight__nudge > svg,
 .goodnight__streak > svg,
+.goodnight__tomorrow > svg,
 .price > svg,
 .constellation__done > svg,
 .env-cell > svg,

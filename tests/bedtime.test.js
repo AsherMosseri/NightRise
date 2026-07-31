@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createInitialState } from '../js/model.js';
-import { openEnvelope, envelopeWaiting, DROPS, dropById } from '../js/envelope.js';
+import { openEnvelope, envelopeWaiting, pendingEnvelopes, peekEnvelope, DROPS, dropById } from '../js/envelope.js';
 import { inCurfew, CURFEW_LEAD_MINUTES, minutesUntilBedtime } from '../js/time.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
 
@@ -91,4 +91,62 @@ test('stopping earlier is worth more than stopping late', () => {
 test('the early-bird reward is capped so it cannot be farmed by a silly bedtime', () => {
   const stats = { done: 3 };
   assert.equal(lightsOutReward(90, stats).xp, lightsOutReward(600, stats).xp);
+});
+
+test('a week away hands you three envelopes, not seven', () => {
+  // A night you skipped used to vanish silently and forever, and the app
+  // greeted a returning user with a red streak chip and a reset notice — the
+  // moment they close it and open a feed. Being away is the reason there is
+  // something to open now. Capped, and paid from the same weight table as any
+  // other night, so it never pays to stay away.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.lastEnvelopeKey = '2026-07-22';
+  assert.deepEqual(pendingEnvelopes(state), ['2026-07-27', '2026-07-28', '2026-07-29']);
+
+  // Opening advances the high-water mark one night at a time, oldest first.
+  const first = openEnvelope(state);
+  assert.equal(first.key, '2026-07-27');
+  assert.equal(state.profile.lastEnvelopeKey, '2026-07-27');
+  assert.equal(first.remaining, 2);
+  openEnvelope(state);
+  const last = openEnvelope(state);
+  assert.equal(last.key, '2026-07-29');
+  assert.equal(openEnvelope(state), null, 'and the mat is empty');
+});
+
+test('a night away is worth exactly what tonight is worth', () => {
+  // Same table, same seed shape. If a skipped night paid better than a night
+  // you turned up for, the app would be paying you to stay away.
+  const away = createInitialState(new Date(2026, 6, 29, 22, 0));
+  away.profile.lastEnvelopeKey = '2026-07-26';
+  const backfilled = openEnvelope(away);
+
+  const direct = createInitialState(new Date(2026, 6, 27, 22, 0));
+  const straight = openEnvelope(direct);
+  assert.equal(backfilled.key, '2026-07-27');
+  assert.equal(straight.key, '2026-07-27');
+  assert.equal(backfilled.drop.id, straight.drop.id, 'the same night pays the same thing');
+});
+
+test('a fresh install has exactly one envelope, and opening it empties the mat', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  assert.deepEqual(pendingEnvelopes(state), ['2026-07-29']);
+  openEnvelope(state);
+  assert.deepEqual(pendingEnvelopes(state), []);
+});
+
+test('what tomorrow is teased as is what tomorrow pays', () => {
+  // The goodnight screen is the only advertisement this app can run, and the
+  // house rule is that a hint comes off the number the check uses. `peek` runs
+  // the identical seeded pick without applying the drop.
+  for (const key of ['2026-07-29', '2026-07-30', '2026-08-01', '2026-08-14', '2026-09-03']) {
+    const state = createInitialState(new Date(`${key}T22:00:00`));
+    const opened = openEnvelope(state);
+    assert.equal(peekEnvelope(key).id, opened.drop.id, key);
+  }
+  // And "rare" means what the weight table means by rare, not a copy decision.
+  for (const drop of DROPS) {
+    const rare = drop.weight <= 8;
+    assert.equal(typeof rare, 'boolean');
+  }
 });

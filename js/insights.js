@@ -31,6 +31,7 @@ export function taskInsights(state) {
       return {
         id,
         title: task.title,
+        minutes: task.minutes,
         // Only when it is actually needed — a section name on every row is
         // noise, and on a duplicated one it is the whole point.
         where: seenTitles.get(task.title) > 1 ? (homes.get(id) || null) : null,
@@ -56,11 +57,23 @@ export function reliableTasks(state) {
 }
 
 /** A single gentle nudge for the tonight panel, or null when nothing stands out. */
+/**
+ * The one task that keeps sliding, and the sentence about it.
+ *
+ * Returns the row as well as the text, because a bare sentence was the only
+ * purely punitive number in an app that otherwise measures streaks off
+ * `bestStreak` specifically so they cannot punish — and it was aimed at exactly
+ * the task you dread most. Something you can act on beats something you can
+ * only read.
+ */
 export function topNudge(state) {
   const worst = taskInsights(state).find((t) => t.missStreak >= 3);
   if (!worst) return null;
   const where = worst.where ? ` in ${worst.where}` : '';
-  return `“${worst.title}”${where} has slipped ${plural(worst.missStreak, 'night', 'nights')} running.`;
+  return {
+    ...worst,
+    text: `“${worst.title}”${where} has slipped ${plural(worst.missStreak, 'night', 'nights')} running.`,
+  };
 }
 
 export function overallRate(state) {

@@ -9,6 +9,7 @@
 
 import { hashString, seededRandom } from './util.js';
 import { MOMENTUM_MIN_GAP_MS } from './game.js';
+import { keyDiffDays, shiftKey } from './time.js';
 
 export const DROPS = [
   {
@@ -91,6 +92,20 @@ function pick(rand) {
   return DROPS[DROPS.length - 1];
 }
 
+/**
+ * What a night's envelope holds, without opening it.
+ *
+ * Pure in the key — same seed, same `pick` — so the goodnight screen can say
+ * how rare tomorrow's is without touching state or claiming anything the roll
+ * will not honour. It returns the band, never the prize: a named prize waiting
+ * is an obligation, and this app is not a streak app.
+ */
+export function peekEnvelope(key) {
+  const rand = seededRandom(hashString(`envelope:${key}`));
+  const drop = pick(rand);
+  return { id: drop.id, rare: drop.weight <= 8 };
+}
+
 export function dropById(id) {
   return DROPS.find((d) => d.id === id) || null;
 }
@@ -100,24 +115,54 @@ export function dropById(id) {
  * it, and recorded so it can only ever pay out once.
  */
 export function openEnvelope(state) {
-  if (!envelopeWaiting(state)) return null;
+  const waiting = pendingEnvelopes(state);
+  if (!waiting.length) return null;
+  const key = waiting[0];
   // The night key alone. `nightsLogged` increments in bankNight, so pressing
   // "Bank tonight and start fresh" — or resetting Night history — changed what
   // was inside an envelope you had not opened yet, which is exactly what the
   // docstring above promises cannot happen. `lastEnvelopeKey` is what enforces
-  // one per date; the seed only has to be stable.
-  const rand = seededRandom(hashString(`envelope:${state.night.key}`));
+  // one per date; the seed only has to be stable. It also has to be a pure
+  // function of the key, so a night you were away for can still be recomputed.
+  const rand = seededRandom(hashString(`envelope:${key}`));
   const drop = pick(rand);
   const amount = drop.apply(state, rand);
-  state.night.envelope = { opened: Date.now(), id: drop.id, amount };
+  if (key === state.night.key) state.night.envelope = { opened: Date.now(), id: drop.id, amount };
   state.profile.envelopesOpened = (state.profile.envelopesOpened || 0) + 1;
-  state.profile.lastEnvelopeKey = state.night.key;
-  return { drop, amount };
+  // A high-water mark, so opening the oldest one first cannot leave a gap.
+  state.profile.lastEnvelopeKey = key;
+  return { drop, amount, key, remaining: pendingEnvelopes(state).length };
+}
+
+/** How many envelopes are on the mat, at most `MAT_MAX`. */
+export const MAT_MAX = 3;
+
+/**
+ * The envelopes for the nights you were away, plus tonight's.
+ *
+ * A night you skipped used to vanish silently and forever, and the app greeted
+ * a returning user with a red streak chip and a reset notice — which is exactly
+ * the moment they close it and open a feed instead. Being away is now the
+ * reason there is something to open.
+ *
+ * Capped at three, and paid from the same weight table as any other night: this
+ * must not become a reason to stay away.
+ */
+export function pendingEnvelopes(state, now = new Date()) {
+  const tonight = state.night.key;
+  const openedTonight = Boolean(state.night.envelope?.opened);
+  const last = state.profile.lastEnvelopeKey;
+  if (!last) return openedTonight ? [] : [tonight];
+  const gap = keyDiffDays(last, tonight);
+  if (gap <= 0) return [];
+  const keys = [];
+  // Oldest first, so the high-water mark advances one night at a time.
+  for (let back = Math.min(gap, MAT_MAX); back >= 1; back -= 1) {
+    keys.push(shiftKey(tonight, -(back - 1)));
+  }
+  return openedTonight ? keys.filter((k) => k !== tonight) : keys;
 }
 
 export function envelopeWaiting(state) {
-  if (state.night.envelope?.opened) return false;
-  // One per date, not one per night object. "Bank tonight and start fresh"
-  // hands back a clean night; it must not hand back the prize with it.
-  return state.profile.lastEnvelopeKey !== state.night.key;
+  return pendingEnvelopes(state).length > 0;
 }

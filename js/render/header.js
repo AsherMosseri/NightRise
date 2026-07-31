@@ -10,11 +10,11 @@ import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
 import {
   formatNightLabel, minutesUntilBedtime, pacingStatus, PACING_COPY, formatClockLabel,
 } from '../time.js';
-import { formatDuration, formatNumber, plural } from '../util.js';
+import { formatDuration, formatNumber, plural, formatMinutesShort, roundMinutes } from '../util.js';
 import { grow, countTo, still, forgetGrow, growTo } from './motion.js';
 import { topNudge } from '../insights.js';
-import { claimQuest } from '../actions.js';
-import { openEnvelope, envelopeWaiting, dropById } from '../envelope.js';
+import { claimQuest, setTaskMinutes, moveTaskTo, deleteTask, undo } from '../actions.js';
+import { openEnvelope, pendingEnvelopes, dropById } from '../envelope.js';
 import { lightsOut } from './goodnight.js';
 import { confirmAction } from './confirm.js';
 import { enterCards } from './cards.js';
@@ -119,7 +119,14 @@ export function renderStats() {
         }, xpFill(level)))),
     (() => {
       const live = effectiveStreak(state);
-      const title = live.atRisk
+      // The gift lands before the accounting. Painting the streak red the
+      // instant a returning user opens the app is the sentence that sends them
+      // to a feed instead — so while there is still something on the mat, the
+      // chip stays quiet and says what it will say once the envelopes are open.
+      const mat = pendingEnvelopes(state).length > 1;
+      const title = mat
+        ? `${plural(live.missed, 'night', 'nights')} away. Open what is waiting first — the streak can wait its turn.`
+        : live.atRisk
         ? `${plural(live.missed, 'night', 'nights')} missed since you last banked one.`
           + (live.covered
             ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover it.`
@@ -136,7 +143,7 @@ export function renderStats() {
         value: String(live.streak),
         label: 'list streak',
         title,
-        className: `stat--streak ${live.streak > 0 && !live.atRisk ? 'stat--hot' : ''} ${live.atRisk ? 'stat--risk' : ''}`.trim(),
+        className: `stat--streak ${live.streak > 0 && !live.atRisk ? 'stat--hot' : ''} ${live.atRisk && !mat ? 'stat--risk' : ''}`.trim(),
       });
     })(),
     statChip({
@@ -273,9 +280,81 @@ function bedtimeChip(state, stats) {
         : 'nothing left to do')));
 }
 
+/**
+ * The nudge, with something to do about it.
+ *
+ * A task that has slipped six nights running is usually not a task, it is a
+ * monument — and no todo app will ever suggest you delete it, so it sits there
+ * taxing every glance at the list. Offering that as maintenance rather than as
+ * giving up is the cheapest reduction in felt cost available here, and the data
+ * that triggers it was already collected and previously only used to make you
+ * feel bad.
+ *
+ * Only ever on a deliberate tap. Four options unprompted at 11:40pm is a menu,
+ * which is the thing One Card exists to avoid.
+ */
+function nudgeButton(state, nudge) {
+  const button = h('button', {
+    type: 'button',
+    class: 'tonight__nudge',
+    onClick: () => openSheet({
+      title: nudge.title,
+      subtitle: `Missed ${plural(nudge.missStreak, 'night', 'nights')} running · done ${nudge.done} of ${nudge.seen}`,
+      invoker: button,
+      items: [
+        {
+          icon: 'play',
+          label: 'Do it first tonight',
+          hint: 'Move it to the top and go one at a time',
+          onClick: () => {
+            const state = getState();
+            const home = Object.values(state.template.sections).find((sec) => sec.taskIds.includes(nudge.id));
+            if (home) moveTaskTo(nudge.id, home.id, 0);
+            enterCards();
+          },
+        },
+        // Nothing to halve on a task already down at half a minute.
+        halved(nudge) < nudge.minutes ? {
+          icon: 'minus',
+          label: 'Say it takes less',
+          // Not "make it smaller". Halving the estimate does not halve the
+          // work, and copy that claims otherwise is this project's own
+          // recurring failure mode wearing a friendly face.
+          hint: `You’ll be told it takes ${formatMinutesShort(halved(nudge))}, not ${formatMinutesShort(nudge.minutes)}. The job is the same size.`,
+          onClick: () => setTaskMinutes(nudge.id, halved(nudge)),
+        } : null,
+        {
+          icon: 'trash',
+          label: 'Retire it',
+          hint: 'Six nights of not doing it is an answer',
+          danger: true,
+          onClick: () => removeNudgedTask(nudge),
+        },
+        { icon: 'moon', label: 'Leave it', hint: 'It can keep waiting', onClick: () => {} },
+      ],
+    }),
+  }, icon('bulb', { size: 13 }), h('span', {}, nudge.text));
+  return button;
+}
+
+function halved(nudge) {
+  return Math.max(0.5, roundMinutes(nudge.minutes / 2) ?? 0.5);
+}
+
+function removeNudgedTask(nudge) {
+  const undoId = deleteTask(nudge.id);
+  toast(`Retired “${nudge.title}”`, {
+    tone: 'info',
+    iconName: 'trash',
+    detail: 'Your list is one thing shorter.',
+    action: { label: 'Undo', onClick: () => undo(undoId) },
+  });
+}
+
 /** Sealed until you tap it; then it is the first thing that happens tonight. */
 function envelopeCard(state) {
-  if (!envelopeWaiting(state)) {
+  const waiting = pendingEnvelopes(state);
+  if (!waiting.length) {
     const opened = state.night.envelope;
     const drop = dropById(opened?.id);
     if (!drop) return null;
@@ -303,14 +382,18 @@ function envelopeCard(state) {
       // Measured now: update() notifies synchronously and this button is gone
       // by the next statement, so there is nothing left to fly out of.
       const rect = event.currentTarget.getBoundingClientRect();
-      const key = getState().night.key;
       const result = update((s) => openEnvelope(s));
-      if (result) emit('envelope', { ...result, rect, key });
+      if (result) emit('envelope', { ...result, rect, key: result.key });
     },
   },
   icon('star', { size: 15 }),
-  h('span', { class: 'envelope__label' }, 'Tonight’s envelope'),
-  h('span', { class: 'envelope__cta' }, 'Open'));
+  // A returning user's first sight used to be a red streak chip and a reset
+  // notice. It is a small pile on the doormat instead: the nights you were away
+  // are the reason there is something to open, capped so it never pays to stay.
+  h('span', { class: 'envelope__label' }, waiting.length > 1
+    ? `${waiting.length} envelopes waiting`
+    : 'Tonight’s envelope'),
+  h('span', { class: 'envelope__cta' }, waiting.length > 1 ? 'Open one' : 'Open'));
 }
 
 /** The ending. Always available — stopping is the thing being rewarded. */
@@ -450,7 +533,7 @@ function renderTonightInner() {
             icon('skip', { size: 13 }), `${state.profile.tokens.raincheck} rain ${state.profile.tokens.raincheck === 1 ? 'check' : 'checks'}`),
           h('span', { class: 'chip', title: 'Streak freezes cover a missed night' },
             icon('flame', { size: 13 }), `${state.profile.tokens.freeze} ${state.profile.tokens.freeze === 1 ? 'freeze' : 'freezes'}`)),
-        nudge ? h('p', { class: 'tonight__nudge' }, icon('bulb', { size: 13 }), nudge) : null)),
+        nudge ? nudgeButton(state, nudge) : null)),
     h('div', { class: 'tonight__side' },
       bedtimeChip(state, stats),
       envelopeCard(state),

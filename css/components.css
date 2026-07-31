@@ -976,7 +976,7 @@ body.has-sheet { overflow: hidden; }
      the minutes chip opens a numeric field, the tabs switch panels, and every
      Buy/Equip/Feed button in the market is a purchase. The minutes chip keeps
      its small ink and grows an invisible target, the way `.task__check` does. */
-  .btn--sm, .tab, .confirm__actions .btn, .onecard__exit { min-height: 44px; }
+  .btn--sm, .tab, .confirm__actions .btn, .onecard__exit, .tonight__nudge { min-height: 44px; }
   .onecard__exit { width: 44px; }
   .task__minutes { position: relative; }
   .task__minutes::after {
@@ -1784,6 +1784,21 @@ body.has-sheet { overflow: hidden; }
 /* Rungs earned by stopping, said in the ending itself. As toasts they were
    painted under the blackout — z-index 75 beneath a z-80 panel that is 88%
    opaque black — and the on-time family can only ever be earned right here. */
+/* One line about tomorrow, in the last frame. Quiet by design — an
+   advertisement that shouts becomes an obligation, which is the grammar of the
+   apps this one exists to beat. */
+.goodnight__tomorrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.goodnight__rare { color: var(--accent-2); }
+
 .goodnight__earned {
   display: flex;
   align-items: center;
@@ -1833,5 +1848,6 @@ body.has-sheet { overflow: hidden; }
   .onecard__timer-btn:hover { border-color: var(--border-strong); color: var(--text); }
   .onecard__check:hover { filter: none; }
   .onecard__start:hover { background: var(--panel-2); border-color: var(--border-strong); }
+  .tonight__nudge:hover { background: none; border-color: transparent; }
   .onecard__minor:hover:not(:disabled) { color: var(--muted); background: none; }
 }

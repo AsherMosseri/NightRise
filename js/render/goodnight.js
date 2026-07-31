@@ -15,6 +15,9 @@ import { checkAchievements } from '../achievements.js';
 import { minutesUntilBedtime, formatClockLabel } from '../time.js';
 import { formatDuration, plural } from '../util.js';
 import { setSkyPaused } from '../sky.js';
+import { shiftKey } from '../time.js';
+import { rollQuest, questById } from '../quests.js';
+import { peekEnvelope } from '../envelope.js';
 
 let host = null;
 let deepTimer = null;
@@ -131,6 +134,17 @@ export function lightsOut() {
   return result;
 }
 
+/** What is waiting tomorrow — the quest by name, and the envelope only by band. */
+function tomorrowLine(state) {
+  const key = shiftKey(state.night.key, 1);
+  const quest = questById(rollQuest(key).id);
+  const rare = peekEnvelope(key).rare;
+  return h('p', { class: 'goodnight__tomorrow' },
+    icon('star', { size: 13 }),
+    h('span', {}, `Tomorrow: ${quest.name}`),
+    rare ? h('span', { class: 'goodnight__rare' }, '· and one of the rare envelopes') : null);
+}
+
 function render({ stats, minutesLeft, onTime, reward, achievements: earned }) {
   if (!host) return;
   const state = getState();
@@ -158,6 +172,15 @@ function render({ stats, minutesLeft, onTime, reward, achievements: earned }) {
       icon(step.icon, { size: 14 }),
       h('strong', {}, step.name),
       h('span', { class: 'muted' }, step.dust ? ` · +${step.dust} stardust` : ''))),
+    // One sentence about tomorrow, on the last thing you look at.
+    //
+    // The app cannot reach you at 10pm tomorrow — nothing can, and the README
+    // is honest about why — so the only channel it has is memory, and the only
+    // moment it controls is the one right before you put the phone down. Both
+    // halves are recomputed from the same pure seeds the real roll uses, so
+    // neither can overclaim. No countdown, no "don't miss it", and it is never
+    // mentioned again when you open.
+    tomorrowLine(state),
     h('button', {
       type: 'button',
       class: 'goodnight__stay',

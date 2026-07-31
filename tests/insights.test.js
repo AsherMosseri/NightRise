@@ -88,7 +88,7 @@ test('two tasks with the same name are told apart', () => {
   assert.equal(rows.length, 2);
   assert.ok(rows.every((r) => r.where), 'both carry a section, since both share a title');
   assert.notEqual(rows[0].where, rows[1].where);
-  assert.match(topNudge(state), new RegExp(state.template.sections[b].title));
+  assert.match(topNudge(state).text, new RegExp(state.template.sections[b].title));
 
   // A title nobody shares stays clean.
   state.profile.taskStats[first].missStreak = 0;

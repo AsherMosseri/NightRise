@@ -12,7 +12,7 @@
  */
 
 import { createProfile, emptyTemplate } from './model.js';
-import { revokeTaskCompletion, revokeGrant, revokeTaskStart } from './game.js';
+import { revokeTaskCompletion, revokeGrant, revokeTaskStart, settleNight } from './game.js';
 import { dropUnearnedTiers } from './achievements.js';
 import { computeStats } from './night.js';
 
@@ -83,6 +83,13 @@ function clearTonight(state) {
   state.night.skipped = {};
   state.night.awards = {};
   state.night.started = {};
+  // The records are gone, so the night's face is zero, so it owes back
+  // everything it paid. Wiping the records without this left whatever rounding
+  // and revocation had not already returned sitting in `night.paid` with no
+  // face behind it — not a faucet, since it does not grow, but residue the
+  // "clearing tonight hands back what it paid" promise does not allow.
+  settleNight(state);
+  state.night.paid = { xp: 0, dust: 0 };
   state.night.combo = 1;
   state.night.maxCombo = 1;
   state.night.lastDoneAt = 0;
@@ -152,9 +159,13 @@ const APPLY = {
     // The receipts stay; their XP goes to zero. A later un-tick then returns
     // exactly the stardust and none of the XP, which is what each checkbox
     // actually promised.
-    for (const award of Object.values(state.night.awards)) award.xp = 0;
-    for (const record of Object.values(state.night.started)) record.xp = 0;
-    if (state.night.bonus) state.night.bonus = { ...state.night.bonus, xp: 0 };
+    for (const award of Object.values(state.night.awards)) award.face = 0;
+    for (const record of Object.values(state.night.started)) record.face = 0;
+    if (state.night.bonus) state.night.bonus = { ...state.night.bonus, face: 0 };
+    // The XP the night paid is gone with the level; what it still owes back in
+    // stardust is the dust half of the ledger, which settleNight will hand over
+    // when the checkmarks are cleared.
+    state.night.paid = { xp: 0, dust: state.night.paid?.dust || 0 };
   },
 
   /**

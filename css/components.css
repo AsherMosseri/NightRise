@@ -1698,6 +1698,9 @@ body.has-sheet { overflow: hidden; }
   text-underline-offset: 3px;
 }
 
+/* Past the full-pay band the line stops being a number and becomes a door. */
+.onecard__worth--quiet { color: var(--muted); font-weight: 550; }
+
 /* What finishing pays, said before you decide. One line, never animated. */
 .onecard__worth {
   font-size: 13px;

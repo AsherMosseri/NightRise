@@ -97,6 +97,103 @@ export function levelUpDust(level) {
   return 40 + level * 10;
 }
 
+/* ------------------------------------------------------------ the taper */
+
+/**
+ * How much of a night's face value the night actually pays.
+ *
+ * The economy used to price ROWS, not evenings. `taskXp` is `10 + minutes`, and
+ * that flat 10 is a per-row subsidy — so the same forty-five minutes of work
+ * paid 183 XP written as four tasks and 6,440 written as four hundred, a factor
+ * of thirty-five. `nightCompletionBonus` is `40 + total * 6`, a second per-row
+ * payment. Together they meant the highest-yield action in a game about getting
+ * off your phone was sitting on your phone typing rows.
+ *
+ * So `taskXp` is unchanged and is now the row's FACE value — what the row is
+ * worth on its own. This curve decides what the night pays for it. The first
+ * `NIGHT_FULL_XP` of face pays pound for pound, which covers a good honest
+ * night with headroom; past that each further pound pays a little less than the
+ * one before. There is no wall — log growth — so a longer list always earns
+ * more, just never proportionally more.
+ *
+ * Continuous and smooth at the join (S'(H⁻) = S'(H⁺) = 1), strictly concave
+ * after it, and monotonically increasing everywhere — which is the property
+ * that makes a tap unable to pay a negative amount.
+ */
+export const NIGHT_FULL_XP = 450;
+export const NIGHT_TAPER_XP = 150;
+
+export function nightCurve(face) {
+  const f = Math.max(0, face || 0);
+  if (f <= NIGHT_FULL_XP) return f;
+  return NIGHT_FULL_XP + NIGHT_TAPER_XP * Math.log1p((f - NIGHT_FULL_XP) / NIGHT_TAPER_XP);
+}
+
+/**
+ * The face value tonight has accumulated, derived rather than accumulated.
+ *
+ * Derived on purpose: an accumulator can drift out of step with the records,
+ * and this project has closed that exact class of bug four times.
+ */
+export function nightFace(night) {
+  let xp = 0;
+  let dust = 0;
+  for (const award of Object.values(night.awards)) {
+    xp += award?.face || 0;
+    dust += award?.faceDust || 0;
+  }
+  for (const record of Object.values(night.started)) xp += record?.face || 0;
+  xp += night.bonus?.face || 0;
+  dust += night.bonus?.faceDust || 0;
+  return { xp, dust };
+}
+
+/** What the night should have paid, given the face it holds. */
+export function nightTarget(night) {
+  const face = nightFace(night);
+  const xp = Math.round(nightCurve(face.xp));
+  // Stardust is discounted in exactly the same proportion as the XP, so the
+  // two currencies cannot drift apart and there is one rule to explain.
+  const share = face.xp > 0 ? xp / face.xp : 1;
+  return { xp, dust: Math.round(face.dust * share) };
+}
+
+/**
+ * Pay the difference between what tonight has paid and what it should have.
+ *
+ * This is the whole reversibility contract, and it is structural rather than
+ * maintained: the profile's contribution from tonight is a pure function of the
+ * records tonight holds, so ANY sequence that returns the records to a previous
+ * shape returns the balance with them. Un-tick the third of forty, delete a
+ * section and undo it, reset the checkmarks — none of them need to know what
+ * anything paid, because nothing is reconciled by amount or by presence. It is
+ * simply re-derived.
+ *
+ * The curve is monotonic, so adding face can only raise the target and removing
+ * it can only lower it: a completion can never pay a negative amount.
+ */
+export function settleNight(state) {
+  const night = state.night;
+  if (!night.paid) night.paid = { xp: 0, dust: 0 };
+  const target = nightTarget(night);
+  const dXp = target.xp - night.paid.xp;
+  const dDust = target.dust - night.paid.dust;
+  if (dXp > 0 || dDust > 0) grantXp(state, Math.max(0, dXp), Math.max(0, dDust));
+  if (dXp < 0 || dDust < 0) revokeGrant(state, Math.max(0, -dXp), Math.max(0, -dDust));
+  night.paid = target;
+  return { xp: dXp, dust: dDust };
+}
+
+/**
+ * What finishing this task would pay right now — the marginal step of the
+ * curve, computed with the identical arithmetic the payment uses, so the number
+ * on the card before you tap and the number you receive cannot differ.
+ */
+export function marginalXp(night, face) {
+  const held = nightFace(night).xp;
+  return Math.max(0, Math.round(nightCurve(held + Math.max(0, face || 0))) - Math.round(nightCurve(held)));
+}
+
 /* The badge shelf used to live here as a flat list of thirteen one-shots. It is
    now `js/achievements.js`: tiered families measured off numbers, with progress
    bars. It imports COMBO_MAX from this module, so nothing here may import it
@@ -201,24 +298,23 @@ export function applyTaskStart(state, task, at = Date.now()) {
   if (night.started[task.id] || night.done[task.id] !== undefined) return null;
   // Not a completion: it must not touch the combo, `lastDoneAt` or
   // `lastMinutes`. Momentum is for work you finished.
-  night.started[task.id] = { at, xp: START_ADVANCE_XP };
-  // Not through grantXp. The `0` there only suppresses the direct dust
-  // argument — the level-up loop inside it pays `levelUpDust` on its own, so
-  // "starting buys no stardust" held only until the advances crossed a level
-  // boundary. On the eleven-task starter list that never happens, which is
-  // exactly where the test sampled it; at 27 tasks it paid 60 stardust and at
-  // 5,000 it paid 1,380, with nothing ever completed. The claim is now true by
-  // construction rather than by list size.
-  state.profile.xp = Math.max(0, state.profile.xp + START_ADVANCE_XP);
-  state.profile.level = levelFromXp(state.profile.xp).level;
-  return { xp: START_ADVANCE_XP, at };
+  //
+  // Face, and no dust face at all — starting buys no stardust, which is now
+  // true by construction rather than by list size. It used to pay through
+  // `grantXp(state, XP, 0)`, and that `0` only suppresses the direct dust
+  // argument: the level-up loop inside pays `levelUpDust` on its own, so the
+  // claim held only until the advances crossed a level boundary. At 27 rows
+  // that was 60 stardust and at 5,000 it was 1,380, with nothing completed.
+  night.started[task.id] = { at, face: START_ADVANCE_XP };
+  const paid = settleNight(state);
+  return { xp: paid.xp, at };
 }
 
 /** Give back an advance — used when the task itself is deleted. */
 export function revokeTaskStart(state, taskId) {
   const record = state.night.started[taskId];
   delete state.night.started[taskId];
-  if (record) revokeGrant(state, record.xp, 0);
+  if (record) settleNight(state);
   return record || null;
 }
 
@@ -230,21 +326,20 @@ export function applyTaskCompletion(state, task, at = Date.now()) {
   const night = state.night;
   const chain = chainLengthFor(night, at, night.lastMinutes || 0);
   const multiplier = comboMultiplier(chain);
-  // The advance comes off the top. Finishing a task you started pays what
-  // finishing it would always have paid, minus what starting already gave you —
-  // never less than 1, and the reduced figure is what goes into `awards`, so
-  // un-checking still reverses exactly what was paid.
+  // The row's FACE value — what it is worth on its own. What the night pays for
+  // it is the taper's business, settled below. The advance already paid against
+  // this row comes off the face, so starting and then finishing costs the night
+  // exactly what finishing alone would have.
   const full = taskXp(task.minutes, multiplier);
-  const advance = night.started[task.id]?.xp || 0;
-  const xp = Math.max(1, full - advance);
-  const dust = stardustFor(full);
+  const face = Math.max(1, full - (night.started[task.id]?.face || 0));
+  const faceDust = stardustFor(full);
 
   night.done[task.id] = at;
   delete night.skipped[task.id];
   // Remember the chain state this completion replaced so un-checking can put
   // it back; otherwise re-checking one task ratchets the combo upward forever.
   night.awards[task.id] = {
-    xp, dust, multiplier, at, prevCombo: night.combo, prevLastDoneAt: night.lastDoneAt,
+    face, faceDust, multiplier, at, prevCombo: night.combo, prevLastDoneAt: night.lastDoneAt,
   };
   night.awards[task.id].prevMinutes = night.lastMinutes || 0;
   night.combo = multiplier;
@@ -252,8 +347,11 @@ export function applyTaskCompletion(state, task, at = Date.now()) {
   night.lastDoneAt = at;
   night.lastMinutes = Math.max(0, task.minutes || 0);
 
-  const levels = grantXp(state, xp, dust);
-  return { xp, dust, multiplier, chain, levels };
+  const beforeLevel = state.profile.level;
+  const paid = settleNight(state);
+  const levels = [];
+  for (let lvl = beforeLevel + 1; lvl <= state.profile.level; lvl += 1) levels.push(lvl);
+  return { xp: paid.xp, dust: paid.dust, face, multiplier, chain, levels };
 }
 
 /** Take back an exact amount, keeping the level in step. */
@@ -308,7 +406,12 @@ export function revokeTaskCompletion(state, taskId) {
   delete night.done[taskId];
   delete night.awards[taskId];
   if (!award) return null;
-  const undone = revokeGrant(state, award.xp, award.dust);
+  // Nothing is reconciled by amount. The record is gone, so the night's face is
+  // lower, so the target is lower — settling hands the difference back.
+  const beforeLevel = state.profile.level;
+  settleNight(state);
+  const undone = { levelsLost: [], reclaimed: 0 };
+  for (let lvl = beforeLevel; lvl > state.profile.level; lvl -= 1) undone.levelsLost.push(lvl);
   award.reclaimed = undone.reclaimed;
   // Only the most recent completion owns the current chain.
   if (award.at !== undefined && night.lastDoneAt === award.at) {

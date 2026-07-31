@@ -96,10 +96,10 @@ function stampBedtime(entry, state) {
  */
 function xpEarnedTonight(state) {
   const { night } = state;
-  let sum = 0;
-  for (const award of Object.values(night.awards)) sum += award?.xp || 0;
-  for (const record of Object.values(night.started)) sum += record?.xp || 0;
-  sum += night.bonus?.xp || 0;
+  // `night.paid` is what the list actually paid after the taper — the same
+  // running total settleNight keeps — so this cannot drift from the profile.
+  // The quest and lights-out sit outside the taper and are added on top.
+  let sum = night.paid?.xp || 0;
   sum += night.lightsOutAward?.xp || 0;
   if (night.quest?.claimed) sum += questById(night.quest.id)?.xp || 0;
   return sum;

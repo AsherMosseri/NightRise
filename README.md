@@ -70,6 +70,31 @@ About 14,000 lines, and all of it ships as written.
   message is "this is taking longer than you thought", not "you failed".
 - Every task carries a minute estimate that drives the bedtime pacing.
 
+**What a night is worth**
+- **The taper.** Adding a task is free and checking it pays, so the economy used
+  to price *rows* rather than evenings: the same forty-five minutes of work paid 183 XP
+  written as four tasks and 6,440 written as four hundred. That is backwards for an app
+  whose whole argument is get off the phone — the highest-yield action in it was sitting
+  in it typing rows — and it punished anyone whose list was honest.
+- `taskXp` is unchanged and is now a row's **face value**. What the night *pays* for that
+  face runs through one curve: the first 450 XP of a night pays pound for pound, which
+  covers a good honest night with headroom, and past that each further pound pays a little
+  less than the one before. No wall — a longer list always earns more, just never
+  proportionally more. The same evening now varies 5.5x across granularities instead of
+  35x, and four hundred ten-hour rows at perfect momentum pay 2,146 XP instead of
+  4,928,040.
+- **Reversibility is structural, not maintained.** What the profile holds from tonight is
+  a pure function of the face tonight holds, so any sequence returning the records to a
+  previous shape returns the balance with them — un-tick the third of forty, delete a
+  section and undo, reset the checkmarks. Nothing is reconciled by amount or by presence,
+  which is the bug class that produced two separate unbounded duplicators.
+- The curve is monotonic, so **no tap can ever cost you XP** — the failure that
+  disqualified the rival design, where a single checkmark could pay −150.
+- **The quest and lights out sit outside the taper** and always pay in full. So at exactly
+  the moment a long list stops being worth much, going to bed becomes the best-paying
+  thing left, and the card says so: *"+3 XP · tonight has had its fill — lights out still
+  pays in full"*. The arithmetic finally agrees with the prose.
+
 **The night cycle**
 - A night rolls over at **4am**, so anything you tick off at 1am still counts for the
   night before.
@@ -314,7 +339,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**229 tests, 14 suites, zero dependencies**, on Node's built-in runner. No install step:
+**240 tests, 14 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

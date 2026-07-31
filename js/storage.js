@@ -123,7 +123,7 @@ function normalizeNight(raw, template, now) {
   }
   for (const [id, record] of Object.entries(night.started)) {
     if (!template.tasks[id] || !isObject(record)) delete night.started[id];
-    else night.started[id] = { at: Number(record.at) || 0, xp: Math.max(0, Number(record.xp) || 0) };
+    else night.started[id] = { at: Number(record.at) || 0, face: Math.max(0, Number(record.face) || 0) };
   }
   for (const [id, award] of Object.entries(night.awards)) {
     // Coerced, not just filtered by task id. `xp: {}` made `profile.xp - xp`
@@ -134,10 +134,15 @@ function normalizeNight(raw, template, now) {
       delete night.awards[id];
       continue;
     }
+    // Built explicitly, not spread. Spreading carried every unknown key through
+    // intact — including the poisoned `xp: {}` this coercion exists to stop,
+    // which then sat on the record looking like a figure something might read.
     night.awards[id] = {
-      ...award,
-      xp: Number(award.xp) || 0,
-      dust: Number(award.dust) || 0,
+      // Face, not paid. What the night paid is `night.paid`, derived from the
+      // taper — a per-award "paid" figure cannot exist under a curve whose
+      // value depends on everything else on the list.
+      face: Math.max(0, Number(award.face) || 0),
+      faceDust: Math.max(0, Number(award.faceDust) || 0),
       multiplier: Number(award.multiplier) || 1,
       at: Number(award.at) || 0,
       prevCombo: Number(award.prevCombo) || 1,
@@ -146,8 +151,11 @@ function normalizeNight(raw, template, now) {
     };
   }
   night.bonus = isObject(night.bonus)
-    ? { xp: Number(night.bonus.xp) || 0, dust: Number(night.bonus.dust) || 0 }
+    ? { face: Math.max(0, Number(night.bonus.face) || 0), faceDust: Math.max(0, Number(night.bonus.faceDust) || 0) }
     : null;
+  night.paid = isObject(night.paid)
+    ? { xp: Math.max(0, Number(night.paid.xp) || 0), dust: Math.max(0, Number(night.paid.dust) || 0) }
+    : { xp: 0, dust: 0 };
   night.combo = Number(night.combo) || 1;
   night.maxCombo = Math.max(Number(night.maxCombo) || 1, night.combo);
   night.lastDoneAt = Number(night.lastDoneAt) || 0;

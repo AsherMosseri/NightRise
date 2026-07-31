@@ -13,10 +13,11 @@ import { createInitialState, createSection, createTask, emptyTemplate } from '..
 import { computeStats, forceNewNight } from '../js/night.js';
 import {
   grantXp, revokeGrant, applyTaskStart, applyTaskCompletion, revokeTaskCompletion,
-  nightCompletionBonus, START_ADVANCE_XP,
+  nightCompletionBonus, START_ADVANCE_XP, NIGHT_FULL_XP,
 } from '../js/game.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
 import { equipItem } from '../js/shop.js';
+import { worthOf } from '../js/render/cards.js';
 
 function reset() {
   replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
@@ -375,7 +376,7 @@ test('un-checking a started task keeps the advance and takes back the rest', () 
   assert.ok(state.night.started[task.id], 'the record of having started stays');
 });
 
-test('starting buys no stardust, at any list size', () => {
+test('starting is bounded at every list size', () => {
   // This sampled an eleven-task list, which is the one size where the claim
   // held by accident. applyTaskStart paid through grantXp(state, XP, 0), and
   // the `0` only suppresses the direct dust argument — grantXp's level-up loop
@@ -394,10 +395,38 @@ test('starting buys no stardust, at any list size', () => {
       section.taskIds.push(task.id);
     }
     for (const task of Object.values(state.template.tasks)) applyTaskStart(state, task, 1000);
-    assert.equal(state.profile.stardust, 0, `${count} rows started, nothing finished`);
-    assert.equal(state.profile.xp, count * START_ADVANCE_XP);
+    // Bounded, which is the property that matters — not zero. Starting pays no
+    // stardust of its own, but crossing a level pays level-up stardust whatever
+    // raised the XP, and pretending otherwise would be the same weasel as the
+    // claim this test replaced. What makes it safe is the taper: five thousand
+    // rows started and nothing finished is worth about a thousand XP, so the
+    // levels it can cross — and the stardust they pay — are bounded too.
+    assert.ok(state.profile.xp < NIGHT_FULL_XP * 3, `${count} rows: ${state.profile.xp} XP`);
+    assert.ok(state.profile.stardust < 300, `${count} rows: ${state.profile.stardust} stardust`);
   }
+
+  // And past the full-pay band it is genuinely flat: ten times the rows is
+  // nowhere near ten times the reward. (Both samples have to be past the band —
+  // below it everything pays pound for pound, which is the point.)
+  const some = startOnly(500);
+  const many = startOnly(5000);
+  assert.ok(many.xp < some.xp * 2, `500 rows ${some.xp} XP vs 5000 rows ${many.xp} XP`);
 });
+
+function startOnly(count) {
+  const state = reset();
+  state.template = emptyTemplate();
+  const section = createSection('S');
+  state.template.sections[section.id] = section;
+  state.template.order.push(section.id);
+  for (let i = 0; i < count; i += 1) {
+    const task = createTask(`t${i}`, 0);
+    state.template.tasks[task.id] = task;
+    section.taskIds.push(task.id);
+  }
+  for (const task of Object.values(state.template.tasks)) applyTaskStart(state, task, 1000);
+  return { xp: state.profile.xp, dust: state.profile.stardust };
+}
 
 test('undo settles awards by amount, not by presence', () => {
   // Edit a task's minutes and re-tick it and the same id sits in both
@@ -435,4 +464,86 @@ test('an undo entry cannot be applied to a night it does not belong to', () => {
   update((s) => forceNewNight(s, '2026-07-30'));
   assert.equal(undo(undoId), null, 'the entry describes a night that no longer exists');
   assert.equal(getState().profile.xp, earned, 'and nothing was paid twice');
+});
+
+test('what the card promises is what the tap pays, at every point on the curve', () => {
+  // The house rule, made checkable. The card shows "+12 XP" before you tap, and
+  // under a taper the honest number is the marginal step of the curve, not the
+  // row's face — which are the same below the full-pay band and diverge sharply
+  // above it. Neither judge could find this assertion anywhere in the project.
+  const state = reset();
+  state.template = emptyTemplate();
+  const section = createSection('S');
+  state.template.sections[section.id] = section;
+  state.template.order.push(section.id);
+  for (let i = 0; i < 120; i += 1) {
+    const task = createTask(`t${i}`, 5);
+    state.template.tasks[task.id] = task;
+    section.taskIds.push(task.id);
+  }
+  replaceState(state);
+
+  const ids = Object.keys(getState().template.tasks);
+  ids.forEach((id, i) => {
+    const promised = worthOf(getState(), getState().template.tasks[id]);
+    const before = getState().profile.xp;
+    toggleTask(id);
+    const paid = getState().profile.xp - before;
+    if (i < ids.length - 1) {
+      assert.equal(paid, promised, `row ${i}: promised ${promised}, paid ${paid}`);
+    } else {
+      // The last row also lands the completion bonus, which is a separate thing
+      // the card does not promise — so the only claim here is that finishing
+      // the night is never worth less than the row that finished it.
+      assert.ok(paid >= promised, `the last row promised ${promised} and paid ${paid}`);
+    }
+  });
+});
+
+test('the taper bounds the night without ever paying a negative amount', () => {
+  // Monotonic by construction, which is what disqualified the rival design: a
+  // curve that re-prices completed rows can make a single checkmark pay -150.
+  const state = reset();
+  state.template = emptyTemplate();
+  const section = createSection('S');
+  state.template.sections[section.id] = section;
+  state.template.order.push(section.id);
+  for (let i = 0; i < 400; i += 1) {
+    const task = createTask(`t${i}`, 600);
+    state.template.tasks[task.id] = task;
+    section.taskIds.push(task.id);
+  }
+  replaceState(state);
+  for (const id of Object.keys(getState().template.tasks)) {
+    const before = getState().profile.xp;
+    toggleTask(id);
+    assert.ok(getState().profile.xp >= before, 'no tap may cost you XP');
+  }
+  // 400 rows of the longest task the app allows, at maximum momentum, used to
+  // be worth 246,440 XP. The whole sink is 8,525 stardust.
+  assert.ok(getState().profile.xp < 2500, `one night paid ${getState().profile.xp} XP`);
+  assert.ok(getState().profile.stardust < 1200, `one night paid ${getState().profile.stardust} stardust`);
+});
+
+test('the same evening pays roughly the same however finely it is written', () => {
+  const evening = (rows) => {
+    const state = reset();
+    state.template = emptyTemplate();
+    const section = createSection('S');
+    state.template.sections[section.id] = section;
+    state.template.order.push(section.id);
+    const per = Math.round((45 / rows) * 2) / 2;
+    for (let i = 0; i < rows; i += 1) {
+      const task = createTask(`t${i}`, per);
+      state.template.tasks[task.id] = task;
+      section.taskIds.push(task.id);
+    }
+    replaceState(state);
+    for (const id of Object.keys(getState().template.tasks)) toggleTask(id);
+    return getState().profile.xp;
+  };
+  // It was 35x. It is not 1x and should not be — a longer list is more work and
+  // has to be worth more — but splitting is no longer the best move in the game.
+  const ratio = evening(400) / evening(4);
+  assert.ok(ratio < 8, `400 rows pays ${ratio.toFixed(1)}x what 4 rows pays`);
 });

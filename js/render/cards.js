@@ -8,7 +8,9 @@
 import { h, icon, iconButton } from '../dom.js';
 import { getState, update } from '../state.js';
 import { toggleTask, toggleSkip, startTask } from '../actions.js';
-import { taskXp, comboMultiplier, chainLengthFor } from '../game.js';
+import {
+  taskXp, comboMultiplier, chainLengthFor, marginalXp, nightFace, NIGHT_FULL_XP,
+} from '../game.js';
 import { computeStats } from '../night.js';
 import { plural, formatMinutesLong, formatDuration } from '../util.js';
 import { openSheet } from './sheet.js';
@@ -171,7 +173,34 @@ function flash(rect, text) {
  */
 export function worthOf(state, task) {
   const chain = chainLengthFor(state.night, Date.now(), state.night.lastMinutes || 0);
-  return taskXp(task.minutes, comboMultiplier(chain));
+  const face = taskXp(task.minutes, comboMultiplier(chain));
+  // The marginal step of the taper, not the face — the same call the payment
+  // makes, so the number shown before the tap and the number received cannot
+  // differ. Below the full-pay band these are identical; past it they are not,
+  // and showing the face there would be the app promising what it will not pay.
+  return marginalXp(state.night, face - (state.night.started[task.id]?.face || 0));
+}
+
+/**
+ * What this one pays, and — once the night has had its fill — where the rest of
+ * tonight actually is.
+ *
+ * The taper means a long night eventually pays very little per row, and a bare
+ * "+1 XP" with no explanation is the app quietly going quiet on you. It is not a
+ * ration, though, and it must not read as one: the quest and the lights-out
+ * reward sit OUTSIDE the taper and still pay in full, so at exactly the moment
+ * the list stops being worth much, going to bed becomes the best-paying thing
+ * left. That is the sentence this app has always wanted to be able to say.
+ */
+function worthLine(state, task, started) {
+  const worth = worthOf(state, task);
+  const full = nightFace(state.night).xp <= NIGHT_FULL_XP;
+  if (full || worth > 4) {
+    return h('p', { class: 'onecard__worth' },
+      started ? `+${worth} XP left on this one` : `+${worth} XP`);
+  }
+  return h('p', { class: 'onecard__worth onecard__worth--quiet' },
+    `+${worth} XP · tonight has had its fill — lights out still pays in full`);
 }
 
 /* --------------------------------------------------------------- the timer */
@@ -364,10 +393,7 @@ export function renderCards() {
     // drift. Rendered once and left stale on purpose: the multiplier decays
     // with wall-clock time, and a number ticking down while you decide is a
     // pressure clock at midnight, which is the wrong instrument entirely.
-    h('p', { class: 'onecard__worth' },
-      started
-        ? `+${Math.max(1, worthOf(state, task) - started.xp)} XP left on this one`
-        : `+${worthOf(state, task)} XP`),
+    worthLine(state, task, started),
     timerFace(state, task, { started: Boolean(started) }),
     // Not "you are out of time" — the card would greet you red for a clock you
     // simply walked away from. It says what happened and offers the fix the

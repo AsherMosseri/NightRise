@@ -53,7 +53,11 @@ export function createNight(key) {
     lastDoneAt: 0,
     lastMinutes: 0, // what the last completed task claimed, for momentum
     celebrated: false,
-    bonus: null, // what the completion bonus paid, so it can be taken back exactly
+    bonus: null, // the completion bonus's face, so it can be taken back exactly
+    // What tonight has actually paid into the profile. The taper means the
+    // night's contribution is a function of the face it holds, and this is the
+    // running total so `settleNight` knows what the difference is.
+    paid: { xp: 0, dust: 0 },
     lightsOutAt: null, // when you actually stopped for the night
     lightsOutOnTime: false,
     reopenedAfterLightsOut: false,

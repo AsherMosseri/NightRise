@@ -5,7 +5,7 @@ import { createSection, createTask, DEFAULT_MINUTES, clampTitle, TITLE_MAX } fro
 import { moveItem, deepClone, clamp, roundMinutes } from './util.js';
 import {
   applyTaskCompletion, revokeTaskCompletion, nightCompletionBonus, grantXp,
-  revokeGrant, applyTaskStart, revokeTaskStart,
+  revokeGrant, applyTaskStart, revokeTaskStart, settleNight,
 } from './game.js';
 import { computeStats } from './night.js';
 import { checkAchievements, dropUnearnedTiers } from './achievements.js';
@@ -73,15 +73,13 @@ function pruneUndo(state) {
  * pocketed the difference, on a loop, without limit.
  */
 function restoreAwards(state, target) {
-  for (const id of new Set([...Object.keys(state.night.awards), ...Object.keys(target)])) {
-    const now = state.night.awards[id];
-    const then = target[id];
-    const dXp = (then?.xp || 0) - (now?.xp || 0);
-    const dDust = (then?.dust || 0) - (now?.dust || 0);
-    if (dXp > 0 || dDust > 0) grantXp(state, Math.max(0, dXp), Math.max(0, dDust));
-    if (dXp < 0 || dDust < 0) revokeGrant(state, Math.max(0, -dXp), Math.max(0, -dDust));
-  }
+  // Put the records back and re-derive. There is no amount to reconcile any
+  // more: what the profile holds from tonight is a pure function of the face
+  // tonight holds, so restoring the records restores the balance. Both undo
+  // duplicators — settling by presence, and settling by an amount that had
+  // since changed — stop being expressible.
   state.night.awards = deepClone(target);
+  settleNight(state);
 }
 
 /**
@@ -97,12 +95,8 @@ function restoreAwards(state, target) {
  * and the record gone — so starting it again would pay twice.
  */
 function restoreStarted(state, target) {
-  for (const id of new Set([...Object.keys(state.night.started), ...Object.keys(target)])) {
-    const delta = (target[id]?.xp || 0) - (state.night.started[id]?.xp || 0);
-    if (delta > 0) grantXp(state, delta, 0);
-    else if (delta < 0) revokeGrant(state, -delta, 0);
-  }
   state.night.started = deepClone(target);
+  settleNight(state);
 }
 
 function restoreSkipped(state, target) {
@@ -347,8 +341,13 @@ function afterProgress(state) {
   const complete = stats.total > 0 && stats.remaining === 0 && stats.counted > 0;
   if (complete && !state.night.bonus) {
     const bonus = nightCompletionBonus(stats);
-    const levels = grantXp(state, bonus.xp, bonus.dust);
-    state.night.bonus = bonus;
+    const before = state.profile.level;
+    state.night.bonus = { face: bonus.xp, faceDust: bonus.dust };
+    const paid = settleNight(state);
+    const levels = [];
+    for (let lvl = before + 1; lvl <= state.profile.level; lvl += 1) levels.push(lvl);
+    bonus.xp = paid.xp;
+    bonus.dust = paid.dust;
     // The money and the ceremony are different questions. `bonus` is the
     // payment and has to come back when you un-tick; `celebrated` is whether
     // tonight has had its moment, and it never un-happens. Without the split,
@@ -358,8 +357,8 @@ function afterProgress(state) {
     emit('night:complete', { stats, bonus, levels, first });
     if (levels.length) emit('level', levels);
   } else if (!complete && state.night.bonus) {
-    revokeGrant(state, state.night.bonus.xp, state.night.bonus.dust);
     state.night.bonus = null;
+    settleNight(state);
   }
   return stats;
 }

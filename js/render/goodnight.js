@@ -74,6 +74,9 @@ export function dismissGoodnight({ reopened = true } = {}) {
   if (reopened) {
     update((state) => { state.night.reopenedAfterLightsOut = true; });
   }
+  // The panel was holding focus and is now gone. Hand it to what replaced it,
+  // rather than dropping a keyboard user onto <body> at the end of the night.
+  document.querySelector('#nightend .lightsout')?.focus?.({ preventScroll: true });
 }
 
 /**

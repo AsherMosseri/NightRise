@@ -1,7 +1,7 @@
 /* Every mutation the UI can perform. Keeps render code free of state logic. */
 
 import { getState, update, emit } from './state.js';
-import { createSection, createTask, DEFAULT_MINUTES } from './model.js';
+import { createSection, createTask, DEFAULT_MINUTES, clampTitle, TITLE_MAX } from './model.js';
 import { moveItem, deepClone, clamp, roundMinutes } from './util.js';
 import {
   applyTaskCompletion, revokeTaskCompletion, nightCompletionBonus, grantXp,
@@ -110,7 +110,7 @@ export function addSection(title = 'New section') {
 export function renameSection(id, title) {
   update((state) => {
     const section = state.template.sections[id];
-    if (section) section.title = title.trim() || section.title;
+    if (section) section.title = clampTitle(title, section.title);
   });
 }
 
@@ -184,7 +184,7 @@ export function addTask(sectionId, title, minutes = DEFAULT_MINUTES) {
 export function renameTask(id, title) {
   update((state) => {
     const task = state.template.tasks[id];
-    if (task) task.title = title.trim() || task.title;
+    if (task) task.title = clampTitle(title, task.title);
   });
 }
 
@@ -362,7 +362,16 @@ export function toggleSkip(id) {
       emit('tokens:empty', { kind: 'raincheck' });
       return { skipped: false, task, blocked: true };
     }
-    if (state.night.done[id] !== undefined) revokeTaskCompletion(state, id);
+    if (state.night.done[id] !== undefined) {
+      // The same bookkeeping `toggleTask` wraps around the identical call. Not
+      // reachable from the UI any more — a done task is not offered a rain
+      // check — but a revoke that can drop a level must never do it silently.
+      const levelBefore = state.profile.level;
+      const revoked = revokeTaskCompletion(state, id);
+      if (state.profile.level < levelBefore) {
+        emit('level:lost', { from: levelBefore, to: state.profile.level, reclaimed: revoked?.reclaimed || 0 });
+      }
+    }
     state.profile.tokens.raincheck -= 1;
     state.night.skipped[id] = true;
     emit('task:skip', { task });

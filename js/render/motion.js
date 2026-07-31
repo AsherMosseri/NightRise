@@ -9,9 +9,10 @@
  *    exactly the people who asked it not to. Every entry point here checks
  *    `still()` first.
  *
- * 2. EVERY BAR IN THIS APP TELEPORTS. Four separate CSS transitions are
+ * 2. EVERY BAR IN THIS APP TELEPORTS. Six separate CSS transitions are
  *    declared — the XP bar, the completion dial, the achievement bars, the
- *    quest bar — and not one of them has ever run, because each render builds a
+ *    quest bar, the per-section bar and the One Card head bar — and not one of
+ *    them had ever run, because each render builds a
  *    brand new node and a transition needs an old value to move from. `grow()`
  *    remembers the last value per key and sets it back for one frame so the
  *    transition the stylesheet already declares finally has somewhere to start.

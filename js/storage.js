@@ -4,9 +4,9 @@ import { debounce, deepClone, roundMinutes, clamp } from './util.js';
 import { levelFromXp } from './game.js';
 import {
   SCHEMA_VERSION, STORAGE_KEY, createInitialState, createNight, createProfile,
-  createSection, emptyTemplate, DEFAULT_MINUTES,
+  createSection, emptyTemplate, DEFAULT_MINUTES, clampTitle,
 } from './model.js';
-import { nightKeyOf } from './time.js';
+import { nightKeyOf, parseClock } from './time.js';
 import { ACHIEVEMENTS, migrateBadges } from './achievements.js';
 
 /** A tier index a save claims, kept inside what the family actually has. */
@@ -37,7 +37,7 @@ function normalizeTemplate(raw) {
     if (!isObject(task)) continue;
     template.tasks[id] = {
       id,
-      title: String(task.title ?? 'Untitled').slice(0, 200),
+      title: clampTitle(task.title, 'Untitled'),
       minutes: roundMinutes(task.minutes) ?? DEFAULT_MINUTES,
       note: String(task.note ?? ''),
     };
@@ -57,7 +57,7 @@ function normalizeTemplate(raw) {
     }
     template.sections[id] = {
       id,
-      title: String(section.title ?? 'Section').slice(0, 200),
+      title: clampTitle(section.title, 'Section'),
       collapsed: Boolean(section.collapsed),
       taskIds: kept,
     };
@@ -86,8 +86,17 @@ function normalizeTemplate(raw) {
   return template;
 }
 
+/** A night key is a calendar date. Anything else is not a key, it is a string. */
+function validKey(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
+}
+
 function normalizeNight(raw, template, now) {
-  const key = typeof raw?.key === 'string' ? raw.key : nightKeyOf(now);
+  // `night.key = 'not-a-date'` used to survive: keyDiffDays returned NaN, so the
+  // "only ever roll forward" guard was skipped, the night was banked, and the
+  // history panel rendered "Invalid Date" against it permanently.
+  const key = validKey(raw?.key) ? raw.key : nightKeyOf(now);
   const night = { ...createNight(key), ...(isObject(raw) ? raw : {}) };
   night.key = key;
   night.done = isObject(night.done) ? night.done : {};
@@ -95,7 +104,26 @@ function normalizeNight(raw, template, now) {
   night.awards = isObject(night.awards) ? night.awards : {};
   for (const id of Object.keys(night.done)) if (!template.tasks[id]) delete night.done[id];
   for (const id of Object.keys(night.skipped)) if (!template.tasks[id]) delete night.skipped[id];
-  for (const id of Object.keys(night.awards)) if (!template.tasks[id]) delete night.awards[id];
+  for (const [id, award] of Object.entries(night.awards)) {
+    // Coerced, not just filtered by task id. `xp: {}` made `profile.xp - xp`
+    // NaN on the next un-tick, JSON.stringify wrote it as null, and the reload
+    // read it back as zero — every level and title gone, with no throw and so
+    // no backup.
+    if (!template.tasks[id] || !isObject(award)) {
+      delete night.awards[id];
+      continue;
+    }
+    night.awards[id] = {
+      ...award,
+      xp: Number(award.xp) || 0,
+      dust: Number(award.dust) || 0,
+      multiplier: Number(award.multiplier) || 1,
+      at: Number(award.at) || 0,
+      prevCombo: Number(award.prevCombo) || 1,
+      prevLastDoneAt: Number(award.prevLastDoneAt) || 0,
+      prevMinutes: Math.max(0, Number(award.prevMinutes) || 0),
+    };
+  }
   night.bonus = isObject(night.bonus)
     ? { xp: Number(night.bonus.xp) || 0, dust: Number(night.bonus.dust) || 0 }
     : null;
@@ -118,7 +146,7 @@ function normalizeHistory(raw) {
   const history = {};
   if (!isObject(raw)) return history;
   for (const [key, entry] of Object.entries(raw)) {
-    if (!isObject(entry)) continue;
+    if (!isObject(entry) || !validKey(key)) continue;
     history[key] = {
       total: Number(entry.total) || 0,
       done: Number(entry.done) || 0,
@@ -201,6 +229,24 @@ export function normalizeState(raw, now = new Date()) {
   for (const key of ['inventory', 'equipped', 'tokens', 'companion', 'companions', 'constellations', 'taskStats', 'settings']) {
     if (!isObject(profile[key])) profile[key] = deepClone(fresh[key]);
   }
+  // Counts, not whatever the save said. `raincheck: 'lots'` passed the
+  // `<= 0` gate ('lots' <= 0 is false), then `-= 1` made it NaN, and NaN <= 0
+  // is false too — the gate never closed again and every task could be
+  // rain-checked forever. A negative freeze count failed `>= needed` and quietly
+  // reset the streak instead of covering it. Extra token kinds the shop may add
+  // go through the same clamp.
+  // A bedtime that cannot be parsed is not a setting, it is a hole: the pacing
+  // read, the curfew and Front Loaded all fall back to something different when
+  // `bedtimeInstant` returns null, and the value arrives here unvalidated from
+  // any imported or hand-edited backup.
+  if (!parseClock(profile.settings.bedtime)) profile.settings.bedtime = fresh.settings.bedtime;
+
+  const tokens = {};
+  for (const [kind, value] of Object.entries({ ...fresh.tokens, ...profile.tokens })) {
+    tokens[kind] = Math.max(0, Math.round(Number(value) || 0));
+  }
+  profile.tokens = tokens;
+
   const defaultInventory = fresh.inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
     const list = Array.isArray(profile.inventory[kind]) ? profile.inventory[kind] : [];
@@ -421,5 +467,15 @@ function keepAside(suffix) {
 export { STORAGE_KEY };
 
 export function clearStorage() {
-  if (store) store.removeItem(STORAGE_KEY);
+  if (!store) return;
+  // Every copy, not just the live one. The confirm says "no copy anywhere else
+  // unless you exported one", and the recovery stashes — which hold a complete
+  // older save — sat behind it untouched.
+  store.removeItem(STORAGE_KEY);
+  for (const suffix of ['corrupt', 'damaged', 'newer', 'replaced']) {
+    store.removeItem(`${STORAGE_KEY}.${suffix}`);
+  }
+  corruptBackupKey = null;
+  damagedBackupKey = null;
+  futureSaveKey = null;
 }

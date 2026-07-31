@@ -74,6 +74,13 @@ function syncSky() {
 
 /* ------------------------------------------------------------- quick add */
 
+/** The quick-add box if it is on screen, otherwise the sheet that replaces it. */
+function focusQuickAddOrSheet() {
+  const box = $('#quick-add-input');
+  if (box && box.offsetParent !== null) box.focus();
+  else openAddTask();
+}
+
 function initQuickAdd(input, button) {
   const submit = () => {
     const raw = input.value.trim();
@@ -279,10 +286,29 @@ function announceTier(step) {
   });
 }
 
+let futureKeyWarned = false;
+
 function checkRollover() {
   const state = getState();
   if (nightKeyOf(new Date()) === state.night.key) return false;
   const result = update((s) => rolloverIfNeeded(s));
+  // `rolloverIfNeeded` deliberately refuses to touch a night dated more than a
+  // day ahead — retitling one across a week could land on a real history entry.
+  // But "refuse" used to mean this ran a full persisted update and a full
+  // re-render on the 30-second tick forever, while the header showed a date a
+  // year out and a bedtime countdown to match, with nothing ever said.
+  if (!result && nightKeyOf(new Date()) !== getState().night.key) {
+    if (!futureKeyWarned) {
+      futureKeyWarned = true;
+      toast('Tonight is dated in the future', {
+        tone: 'warn',
+        iconName: 'calendar',
+        detail: 'Check your device clock. Nothing will be banked until the dates line up.',
+        duration: 0,
+      });
+    }
+    return false; // let the countdown keep painting rather than churning
+  }
   announceRollover(result);
   renderAll();
   return true;
@@ -389,9 +415,11 @@ function boot() {
   });
 
   initKeys({
-    onNewTask: () => $('#quick-add-input').focus(),
+    // The quick-add row is `display: none` on touch, so both of these were
+    // no-ops on a phone while the Keyboard panel still advertised them.
+    onNewTask: () => focusQuickAddOrSheet(),
     onNewSection: () => openAddSection(),
-    onQuickAdd: () => $('#quick-add-input').focus(),
+    onQuickAdd: () => focusQuickAddOrSheet(),
     onShop: () => openPanel('shop'),
     onStarMap: () => openPanel('starmap'),
     onHistory: () => openPanel('history'),
@@ -404,8 +432,14 @@ function boot() {
   }, { enabled: () => getState().profile.settings.shortcuts !== false });
 
   subscribe(() => {
-    renderChecklist();
-    renderHeader();
+    // `.is-onecard .app { display: none }`, so rebuilding the whole list and
+    // header behind it was ~600 nodes per check-off that nobody could see.
+    // Leaving the mode runs renderAll() through the onClose hook, so nothing is
+    // stale by the time it is on screen again.
+    if (!cardsActive()) {
+      renderChecklist();
+      renderHeader();
+    }
     renderCards();
     syncSky();
     syncToggles();

@@ -2,8 +2,26 @@
 
 import { plural } from './util.js';
 
+/** Which section a task lives in, so two "Brush teeth" rows can be told apart. */
+function sectionTitles(template) {
+  const homes = new Map();
+  for (const section of Object.values(template.sections)) {
+    for (const taskId of section.taskIds) homes.set(taskId, section.title);
+  }
+  return homes;
+}
+
 export function taskInsights(state) {
   const stats = state.profile.taskStats || {};
+  const homes = sectionTitles(state.template);
+  // Stats are keyed by id, but every surface printed only the title — so two
+  // tasks with the same name were two identical rows, and the nudge said
+  // '"Brush teeth" has slipped 4 nights running' about the one you always do.
+  const seenTitles = new Map();
+  for (const id of Object.keys(stats)) {
+    const task = state.template.tasks[id];
+    if (task) seenTitles.set(task.title, (seenTitles.get(task.title) || 0) + 1);
+  }
   return Object.entries(stats)
     .map(([id, entry]) => {
       const task = state.template.tasks[id];
@@ -13,6 +31,9 @@ export function taskInsights(state) {
       return {
         id,
         title: task.title,
+        // Only when it is actually needed — a section name on every row is
+        // noise, and on a duplicated one it is the whole point.
+        where: seenTitles.get(task.title) > 1 ? (homes.get(id) || null) : null,
         seen,
         done: entry.done || 0,
         skipped: entry.skipped || 0,
@@ -38,7 +59,8 @@ export function reliableTasks(state) {
 export function topNudge(state) {
   const worst = taskInsights(state).find((t) => t.missStreak >= 3);
   if (!worst) return null;
-  return `“${worst.title}” has slipped ${plural(worst.missStreak, 'night', 'nights')} running.`;
+  const where = worst.where ? ` in ${worst.where}` : '';
+  return `“${worst.title}”${where} has slipped ${plural(worst.missStreak, 'night', 'nights')} running.`;
 }
 
 export function overallRate(state) {

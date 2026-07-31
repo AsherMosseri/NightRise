@@ -238,6 +238,24 @@ export function advanceLightsOutStreak(lights, key, onTime) {
 }
 
 /**
+ * The bedtime streak as it actually stands.
+ *
+ * `lightsOut.streak` only changes inside `advanceLightsOutStreak`, which only
+ * runs when you press Lights out — so nights you never end never touch it, and
+ * the chip cheerfully read "5 on time" nineteen days after the last one. Same
+ * problem `effectiveStreak` was written to solve for the list streak.
+ *
+ * `best` is untouched: a high-water mark is a record of what happened, and the
+ * on-time achievement family is measured off it.
+ */
+export function effectiveLightsOutStreak(state, now = new Date()) {
+  const lights = state.profile.lightsOut;
+  if (!lights?.lastKey || !lights.streak) return 0;
+  // A gap of one day is last night — the streak is live until tonight ends.
+  return keyDiffDays(lights.lastKey, nightKeyOf(now)) > 1 ? 0 : lights.streak;
+}
+
+/**
  * Manual "start a fresh night" — bank what you did, then hand back a clean list
  * for the *same* night. It is still tonight; you have not gone to bed and woken
  * up, you have just decided to run the evening again.

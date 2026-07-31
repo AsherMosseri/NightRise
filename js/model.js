@@ -9,12 +9,26 @@ export const STORAGE_KEY = 'nightcheck.v1';
 
 export const DEFAULT_MINUTES = 5;
 
+/**
+ * The longest a title can be, enforced on the way in.
+ *
+ * The loader has always clamped to this, so a longer title lived on screen and
+ * on disk all evening and was amputated at the next launch — the truncation was
+ * real either way, it just happened where nobody could see it.
+ */
+export const TITLE_MAX = 200;
+
+export function clampTitle(value, fallback) {
+  const trimmed = String(value ?? '').trim().slice(0, TITLE_MAX);
+  return trimmed || fallback;
+}
+
 export function createTask(title, minutes = DEFAULT_MINUTES, note = '') {
-  return { id: uid('t'), title, minutes, note };
+  return { id: uid('t'), title: clampTitle(title, 'New task'), minutes, note };
 }
 
 export function createSection(title) {
-  return { id: uid('s'), title, collapsed: false, taskIds: [] };
+  return { id: uid('s'), title: clampTitle(title, 'New section'), collapsed: false, taskIds: [] };
 }
 
 export function createNight(key) {

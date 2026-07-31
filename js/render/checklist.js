@@ -14,7 +14,13 @@ import { openSheet } from './sheet.js';
 import { openAddTask, openFirstTask, openAddSection } from './add-task.js';
 import { minutesFromToken } from '../keys.js';
 import { formatMinutesLong, formatMinutesShort, plural } from '../util.js';
-import { still } from './motion.js';
+import { still, growTo } from './motion.js';
+import { inCurfew } from '../time.js';
+
+/** Whether this device has a pointer that can hover — the same test the CSS makes. */
+function hasPointer() {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover)').matches;
+}
 
 let root = null;
 let pendingFocus = null;
@@ -27,10 +33,28 @@ export function focusNext(key) {
 
 /* ------------------------------------------------------------ inline edit */
 
+/** The commit function of the inline edit currently on screen, if any. */
+let liveEdit = null;
+
+/**
+ * Commit whatever is being typed before the list is torn down.
+ *
+ * `clear(root)` removes the focused input, and removing a focused element does
+ * not fire `blur` in Safari or Chrome — so the commit-on-blur path never ran and
+ * the typed name was simply gone. Rare but real: the 4am rollover on the 30s
+ * tick, a cross-tab sync, an import. Committing is what blurring already does.
+ */
+function settleInlineEdit() {
+  const commit = liveEdit;
+  liveEdit = null;
+  if (commit) commit(true);
+}
+
 function beginInlineEdit(labelNode, currentValue, onCommit) {
   const input = h('input', {
     class: 'inline-edit',
     type: 'text',
+    maxlength: '200',
     value: currentValue,
     'aria-label': 'Rename',
     spellcheck: 'false',
@@ -39,6 +63,7 @@ function beginInlineEdit(labelNode, currentValue, onCommit) {
   const commit = (save) => {
     if (settled) return;
     settled = true;
+    if (liveEdit === commit) liveEdit = null;
     const value = input.value.trim();
     const owner = input.closest('[data-focus]');
     input.replaceWith(labelNode);
@@ -52,6 +77,7 @@ function beginInlineEdit(labelNode, currentValue, onCommit) {
     event.stopPropagation();
   });
   input.addEventListener('blur', () => commit(true));
+  liveEdit = commit;
   labelNode.replaceWith(input);
   input.focus();
   input.select();
@@ -72,6 +98,7 @@ function editMinutes(chip, task) {
   const commit = (save) => {
     if (settled) return;
     settled = true;
+    if (liveEdit === commit) liveEdit = null;
     const value = Number(input.value);
     input.replaceWith(chip);
     if (save && Number.isFinite(value)) setTaskMinutes(task.id, value);
@@ -82,6 +109,7 @@ function editMinutes(chip, task) {
     event.stopPropagation();
   });
   input.addEventListener('blur', () => commit(true));
+  liveEdit = commit;
   chip.replaceWith(input);
   input.focus();
   input.select();
@@ -125,9 +153,24 @@ function startRenameTask(taskId) {
 
 function rainCheck(taskId) {
   const result = toggleSkip(taskId);
-  if (result?.blocked) {
-    toast('No rain checks left', { tone: 'warn', iconName: 'skip', detail: 'Buy more in the Night Market.' });
-  }
+  if (!result?.blocked) return;
+  // Pointing at the market is only useful if you can get there. Inside the
+  // curfew — the half hour before bedtime, which is exactly when you are most
+  // likely to be rain-checking things — the market is behind a confirmation
+  // sheet, so the toast said "buy more" and offered a four-step detour. Outside
+  // it, the toast takes you there in one tap instead of describing the route.
+  const live = getState();
+  const closed = live.profile.settings.curfew
+    && inCurfew(live.night.key, live.profile.settings.bedtime, new Date());
+  toast('No rain checks left', {
+    tone: 'warn',
+    iconName: 'skip',
+    detail: closed ? 'Tonight has to be run on what you have.' : 'Buy more in the Night Market.',
+    action: closed ? null : {
+      label: 'Night Market',
+      onClick: () => document.querySelector('[data-open="shop"]')?.click(),
+    },
+  });
 }
 
 /** One definition of what you can do to a task, shared by the row and the sheet. */
@@ -242,7 +285,14 @@ function taskRow(state, task, index, total = 0) {
   h('span', { class: 'task__grip', 'aria-hidden': 'true' }, icon('grip', { size: 14 })));
 
   row.addEventListener('keydown', (event) => rowKeys(event, task));
-  row.addEventListener('dblclick', () => startRenameTask(task.id));
+  // Pointers only. iOS fires `dblclick` for a double tap, so a mis-timed retry
+  // after a tap that seemed not to register replaced the title with an edit
+  // field — and `blur` commits rather than cancels, so backing out of it needs
+  // a keyboard. The ⋯ menu is how you rename on touch.
+  row.addEventListener('dblclick', (event) => {
+    if (event.pointerType === 'touch' || !hasPointer()) return;
+    startRenameTask(task.id);
+  });
   return row;
 }
 
@@ -378,6 +428,7 @@ function sectionNode(state, section, index) {
   const addInput = h('input', {
     class: 'section__add-input',
     type: 'text',
+    maxlength: '200',
     placeholder: 'Add a task…',
     'aria-label': `Add a task to ${section.title}`,
     dataset: { focus: `section-add:${section.id}` },
@@ -445,13 +496,19 @@ function sectionNode(state, section, index) {
   title,
   h('span', { class: 'section__count' }, `${stats.done}/${stats.total}`),
   h('span', { class: 'section__bar', 'aria-hidden': 'true' },
-    h('span', { class: 'section__bar-fill', style: { width: `${pct}%` } })),
+    // Through grow(), like every other bar. It declares a 400ms width
+    // transition that had never once run: a fresh node with an inline width has
+    // no previous value to travel from, which is the trap motion.js exists for.
+    growTo(h('span', { class: 'section__bar-fill' }), `section:${section.id}`, `${pct}%`)),
   h('div', { class: 'section__actions' },
     ...sectionActions(section, addInput).map((a) => iconButton(a.icon, a.label, () => a.run(),
       { class: a.danger ? 'icon-btn--danger' : '', dataset: { focus: `section-${a.key}:${section.id}` } }))),
   sectionMenu);
 
-  header.addEventListener('dblclick', () => startRenameSection(section.id));
+  header.addEventListener('dblclick', (event) => {
+    if (event.pointerType === 'touch' || !hasPointer()) return;
+    startRenameSection(section.id);
+  });
   header.addEventListener('keydown', (event) => {
     if (event.target !== header) return;
     const key = event.key;
@@ -629,6 +686,7 @@ function restoreDrafts(drafts) {
 
 export function renderChecklist() {
   if (!root) return;
+  settleInlineEdit();
   const state = getState();
   const previousRects = captureRects();
   const drafts = captureDrafts();

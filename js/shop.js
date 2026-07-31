@@ -1,6 +1,8 @@
 /* The Night Market: what Stardust buys, and the rules for buying it. */
 
 import { update, emit } from './state.js';
+import { checkAchievements } from './achievements.js';
+import { computeStats } from './night.js';
 import { COMPANIONS, FEED_COST, TIER_FEEDS, tierForFeeds } from './companion.js';
 
 export const THEMES = [
@@ -45,7 +47,7 @@ export const CONSUMABLES = [
     id: 'raincheck',
     name: 'Rain Check',
     cost: 45,
-    desc: 'Excuses one task from tonight\'s completion percentage.',
+    desc: 'Excuses one task from tonight’s completion percentage.',
     icon: 'skip',
   },
 ];
@@ -92,6 +94,20 @@ export function canBuy(state, item) {
   return { ok: true };
 }
 
+/**
+ * Settle the tiers a purchase just moved.
+ *
+ * The collector, companion and constellation families are measured off numbers
+ * only the shop changes, and nothing in the shop ever settled them — so the
+ * board sat at a full bar reading "tier 0" until the next checkbox tap, a bank,
+ * or the next launch. Boot settles silently by design, so closing the app first
+ * meant the stardust arrived with no announcement at all.
+ */
+function settleTiers(state) {
+  const earned = checkAchievements(state, computeStats(state));
+  if (earned.length) emit('achievement', earned);
+}
+
 export function purchase(itemId) {
   const item = itemById(itemId);
   if (!item) return null;
@@ -110,6 +126,7 @@ export function purchase(itemId) {
       state.profile.equipped[item.kind] = item.id;
     }
     emit('purchase', { item });
+    settleTiers(state);
     return item;
   });
 }
@@ -163,6 +180,7 @@ export function buyConsumable(kind) {
     state.profile.stardust -= item.cost;
     state.profile.tokens[kind] = (state.profile.tokens[kind] || 0) + 1;
     emit('purchase', { item });
+    settleTiers(state);
     return item;
   });
 }
@@ -181,6 +199,7 @@ export function feedCompanion() {
     const grew = tier > (companion.tier || 1);
     companion.tier = tier;
     emit('companion:fed', { companion, grew });
+    settleTiers(state);
     return { companion, grew, maxed: tier >= TIER_FEEDS.length };
   });
 }

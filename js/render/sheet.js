@@ -156,7 +156,10 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
     'aria-label': title ? `Actions for ${title}` : 'Actions',
   },
   h('span', { class: 'sheet__grip', 'aria-hidden': 'true' }),
-  h('header', { class: 'sheet__head' },
+  // A div, not a <header>. HTML-AAM maps <header> to `banner` unless its
+  // nearest sectioning ancestor is article/aside/main/nav/section — a div with
+  // role=dialog is none of those, so this announced as a second page banner.
+  h('div', { class: 'sheet__head' },
     h('h2', { class: 'sheet__title' }, title || 'Actions'),
     subtitle ? h('p', { class: 'sheet__subtitle' }, subtitle) : null),
   content ? h('div', { class: 'sheet__content' }, content) : null,

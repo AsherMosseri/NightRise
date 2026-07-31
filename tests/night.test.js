@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak,
+  computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak, effectiveLightsOutStreak,
   advanceLightsOutStreak,
 } from '../js/night.js';
 import { createInitialState, createNight, starterTemplate } from '../js/model.js';
@@ -432,4 +432,20 @@ test('a night with an empty list is not judged, in either direction', () => {
   const real = bankNight(state, computeStats(state));
   assert.equal(real.missedNights, 0);
   assert.equal(state.profile.streak, 7);
+});
+
+test('the bedtime streak lapses when you stop pressing Lights out', () => {
+  // It only ever changed inside advanceLightsOutStreak, which only runs when
+  // you press the button — so the chip read "5 on time" nineteen days after the
+  // last one, beside a list streak that had correctly gone to zero.
+  const state = createInitialState();
+  state.profile.lightsOut = { streak: 5, best: 7, lastKey: '2026-07-10' };
+  assert.equal(effectiveLightsOutStreak(state, new Date('2026-07-29T22:00:00')), 0);
+  assert.equal(state.profile.lightsOut.best, 7, 'the record is a record');
+
+  // Last night still counts: tonight has not ended yet.
+  state.profile.lightsOut.lastKey = '2026-07-28';
+  assert.equal(effectiveLightsOutStreak(state, new Date('2026-07-29T22:00:00')), 5);
+  state.profile.lightsOut.lastKey = '2026-07-29';
+  assert.equal(effectiveLightsOutStreak(state, new Date('2026-07-29T22:00:00')), 5);
 });

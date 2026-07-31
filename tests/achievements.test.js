@@ -10,7 +10,7 @@ import {
 } from '../js/achievements.js';
 import { createInitialState } from '../js/model.js';
 import { COMBO_MAX, comboMultiplier } from '../js/game.js';
-import { computeStats } from '../js/night.js';
+import { computeStats, bankNight } from '../js/night.js';
 
 function fresh() {
   return createInitialState(new Date(2026, 6, 29, 22, 0));
@@ -304,22 +304,38 @@ test('wiping the history that proved a rung does not take the rung', () => {
   assert.equal(heldTier(state.profile, 'cleared'), 1);
 });
 
-test('getting a loaned rung back does not pay for it twice', () => {
+test('a rung on loan shows up but is not paid for until the floor catches up', () => {
+  // This used to pay the moment the list was clear, which meant the stardust
+  // outlived the badge: collect 35, un-tick one task, the rung comes off and
+  // the dust stays. Payment now waits for the latch — the tier the floor
+  // supports — so "volatile families pay nothing" is true by construction
+  // rather than by naming one family in an if.
   const state = fresh();
   const tasks = Object.values(state.template.tasks);
   const clear = () => { for (const t of tasks) state.night.done[t.id] = Date.now(); };
 
   clear();
-  checkAchievements(state, computeStats(state));
-  const paid = state.profile.stardust;
-  assert.equal(paid, tierDust(1));
+  const first = checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'cleared'), 1, 'the rung is shown straight away');
+  assert.equal(first.find((e) => e.id === 'cleared').dust, 0, 'on loan, so not paid for');
+  assert.equal(state.profile.stardust, 0);
 
   delete state.night.done[tasks[0].id];
   dropUnearnedTiers(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'cleared'), 0, 'and taken back with nothing owed');
+  assert.equal(state.profile.stardust, 0);
+
+  // Banking the night puts it in history, which is what the floor reads.
   clear();
-  const again = checkAchievements(state, computeStats(state));
-  assert.equal(again.find((e) => e.id === 'cleared').dust, 0, 'earned back, but free');
-  assert.equal(state.profile.stardust, paid);
+  const banked = bankNight(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'cleared'), 1);
+  const cleared = banked.achievements.find((e) => e.id === 'cleared');
+  assert.equal(cleared.dust, tierDust(1), 'paid once the night is on the record');
+
+  // And a second run at the same night pays nothing more.
+  const before = state.profile.stardust;
+  checkAchievements(state, computeStats(state));
+  assert.equal(state.profile.stardust, before);
 });
 
 test('every family says which of the two kinds it is', () => {

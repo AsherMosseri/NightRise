@@ -51,7 +51,10 @@ function markApplied() {
 
 /** Is the app in the middle of something a reload would throw away? */
 function busy() {
-  if (document.querySelector('dialog[open], .sheet, .goodnight__panel, .inline-edit')) return true;
+  // `.onecard:not(:empty)` too. One Card holds `active`, `deferred` and a
+  // running timer in module state, so a reload mid-list drops you back on the
+  // full checklist with your countdown gone and no explanation.
+  if (document.querySelector('dialog[open], .sheet, .goodnight__panel, .inline-edit, .onecard:not(:empty)')) return true;
   const focused = document.activeElement;
   return Boolean(focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA'));
 }

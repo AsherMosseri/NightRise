@@ -13,7 +13,7 @@ import { plural, formatMinutesLong } from '../util.js';
 import { openSheet } from './sheet.js';
 import { toast } from '../toast.js';
 import { setSkyPaused } from '../sky.js';
-import { still, fx, rectOf } from './motion.js';
+import { still, fx, rectOf, growTo } from './motion.js';
 import { lightsOut } from './goodnight.js';
 import { openAddTask } from './add-task.js';
 import {
@@ -139,13 +139,20 @@ function paintTimer() {
   if (!face || !timer || !face.root.isConnected) return;
   const elapsed = elapsedOf(timer);
   const running = isRunning(timer);
-  face.value.textContent = timerLabel(timer.plannedMs, elapsed);
-  face.caption.textContent = timerCaption(timer.plannedMs, elapsed, face.spoken);
-  face.bar.style.width = `${(timerProgress(timer.plannedMs, elapsed) * 100).toFixed(2)}%`;
+  const label = timerLabel(timer.plannedMs, elapsed);
   // A clock that has never run is not "nearly out of time" — a two-minute task
   // would open in amber. The colours describe a clock in motion.
   const started = running || elapsed > 0;
-  face.root.dataset.phase = started ? timerPhase(timer.plannedMs, elapsed) : 'idle';
+  const phase = started ? timerPhase(timer.plannedMs, elapsed) : 'idle';
+  // This runs four times a second for the whole session, and on a card whose
+  // timer was never started every one of those writes was identical to the last
+  // — including a fresh <svg> built from scratch, 240 times an hour.
+  if (face.painted === `${label}|${phase}|${running}|${elapsed >= 1000}`) return;
+  face.painted = `${label}|${phase}|${running}|${elapsed >= 1000}`;
+  face.value.textContent = label;
+  face.caption.textContent = timerCaption(timer.plannedMs, elapsed, face.spoken);
+  face.bar.style.width = `${(timerProgress(timer.plannedMs, elapsed) * 100).toFixed(2)}%`;
+  face.root.dataset.phase = phase;
   face.root.dataset.state = running ? 'running' : 'paused';
   face.toggle.replaceChildren(
     icon(running ? 'pause' : 'play', { size: 16 }),
@@ -227,12 +234,14 @@ export function renderCards() {
   const pending = queue(state);
   const position = stats.done + stats.skipped + 1;
 
-  const head = h('header', { class: 'onecard__head' },
+  // A div for the same reason the sheet's head is one: <header> inside a plain
+  // div maps to `banner`, and there is only one page banner.
+  const head = h('div', { class: 'onecard__head' },
     h('span', { class: 'onecard__count' }, pending.length
       ? `${Math.min(position, stats.total)} of ${stats.total}`
       : `${stats.done} of ${stats.total}`),
     h('div', { class: 'onecard__bar', 'aria-hidden': 'true' },
-      h('span', { style: { width: `${stats.pct}%` } })),
+      growTo(h('span', {}), 'onecard:bar', `${stats.pct}%`)),
     iconButton('close', 'Leave one-at-a-time mode', () => exitCards(), { class: 'onecard__exit' }));
 
   if (!pending.length) {

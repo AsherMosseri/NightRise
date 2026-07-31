@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeState, parseImport, serializeState, damagedSave } from '../js/storage.js';
-import { createInitialState } from '../js/model.js';
+import { createInitialState, createTask, createSection, TITLE_MAX } from '../js/model.js';
 
 test('garbage in gives a usable starter night', () => {
   const state = normalizeState(null);
@@ -129,4 +129,58 @@ test('damage that parses is still damage', () => {
   for (const raw of cases) {
     assert.equal(damagedSave(raw, normalizeState(raw)), true, JSON.stringify(raw).slice(0, 60));
   }
+});
+
+test('a title is clamped where you can see it, not silently on the next load', () => {
+  // The loader has always cut at 200. Nothing on the way in did, so a longer
+  // title lived on screen and on disk all evening and was amputated at launch.
+  const long = 'x'.repeat(400);
+  const task = createTask(long, 5);
+  assert.equal(task.title.length, TITLE_MAX);
+  assert.equal(createSection(long).title.length, TITLE_MAX);
+  // And what the loader keeps now matches what the app stores.
+  const state = createInitialState();
+  const id = Object.keys(state.template.tasks)[0];
+  state.template.tasks[id].title = long;
+  assert.equal(normalizeState(state).template.tasks[id].title, task.title);
+});
+
+test('a night key has to look like a date', () => {
+  // 'not-a-date' used to survive: keyDiffDays returned NaN, the "only roll
+  // forward" guard was skipped, the night was banked, and the history panel
+  // showed "Invalid Date" against it forever.
+  assert.match(normalizeState({ night: { key: 'not-a-date' } }).night.key, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(normalizeState({ night: { key: '2026-13-45' } }).night.key, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(normalizeState({ night: { key: '2026-07-04' } }).night.key, '2026-07-04');
+  const history = normalizeState({ history: { 'not-a-date': { pct: 100 }, '2026-07-04': { pct: 90 } } }).history;
+  assert.deepEqual(Object.keys(history), ['2026-07-04']);
+});
+
+test('a malformed award cannot NaN the whole profile', () => {
+  // `xp: {}` made `profile.xp - xp` NaN on the next un-tick, JSON.stringify
+  // wrote null, and the reload read zero — every level and title gone, with no
+  // throw and therefore no backup.
+  const state = createInitialState();
+  const id = Object.keys(state.template.tasks)[0];
+  state.night.done[id] = Date.now();
+  state.night.awards[id] = { xp: {}, dust: [], multiplier: 'x2', at: 'now' };
+  const award = normalizeState(state).night.awards[id];
+  for (const value of Object.values(award)) assert.ok(Number.isFinite(value), JSON.stringify(award));
+});
+
+test('a token count is a count', () => {
+  // `raincheck: 'lots'` passed the `<= 0` gate, then `-= 1` made it NaN, and
+  // NaN <= 0 is false too — the gate never closed and rain checks were endless.
+  const tokens = normalizeState({ profile: { tokens: { freeze: -99, raincheck: 'lots', mystery: '3' } } }).profile.tokens;
+  assert.equal(tokens.freeze, 0);
+  assert.equal(tokens.raincheck, 0);
+  assert.equal(tokens.mystery, 3, 'kinds the shop may add go through the same clamp');
+});
+
+test('an unreadable bedtime falls back rather than becoming a hole', () => {
+  // Pacing, curfew and the Front Loaded quest each fall back to something
+  // different when bedtimeInstant returns null, and the value arrives from any
+  // imported or hand-edited backup unvalidated.
+  assert.equal(normalizeState({ profile: { settings: { bedtime: 'half eleven' } } }).profile.settings.bedtime, '23:30');
+  assert.equal(normalizeState({ profile: { settings: { bedtime: '22:15' } } }).profile.settings.bedtime, '22:15');
 });

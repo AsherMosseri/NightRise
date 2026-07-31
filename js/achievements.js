@@ -286,9 +286,10 @@ export function totalTiers(profile) {
  * Record any tier newly reached, and pay for it.
  *
  * Stardust is paid against `tiersPaid`, the same high-water mark that stops a
- * level boundary being crossed twice for the same bonus. Volatile families pay
- * nothing at all: levelling up already pays stardust of its own, and a badge
- * that pays again on the way up would have to claw it back on the way down.
+ * level boundary being crossed twice for the same bonus, and only for rungs the
+ * floor already supports. A rung tonight can still take back is on loan; paying
+ * for it would mean the dust outliving the badge. `level` floors at zero and so
+ * pays nothing ever — levelling up already pays stardust of its own.
  */
 export function checkAchievements(state, stats) {
   const { profile } = state;
@@ -316,9 +317,14 @@ export function checkAchievements(state, stats) {
     for (let tier = held + 1; tier <= reached; tier += 1) {
       const step = family.tiers[tier - 1];
       let dust = 0;
-      // Levels pay their own stardust when you cross them; a rung that paid
-      // again on the way up would have to claw it back on the way down.
-      if (family.id !== 'level' && tier > (Number(profile.tiersPaid[family.id]) || 0)) {
+      // Paid against the *latch*, not the live measure. A rung that tonight can
+      // still take back is on loan, and paying for it meant the stardust
+      // outlived the badge: clear the list, collect 35, un-tick one task, the
+      // rung drops and the dust stays. Waiting for the floor to catch up — 4am
+      // for `cleared`, never for `level`, immediately for the other seven —
+      // makes "volatile families pay nothing" true by construction rather than
+      // by naming one family in an if.
+      if (tier <= latch && tier > (Number(profile.tiersPaid[family.id]) || 0)) {
         dust = tierDust(tier);
         profile.stardust += dust;
         profile.tiersPaid[family.id] = tier;

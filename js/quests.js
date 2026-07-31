@@ -24,7 +24,11 @@ function clockLabel(ms) {
  * section was a quest reward for doing nothing at all.
  */
 function clearedSections(stats) {
-  return stats.sections.filter((s) => s.total > 0 && s.remaining === 0 && s.done > 0).length;
+  // Every task, not "nothing outstanding". `remaining === 0 && done > 0` let a
+  // four-task section with one done and three rain-checked complete "Completely
+  // clear any one section" — while the section header right beside it refused
+  // to mark itself complete, which needs `done === total`. One definition.
+  return stats.sections.filter((s) => s.total > 0 && s.done === s.total).length;
 }
 
 /** Largest number of completions falling inside one sliding window. */
@@ -123,9 +127,12 @@ export const QUEST_DEFS = [
     // completed it. The clock is the whole quest, so the clock is measured.
     describe: (state) => {
       const cutoff = state ? frontLoadCutoff(state) : null;
+      // The fallback branch counts every completion at any hour, so it must not
+      // promise a deadline. This is the same defect the note below describes,
+      // and it survived intact in the no-bedtime case.
       return cutoff
         ? `Finish 4 tasks before ${clockLabel(cutoff)}`
-        : 'Finish 4 tasks over an hour before bedtime';
+        : 'Finish 4 tasks tonight (no bedtime set)';
     },
     goal: 4,
     xp: 45,

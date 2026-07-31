@@ -147,10 +147,12 @@ test('checking everything and resetting on a loop earns nothing after the first'
 
   for (const id of ids) toggleTask(id);
   applyReset(getState(), ['checks']);
-  // Clearing the whole list genuinely happened once, and the achievement tier
-  // it reached is paid once. That payment is the entire allowance.
+  // Nothing at all, now. "Nothing Missed" is measured off a night that reached
+  // the record, and a night you reset never did — the rung shows while you hold
+  // it, and the stardust waits for the floor. So the loop pays zero from the
+  // first lap rather than paying once and then nothing.
   const afterFirst = getState().profile.stardust;
-  assert.equal(afterFirst, tierDust(1), 'Nothing Missed, tier 1, and not a grain more');
+  assert.equal(afterFirst, 0, 'a night you reset was never on the record');
 
   for (let round = 0; round < 4; round += 1) {
     for (const id of ids) toggleTask(id);

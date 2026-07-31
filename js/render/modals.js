@@ -11,9 +11,9 @@ import {
 import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost } from '../constellations.js';
 import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../companion.js';
 import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
-import { achievementBoard, totalTiers } from '../achievements.js';
+import { achievementBoard, totalTiers, checkAchievements } from '../achievements.js';
 import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
-import { forceNewNight, computeStats, effectiveStreak } from '../night.js';
+import { forceNewNight, computeStats, effectiveStreak, effectiveLightsOutStreak } from '../night.js';
 import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
@@ -159,18 +159,19 @@ function companionPanel(state) {
   const toNext = feedsToNextTier(companion.fed || 0);
   const tierName = TIER_NAMES[Math.min(TIER_NAMES.length - 1, (companion.tier || 1) - 1)];
   const nameInput = h('input', {
+    id: 'companion-name',
     class: 'field__input',
     type: 'text',
     value: companion.name,
     maxlength: '24',
-    'aria-label': 'Companion name',
   });
   nameInput.addEventListener('change', () => { renameCompanion(nameInput.value.trim()); refreshModal(); });
 
   return h('div', { class: 'companion-panel' },
     h('div', { class: 'companion-panel__art' }, companionSvg(companion.type, companion.tier || 1, 'happy')),
     h('div', { class: 'companion-panel__body' },
-      h('div', { class: 'field' }, h('label', {}, 'Name'), nameInput),
+      // A real <label> here, because a real <input> is what it labels.
+      h('div', { class: 'field' }, h('label', { for: 'companion-name' }, 'Name'), nameInput),
       h('p', { class: 'companion-panel__tier' }, `${tierName} · tier ${companion.tier || 1} · fed ${companion.fed || 0} times`),
       h('p', { class: 'muted' }, toNext === null
         ? 'Fully grown. It has seen everything you do at night.'
@@ -267,7 +268,14 @@ function constellationPreview(def, lit) {
   const w = 150;
   const hgt = 96;
   const points = def.stars.map(([x, y]) => ({ x: 10 + x * (w - 20), y: 8 + y * (hgt - 16) }));
-  return svg('svg', { viewBox: `0 0 ${w} ${hgt}`, class: 'constellation__svg', 'aria-hidden': 'true' },
+  // Named rather than hidden. The shape is what you are deciding whether to
+  // spend on, and hiding it left the count carried by one sibling span.
+  return svg('svg', {
+    viewBox: `0 0 ${w} ${hgt}`,
+    class: 'constellation__svg',
+    role: 'img',
+    'aria-label': `${def.name}: ${lit} of ${def.stars.length} stars lit`,
+  },
     ...def.lines.map(([a, b]) => svg('line', {
       x1: points[a].x, y1: points[a].y, x2: points[b].x, y2: points[b].y,
       class: a < lit && b < lit ? 'constellation__line is-lit' : 'constellation__line',
@@ -301,7 +309,17 @@ VIEWS.starmap = () => {
               dataset: { focus: `star:${def.id}` },
               disabled: !affordable,
               onClick: () => {
-                const result = update((s) => buyStar(s, def.id));
+                const result = update((s) => {
+                  const bought = buyStar(s, def.id);
+                  // Lighting a star moves the `constellation` family, and
+                  // nothing here settled it — the card sat at a full bar
+                  // reading "tier 0" until the next checkbox tap.
+                  if (bought) {
+                    const earned = checkAchievements(s, computeStats(s));
+                    if (earned.length) emit('achievement', earned);
+                  }
+                  return bought;
+                });
                 if (result?.complete) {
                   toast(`${def.name} is complete`, { tone: 'win', iconName: 'map', detail: 'It now appears in your night sky.' });
                   emit('constellation:complete', { def });
@@ -405,7 +423,7 @@ VIEWS.history = () => {
           // A consecutive run, sitting in a row of lifetime totals. The label
           // said "to bed on time" and read as a count of nights.
           title: 'Nights in a row you called it before your target bedtime — the number this app actually cares about',
-        }, h('strong', {}, String(state.profile.lightsOut?.streak || 0)), h('span', {}, 'on time in a row')),
+        }, h('strong', {}, String(effectiveLightsOutStreak(state))), h('span', {}, 'on time in a row')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.nightsLogged)), h('span', {}, 'nights logged')),
         h('div', { class: 'stat-box' }, h('strong', {}, `${overallRate(state) ?? 0}%`), h('span', {}, 'average night')),
         h('div', {
@@ -554,17 +572,21 @@ function bedtimeSection(state) {
       h('strong', {}, 'Lights out'), ' are on the record — close the app without it and there '
       + 'is nothing to measure.'),
     h('div', { class: 'stat-row' },
-      box(String(lights.streak || 0), 'on time in a row',
+      box(String(effectiveLightsOutStreak(state)), 'on time in a row',
         `Best run: ${lights.best || 0}. This is the number the app is actually about.`),
       box(summary.onTimeRate === null ? '—' : `${summary.onTimeRate}%`, 'on time this week',
         `${summary.onTime} of ${summary.recorded} recorded nights in the last 7`),
-      box(formatFromNoon(summary.average), 'average bedtime', 'Mean of the last 7 recorded nights'),
+      // Not "the last 7 recorded nights" — it is the recorded nights *within*
+      // the last 7, and it never reaches further back. With two of seven ended,
+      // the tile was a mean of two claiming to be a mean of seven.
+      box(formatFromNoon(summary.average), 'average bedtime',
+        `Mean of the ${plural(summary.recorded, 'night', 'nights')} you ended in the last 7`),
       box(formatShift(summary.delta), 'vs the week before',
         summary.previous === null
           ? 'Not enough nights yet to compare'
           : `Previously ${formatFromNoon(summary.previous)}`),
-      box(formatFromNoon(summary.earliest), 'earliest'),
-      box(formatFromNoon(summary.latest), 'latest')),
+      box(formatFromNoon(summary.earliest), 'earliest', 'The earliest of those same nights'),
+      box(formatFromNoon(summary.latest), 'latest', 'The latest of those same nights')),
     bedtimeChart(state));
 }
 
@@ -602,7 +624,8 @@ VIEWS.insights = () => {
   const table = rows.length
     ? h('ul', { class: 'insight-list', role: 'list' }, ...rows.slice(0, 20).map((row) => h('li', { class: 'insight' },
       h('div', { class: 'insight__head' },
-        h('span', { class: 'insight__title' }, row.title),
+        h('span', { class: 'insight__title' }, row.title,
+          row.where ? h('span', { class: 'muted small insight__where' }, ` · ${row.where}`) : null),
         h('span', { class: 'insight__rate' }, row.rate === null ? '—' : `${row.rate}%`)),
       h('div', { class: 'insight__bar' }, h('span', { style: { width: `${row.rate ?? 0}%` } })),
       h('p', { class: 'muted small' },
@@ -645,11 +668,29 @@ VIEWS.insights = () => {
 
 /* --------------------------------------------------------------- settings */
 
+let fieldSeq = 0;
+
+/**
+ * A labelled group. Not a `<label>`: the controls here are `.timepick` and
+ * `.chipset` divs, and a `<label>` with no `for` and no wrapped control names
+ * nothing at all — the text was orphaned rather than merely redundant. A group
+ * with `aria-labelledby` names them properly, and the hint is wired up too.
+ */
 function field(label, control, hint) {
+  fieldSeq += 1;
+  const labelId = `field-label-${fieldSeq}`;
+  const hintId = hint ? `field-hint-${fieldSeq}` : null;
+  if (control?.setAttribute) {
+    control.setAttribute('role', control.getAttribute('role') || 'group');
+    control.setAttribute('aria-labelledby', labelId);
+    if (hintId) control.setAttribute('aria-describedby', hintId);
+    // The group's own aria-label would win over the heading beside it.
+    control.removeAttribute('aria-label');
+  }
   return h('div', { class: 'field' },
-    h('label', {}, label),
+    h('div', { class: 'field__label', id: labelId }, label),
     control,
-    hint ? h('p', { class: 'muted small' }, hint) : null);
+    hint ? h('p', { class: 'muted small', id: hintId }, hint) : null);
 }
 
 /**
@@ -915,7 +956,7 @@ function appVersionPanel() {
   const line = h('p', { class: 'muted small' }, 'Checking which version is running…');
   runningVersion().then((version) => {
     line.textContent = version
-      ? `Running ${version}. It updates itself on launch; this is for when it hasn't.`
+      ? `Running ${version}. It updates itself on launch; this is for when it hasn’t.`
       : 'Running from the network, so you always have the newest one.';
   });
 

@@ -13,6 +13,30 @@
 import { h, icon } from '../dom.js';
 
 let node = null;
+let closingTimer = null;
+
+/**
+ * Close on the way out, not instantly.
+ *
+ * The panel dialog got this treatment and this one — the dialog that asks the
+ * destructive questions — did not. Same contract as closeModal(): the timer is
+ * what guarantees the close, `animationend` is only the nicety, because a
+ * backgrounded tab or a mid-flight reduced-motion switch can swallow the event
+ * and a dialog that never closes is a trapped app.
+ */
+function closeWithAnimation(dialog) {
+  if (!dialog.open) return;
+  clearTimeout(closingTimer);
+  dialog.classList.add('is-closing');
+  const done = () => {
+    clearTimeout(closingTimer);
+    dialog.removeEventListener('animationend', done);
+    dialog.classList.remove('is-closing');
+    if (dialog.open) dialog.close();
+  };
+  dialog.addEventListener('animationend', done);
+  closingTimer = setTimeout(done, 220);
+}
 
 function ensure() {
   if (node) return node;
@@ -40,7 +64,7 @@ export function confirmAction({
       if (answered) return;
       answered = true;
       resolve(value);
-      if (dialog.open) dialog.close();
+      closeWithAnimation(dialog);
     };
 
     const confirmButton = h('button', {
@@ -62,6 +86,9 @@ export function confirmAction({
         confirmButton)));
 
     // Escape, the backdrop, and anything else that closes it all mean no.
+    // `cancel` is intercepted so Escape animates out too — otherwise the one
+    // way most people dismiss this dialog is the one that still teleports.
+    dialog.addEventListener('cancel', (event) => { event.preventDefault(); finish(false); }, { once: true });
     dialog.addEventListener('close', () => finish(false), { once: true });
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) finish(false);
@@ -109,7 +136,7 @@ export function chooseAction({
       if (answered) return;
       answered = true;
       resolve(value);
-      if (dialog.open) dialog.close();
+      closeWithAnimation(dialog);
     };
 
     const go = h('button', {
@@ -146,6 +173,7 @@ export function chooseAction({
         h('button', { type: 'button', class: 'btn', onClick: () => finish(null) }, cancelLabel),
         go)));
 
+    dialog.addEventListener('cancel', (event) => { event.preventDefault(); finish(null); }, { once: true });
     dialog.addEventListener('close', () => finish(null), { once: true });
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) finish(null);

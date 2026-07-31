@@ -3,7 +3,7 @@
 
 import { h, svg, icon, clear, replace, withFocus } from '../dom.js';
 import { getState } from '../state.js';
-import { computeStats, effectiveStreak } from '../night.js';
+import { computeStats, effectiveStreak, effectiveLightsOutStreak } from '../night.js';
 import { momentumWindow } from '../game.js';
 import { evaluateQuest } from '../quests.js';
 import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
@@ -69,6 +69,11 @@ function xpFill(level) {
   lastLevel = level.level;
 
   if (levelled && !still()) {
+    // Forgotten now, not inside the timeout. If anything re-renders in the next
+    // 200ms the node this closure holds is gone, its `isConnected` guard bails,
+    // and the *new* bar's grow() reads a remembered '100%' — so a fresh level
+    // opens by animating from full down to a small percentage.
+    forgetGrow('xp:fill');
     node.style.width = '100%';
     setTimeout(() => {
       if (!node.isConnected) return;
@@ -156,7 +161,11 @@ function progressDial(pct, stats) {
     'aria-valuenow': String(pct),
     'aria-valuemin': '0',
     'aria-valuemax': '100',
-    'aria-label': 'Tonight\'s completion',
+    'aria-label': 'Tonight’s completion',
+    // `progressbar` is children-presentational, so `.dial__pct` and `.dial__sub`
+    // are stripped from the tree — the "3/8" printed in the middle of the dial
+    // was announced nowhere. valuetext is where it has to live.
+    'aria-valuetext': `${pct}%, ${stats.done} of ${stats.counted || stats.total} done`,
   },
   svg('svg', { class: 'dial__svg', viewBox: '0 0 118 118', 'aria-hidden': 'true' },
     svg('circle', { class: 'dial__track', cx: 59, cy: 59, r: radius }),
@@ -200,7 +209,7 @@ function questCompact(quest) {
       }
       openSheet({
         title: quest.name,
-        subtitle: `Tonight's bonus quest · +${quest.def.xp} XP · +${quest.def.dust} stardust`,
+        subtitle: `Tonight’s bonus quest · +${quest.def.xp} XP · +${quest.def.dust} stardust`,
         invoker: button,
         items: [{
           icon: 'star',
@@ -418,11 +427,11 @@ function renderTonightInner() {
         h('div', { class: 'tonight__chips' },
           // The streak that belongs next to the bedtime countdown, not the one
           // about the list. It only appears once there is one to show.
-          (state.profile.lightsOut?.streak || 0) > 0
+          effectiveLightsOutStreak(state) > 0
             ? h('span', {
               class: 'chip chip--ontime',
               title: `Nights in a row you called it before your bedtime. Best: ${state.profile.lightsOut.best}.`,
-            }, icon('moon', { size: 13 }), `${state.profile.lightsOut.streak} on time`)
+            }, icon('moon', { size: 13 }), `${effectiveLightsOutStreak(state)} on time`)
             : null,
           combo && momentumLive(state)
             ? h('span', {
@@ -430,7 +439,7 @@ function renderTonightInner() {
               title: 'Momentum rises when you work through the list at a real pace.',
             }, icon('flame', { size: 13 }), `${formatMultiplier(state.night.combo)} momentum`)
             : null,
-          h('span', { class: 'chip', title: 'Rain checks excuse a task from tonight\'s percentage' },
+          h('span', { class: 'chip', title: 'Rain checks excuse a task from tonight’s percentage' },
             icon('skip', { size: 13 }), `${state.profile.tokens.raincheck} rain ${state.profile.tokens.raincheck === 1 ? 'check' : 'checks'}`),
           h('span', { class: 'chip', title: 'Streak freezes cover a missed night' },
             icon('flame', { size: 13 }), `${state.profile.tokens.freeze} ${state.profile.tokens.freeze === 1 ? 'freeze' : 'freezes'}`)),

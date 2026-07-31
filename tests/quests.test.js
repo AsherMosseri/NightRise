@@ -104,11 +104,27 @@ test('a section you rain-checked into silence is not cleared', () => {
   assert.equal(computeStats(state).sections[0].remaining, 0, 'nothing is left, technically');
   assert.equal(evaluateQuest(state, computeStats(state)).complete, false, 'but nothing was done');
 
-  // One real completion among the excuses is enough to have cleared it.
-  const [first] = section.taskIds;
-  delete state.night.skipped[first];
-  applyTaskCompletion(state, state.template.tasks[first]);
+  // One real completion among the excuses used to be enough, which meant a
+  // four-task section with one done and three excused completed a quest called
+  // "Completely clear any one section" — while the section header beside it
+  // refused to mark itself complete, because that needs every task. The quest
+  // means what the checklist means: all of them.
+  for (const id of section.taskIds) {
+    delete state.night.skipped[id];
+    applyTaskCompletion(state, state.template.tasks[id]);
+  }
   assert.equal(evaluateQuest(state, computeStats(state)).complete, true);
+});
+
+test('one done among the excuses is not a cleared section', () => {
+  const state = createInitialState();
+  state.night.quest = { id: 'clearSection', progress: 0, claimed: false };
+  const section = state.template.sections[state.template.order[0]];
+  const [first, ...rest] = section.taskIds;
+  for (const id of rest) state.night.skipped[id] = true;
+  applyTaskCompletion(state, state.template.tasks[first]);
+  assert.equal(computeStats(state).sections[0].remaining, 0);
+  assert.equal(evaluateQuest(state, computeStats(state)).complete, false);
 });
 
 test('every quest definition is well formed', () => {

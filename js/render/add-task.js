@@ -36,6 +36,7 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
   const input = h('input', {
     class: 'addsheet__input',
     type: 'text',
+    maxlength: '200',
     placeholder: 'Wash the dishes',
     'aria-label': 'What needs doing?',
     autocomplete: 'off',
@@ -100,6 +101,7 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
   const nameInput = h('input', {
     class: 'addsheet__input addsheet__input--section',
     type: 'text',
+    maxlength: '200',
     placeholder: 'Tonight',
     'aria-label': 'Name this part of the night',
     autocomplete: 'off',
@@ -291,6 +293,7 @@ export function openAddSection({ invoker = null, onCreated = null } = {}) {
   const input = h('input', {
     class: 'addsheet__input',
     type: 'text',
+    maxlength: '200',
     placeholder: 'Wind Down',
     'aria-label': 'Name this section',
     autocomplete: 'off',

@@ -3,8 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { nightsFullyCleared, overallRate } from '../js/insights.js';
+import { nightsFullyCleared, overallRate, taskInsights, topNudge } from '../js/insights.js';
 import { ACHIEVEMENTS } from '../js/achievements.js';
+import { createInitialState, createTask } from '../js/model.js';
 
 /** A banked night. `done` excludes rain checks; `pct` is over what counted. */
 function night({ total, done, skipped = 0 }) {
@@ -70,3 +71,35 @@ test('the average night is the mean percentage, gaps excluded', () => {
   assert.equal(overallRate(state), 75);
   assert.equal(overallRate({ history: {} }), null);
 });
+
+test('two tasks with the same name are told apart', () => {
+  // Stats are keyed by id, but every surface printed only the title — so two
+  // "Brush teeth" rows were identical, and the nudge blamed the one you do
+  // every night for the slipping of the one you do not.
+  const state = createInitialState();
+  const [a, b] = state.template.order;
+  const first = addTaskTo(state, a, 'Brush teeth');
+  const second = addTaskTo(state, b, 'Brush teeth');
+  state.profile.taskStats = {
+    [first]: { seen: 5, done: 5, skipped: 0, missStreak: 0, lastDoneKey: null },
+    [second]: { seen: 5, done: 1, skipped: 0, missStreak: 4, lastDoneKey: null },
+  };
+  const rows = taskInsights(state);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((r) => r.where), 'both carry a section, since both share a title');
+  assert.notEqual(rows[0].where, rows[1].where);
+  assert.match(topNudge(state), new RegExp(state.template.sections[b].title));
+
+  // A title nobody shares stays clean.
+  state.profile.taskStats[first].missStreak = 0;
+  const unique = addTaskTo(state, a, 'Floss');
+  state.profile.taskStats[unique] = { seen: 3, done: 3, skipped: 0, missStreak: 0, lastDoneKey: null };
+  assert.equal(taskInsights(state).find((r) => r.title === 'Floss').where, null);
+});
+
+function addTaskTo(state, sectionId, title) {
+  const task = createTask(title, 5);
+  state.template.tasks[task.id] = task;
+  state.template.sections[sectionId].taskIds.push(task.id);
+  return task.id;
+}

@@ -245,3 +245,13 @@ export function iconButton(name, label, onClick, extra = {}) {
     onClick,
   }, icon(name, { size: extra.size || 16 }));
 }
+
+/** Hand a string to the browser as a file download. */
+export function downloadText(text, filename, type = 'application/json') {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = h('a', { href: url, download: filename });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

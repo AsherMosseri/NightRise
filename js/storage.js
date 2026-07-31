@@ -180,7 +180,19 @@ export function normalizeState(raw, now = new Date()) {
   delete profile.badges;
   profile.bestCombo = Math.max(1, Number(profile.bestCombo) || 1);
   profile.dustDebt = Math.max(0, Math.round(Number(profile.dustDebt) || 0));
-  const defaultInventory = createProfile().inventory;
+  profile.lastLightsOutKey = typeof profile.lastLightsOutKey === 'string' ? profile.lastLightsOutKey : null;
+  // mergeDefaults copies a value through whenever it is not an object, so a
+  // save carrying `tokens: null` or `inventory: "x"` — hand-edited, imported,
+  // half-written, or produced by any future bug — arrived here intact and then
+  // threw on first use. That threw inside normalizeState, which loadState
+  // catches, so a perfectly readable save was declared corrupt and replaced
+  // with a fresh start. Every field the app dereferences without checking gets
+  // its default back rather than being trusted.
+  const fresh = createProfile();
+  for (const key of ['inventory', 'equipped', 'tokens', 'companion', 'constellations', 'taskStats', 'settings']) {
+    if (!isObject(profile[key])) profile[key] = deepClone(fresh[key]);
+  }
+  const defaultInventory = fresh.inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
     const list = Array.isArray(profile.inventory[kind]) ? profile.inventory[kind] : [];
     profile.inventory[kind] = Array.from(new Set([...defaults, ...list.filter((id) => typeof id === 'string')]));
@@ -266,6 +278,18 @@ export function persist(state) {
 export function flushPersist() {
   if (!pendingState) return;
   writeNow(pendingState);
+  pendingState = null;
+}
+
+/**
+ * Throw away a queued write.
+ *
+ * Used when this tab adopts another tab's state: our pending copy is now stale
+ * by definition, and letting the debounce fire it would overwrite the tab we
+ * just synced from — last-writer-wins, reintroduced by the code that exists to
+ * prevent it.
+ */
+export function cancelPersist() {
   pendingState = null;
 }
 

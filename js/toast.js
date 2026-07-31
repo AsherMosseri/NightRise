@@ -62,7 +62,9 @@ export function toast(message, options = {}) {
 
   host.appendChild(node);
   requestAnimationFrame(() => node.classList.add('toast--in'));
-  timer = setTimeout(dismiss, duration);
+  // duration 0 means "stay until dismissed" — for the one message you must not
+  // miss because you happened to be looking away for five seconds.
+  if (duration > 0) timer = setTimeout(dismiss, duration);
   return dismiss;
 }
 

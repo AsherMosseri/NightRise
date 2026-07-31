@@ -103,7 +103,12 @@ export const QUEST_DEFS = [
     xp: 60,
     dust: 35,
     measure: (state, stats) => {
-      if (stats.total === 0 || stats.remaining > 0) return 0;
+      // `remaining` is total minus done minus rain-checked, so gating on it let
+      // "clear the whole night" complete with one task of eleven actually done.
+      // Clearing means every task, the same as the cleared-nights ladder and the
+      // history tile — a rain check excuses a task from the percentage, and the
+      // percentage is not what this quest is named after.
+      if (stats.total === 0 || stats.done < stats.total) return 0;
       const last = Math.max(0, ...Object.values(state.night.done));
       if (!last) return 0;
       const hour = new Date(last).getHours();

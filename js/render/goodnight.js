@@ -75,14 +75,28 @@ export function lightsOut() {
     const now = Date.now();
     const minutesLeft = minutesUntilBedtime(state.night.key, state.profile.settings.bedtime, new Date(now));
     const onTime = minutesLeft === null ? true : minutesLeft >= 0;
-    const reward = state.night.lightsOutAt ? null : lightsOutReward(minutesLeft ?? 0, stats);
+    const reward = state.night.lightsOutAt || state.profile.lastLightsOutKey === state.night.key
+      ? null
+      : lightsOutReward(minutesLeft ?? 0, stats);
 
-    if (!state.night.lightsOutAt) {
+    // Once per date, not once per night object. "Bank tonight and start fresh"
+    // hands back a clean night with `lightsOutAt` cleared, so without this the
+    // reward for stopping could be collected again on every press — the same
+    // hole the envelope and the quest already close with a key of their own.
+    const paidTonight = state.profile.lastLightsOutKey === state.night.key;
+    if (!state.night.lightsOutAt && !paidTonight) {
       state.night.lightsOutAt = now;
       state.night.lightsOutOnTime = onTime;
+      state.profile.lastLightsOutKey = state.night.key;
       advanceLightsOutStreak(state.profile.lightsOut, state.night.key, onTime);
       grantXp(state, reward.xp, reward.dust);
+    } else if (!state.night.lightsOutAt) {
+      // Already paid for tonight; still record that you stopped.
+      state.night.lightsOutAt = now;
+      state.night.lightsOutOnTime = onTime;
     }
+    // Saying good night again is a fresh ending, not a reopened one.
+    state.night.reopenedAfterLightsOut = false;
     // Going to bed on time is the achievement this app is about, so it is
     // awarded at the moment you do it rather than quietly at 4am.
     return { stats, minutesLeft, onTime, reward, achievements: checkAchievements(state, stats) };

@@ -87,3 +87,21 @@ test('importing something that is not a backup fails loudly', () => {
   assert.throws(() => parseImport('{"hello":"world"}'), /does not look like/);
   assert.throws(() => parseImport('not json at all'));
 });
+
+test('a malformed field gets its default back instead of bricking the app', () => {
+  // mergeDefaults copies a non-object straight through, so `tokens: null` or
+  // `inventory: "x"` — hand-edited, imported, half-written — arrived intact and
+  // threw on first dereference. Inside normalizeState that throw is caught by
+  // loadState, which then declares a perfectly readable save corrupt.
+  for (const profile of [
+    { inventory: 'x' }, { tokens: null }, { settings: null },
+    { constellations: null }, { equipped: [1, 2] }, { companion: 42 }, { taskStats: 'no' },
+  ]) {
+    const state = normalizeState({ profile });
+    assert.equal(typeof state.profile.tokens.raincheck, 'number');
+    assert.equal(typeof state.profile.settings.bedtime, 'string');
+    assert.ok(Array.isArray(state.profile.inventory.themes));
+    assert.equal(state.profile.equipped.theme, 'midnight');
+    assert.deepEqual(state.profile.constellations, {});
+  }
+});

@@ -1,7 +1,7 @@
 /* Bootstrap: wire the store to the views, the events to their effects,
    and keep the night ticking over. */
 
-import { $, icon } from './dom.js';
+import { $, icon, downloadText } from './dom.js';
 import { getState, subscribe, update, on, hydrateState } from './state.js';
 import { addSection, addTask, setSetting } from './actions.js';
 import { computeStats, rolloverIfNeeded } from './night.js';
@@ -26,7 +26,10 @@ import { still, rectOf, flyBetween } from './render/motion.js';
 /** Where the last check-off happened, so the finale can start from your thumb. */
 let lastCheckRect = null;
 import * as audio from './audio.js';
-import { storageAvailable, flushPersist, STORAGE_KEY, normalizeState } from './storage.js';
+import {
+  storageAvailable, flushPersist, cancelPersist, STORAGE_KEY, normalizeState,
+  recoveredCorruptData, serializeState,
+} from './storage.js';
 import { plural } from './util.js';
 import { initOptical, applyOpticalNudge } from './optical.js';
 import { initUpdates, applyUpdate } from './updates.js';
@@ -415,6 +418,25 @@ function boot() {
     });
   }
 
+  // The unreadable save was being stashed under `nightcheck.v1.corrupt` and
+  // then never mentioned: `recoveredCorruptData()` existed and nothing called
+  // it. So the promise — "preserved rather than silently discarded" — was true
+  // of the data and false of the experience: you opened the app, your year of
+  // nights was gone, and nothing said why or that anything had been kept.
+  const wreckage = recoveredCorruptData();
+  if (wreckage) {
+    toast('Your saved night could not be read', {
+      tone: 'warn',
+      iconName: 'download',
+      detail: 'Nothing was thrown away. Download the unreadable copy and start fresh.',
+      duration: 0,
+      action: {
+        label: 'Download it',
+        onClick: () => downloadText(localStorage.getItem(wreckage) || '', 'nightcheck-unreadable.json'),
+      },
+    });
+  }
+
   // Keep the countdown honest and roll the night over on time.
   setInterval(() => {
     if (!checkRollover()) renderTonight();
@@ -432,6 +454,11 @@ function boot() {
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY || !event.newValue) return;
     try {
+      // Drop our own queued write first. Adopting the other tab's state and
+      // then letting a 250ms debounce fire with what we had a moment ago is
+      // last-writer-wins by a different route — the sync would silently undo
+      // the very tab it just synced from.
+      cancelPersist();
       hydrateState(normalizeState(JSON.parse(event.newValue)));
       renderAll();
       applyCosmetics();

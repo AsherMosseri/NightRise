@@ -295,7 +295,11 @@ function envelopeCard(state) {
 
 /** The ending. Always available — stopping is the thing being rewarded. */
 function lightsOutButton(state, stats) {
-  if (state.night.lightsOutAt) {
+  // "I'm still up" used to be a one-way door: it set a flag nothing ever read,
+  // and the button stayed replaced by the stamp — so having reopened the app
+  // there was no way to say good night again and the screen never went dark.
+  // Ending twice costs nothing; the reward is guarded by its own date key.
+  if (state.night.lightsOutAt && !state.night.reopenedAfterLightsOut) {
     return h('p', { class: 'lightsout lightsout--done' },
       icon('moon', { size: 13 }),
       `Lights out at ${new Date(state.night.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`);
@@ -337,6 +341,11 @@ function holdToEnd(button) {
     button.classList.add('is-holding');
     timer = setTimeout(() => {
       stop();
+      // A re-render — the 30-second tick is enough — replaces this button
+      // mid-hold. The detached node never receives the pointerup that would
+      // have cancelled it, so lifting your finger did nothing and the night
+      // ended anyway, 650ms later, from a button no longer on the page.
+      if (!button.isConnected) return;
       lightsOut();
     }, HOLD_MS);
   });
@@ -351,7 +360,9 @@ function holdToEnd(button) {
     if (event.detail !== 0) return;
     const go = await confirmAction({
       title: 'End the night here?',
-      body: 'Tonight is stamped and banked, the screen goes dark, and the biggest reward is for stopping early.',
+      // Not "banked" — banking happens at 4am and this does not do it. What it
+      // actually does is stamp the time you stopped and pay for stopping.
+      body: 'The time you stopped is written down, the screen goes dark, and the biggest reward is for stopping early.',
       confirmLabel: 'Lights out',
       cancelLabel: 'Not yet',
       iconName: 'moon',

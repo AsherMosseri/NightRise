@@ -4,7 +4,7 @@
    js/updates.js drives this from the page: it asks the registration to check
    on launch and on foreground, and messages SKIP_WAITING to take a new build. */
 
-const CACHE = 'nightcheck-v23';
+const CACHE = 'nightcheck-v24';
 
 const ASSETS = [
   './',

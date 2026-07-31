@@ -1,7 +1,7 @@
 /* Every panel that opens over the app: the Night Market, the star map,
    night history, insights, settings and the shortcut list. */
 
-import { h, svg, icon, replace, withFocus } from '../dom.js';
+import { h, svg, icon, replace, withFocus, downloadText } from '../dom.js';
 import { getState, update, replaceState, emit } from '../state.js';
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, COMPANION_ITEMS,
@@ -49,6 +49,10 @@ export function initModals(node) {
   // reopened by the time it lands, the new view must survive it.
   node.addEventListener('close', () => {
     if (!node.open) currentView = null;
+    // Escape and the backdrop close the dialog natively, never going through
+    // closeModal — so the sky stayed paused for the rest of the session. The
+    // whole live canvas, dead, because you dismissed a panel the usual way.
+    setSkyPaused(false);
   });
 }
 
@@ -687,13 +691,7 @@ function bedtimePicker(current, onChange) {
 }
 
 function downloadBackup(state) {
-  const blob = new Blob([serializeState(state)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = h('a', { href: url, download: `nightcheck-${state.night.key}.json` });
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadText(serializeState(state), `nightcheck-${state.night.key}.json`);
 }
 
 VIEWS.settings = () => {

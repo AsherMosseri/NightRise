@@ -4,7 +4,7 @@ import { debounce, deepClone, roundMinutes, clamp } from './util.js';
 import { levelFromXp } from './game.js';
 import {
   SCHEMA_VERSION, STORAGE_KEY, createInitialState, createNight, createProfile,
-  createSection, emptyTemplate, DEFAULT_MINUTES, clampTitle,
+  createSection, emptyTemplate, DEFAULT_MINUTES, clampTitle, PRICE_REBASE,
 } from './model.js';
 import { nightKeyOf, parseClock } from './time.js';
 import { ACHIEVEMENTS, migrateBadges } from './achievements.js';
@@ -201,6 +201,22 @@ export function normalizeState(raw, now = new Date()) {
   const profile = mergeDefaults(createProfile(), raw.profile);
   profile.xp = Math.max(0, Number(profile.xp) || 0);
   profile.stardust = Math.max(0, Math.round(Number(profile.stardust) || 0));
+
+  // 1 → 2: the stardust rebalance.
+  //
+  // Everything got dearer, so a balance banked under the old prices has to grow
+  // by the same factor or the repricing is a silent confiscation of whatever
+  // somebody had saved up. A missing `version` is treated as 1 — the field was
+  // written from the first commit but read by nothing until recently, and a
+  // hand-edited or truncated save may not carry it.
+  const saved = Number(raw.version);
+  const from = Number.isFinite(saved) && saved > 0 ? saved : 1;
+  if (from < 2) {
+    profile.stardust = Math.round(profile.stardust * PRICE_REBASE);
+    // The debt is denominated in the same currency and has to move with it,
+    // or a rebased balance would pay off an un-rebased debt at a discount.
+    profile.dustDebt = Math.round(Math.max(0, Number(profile.dustDebt) || 0) * PRICE_REBASE);
+  }
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
   // Derived, never trusted. A save claiming level 40 against 100 XP showed 40

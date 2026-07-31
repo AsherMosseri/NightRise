@@ -4,7 +4,21 @@ import { uid } from './util.js';
 import { nightKeyOf } from './time.js';
 import { rollQuest } from './quests.js';
 
-export const SCHEMA_VERSION = 1;
+/**
+ * 1 → 2: the stardust rebalance.
+ *
+ * `stardustFor` was cut and the whole catalog was repriced, because an
+ * eighteen-task night earned 543 stardust against a total sink of 8,525 — you
+ * owned every sky, sound, trail, font and companion in a fortnight, and after
+ * that half the economy paid in a currency that bought nothing. Repricing on
+ * its own would have quietly devalued whatever a save had already banked, so
+ * the migration scales the balance by the same factor: what you saved still
+ * buys what it always bought, and only what you earn from here is slower.
+ */
+export const SCHEMA_VERSION = 2;
+
+/** How much dearer everything got, and therefore how much a banked balance grows. */
+export const PRICE_REBASE = 2.2;
 export const STORAGE_KEY = 'nightcheck.v1';
 
 export const DEFAULT_MINUTES = 5;

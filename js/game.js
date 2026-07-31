@@ -89,8 +89,23 @@ export function taskXp(minutes, multiplier = 1) {
   return Math.max(1, Math.round((BASE_TASK_XP + Math.max(0, minutes || 0)) * multiplier));
 }
 
+/**
+ * Stardust from XP.
+ *
+ * Was `xp / 5`. An eighteen-task night earned 543 stardust against a total sink
+ * of 8,525 — every sky, sound, trail, font and companion owned in a fortnight,
+ * and after that the envelope, the quest, lights out, achievement tiers and
+ * level-ups all still paid in a currency that bought nothing.
+ *
+ * The divisor stops at 8 rather than going further because of the floor: past
+ * about 12 a six-minute task and a twenty-minute one both round to 1, and a
+ * reward that no longer varies with what you did is not a reward. The rest of
+ * the rebalance is on the price side, where it belongs — wanting a 1,550
+ * stardust sky and earning 27 a night reads better than wanting a 300 one and
+ * earning 5.
+ */
 export function stardustFor(xp) {
-  return Math.max(1, Math.round(xp / 5));
+  return Math.max(1, Math.round(xp / 8));
 }
 
 export function levelUpDust(level) {

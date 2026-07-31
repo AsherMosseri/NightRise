@@ -48,7 +48,14 @@ test('task xp scales with minutes and multiplier', () => {
   assert.equal(taskXp(5), 15);
   assert.equal(taskXp(5, 2), 30);
   assert.equal(taskXp(0), 10);
-  assert.equal(stardustFor(15), 3);
+  // 15/8, not 15/5 — the rebalance. An eighteen-task night earned 543 stardust
+  // against a sink of 8,525, so everything was owned in a fortnight and half
+  // the economy then paid in a currency that bought nothing.
+  assert.equal(stardustFor(15), 2);
+  // The divisor stops at 8 because of the floor: much past it and a six-minute
+  // task and a twenty-minute one both round to 1, and a reward that no longer
+  // varies with what you did is not a reward.
+  assert.notEqual(stardustFor(16), stardustFor(40), 'a bigger task must still pay more');
 });
 
 test('granting xp levels up and pays a stardust bonus', () => {

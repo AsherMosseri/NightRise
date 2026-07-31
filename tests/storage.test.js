@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeState, parseImport, serializeState, damagedSave } from '../js/storage.js';
-import { createInitialState, createTask, createSection, TITLE_MAX } from '../js/model.js';
+import { createInitialState, createTask, createSection, TITLE_MAX, PRICE_REBASE, SCHEMA_VERSION } from '../js/model.js';
 
 test('garbage in gives a usable starter night', () => {
   const state = normalizeState(null);
@@ -183,4 +183,34 @@ test('an unreadable bedtime falls back rather than becoming a hole', () => {
   // imported or hand-edited backup unvalidated.
   assert.equal(normalizeState({ profile: { settings: { bedtime: 'half eleven' } } }).profile.settings.bedtime, '23:30');
   assert.equal(normalizeState({ profile: { settings: { bedtime: '22:15' } } }).profile.settings.bedtime, '22:15');
+});
+
+test('the stardust rebalance does not confiscate what a save had banked', () => {
+  // Everything got dearer. A balance banked under the old prices has to grow by
+  // the same factor, or repricing is a silent confiscation of somebody's
+  // savings — they would open the app to find the sky they were two nights
+  // from affording is now six.
+  const old = createInitialState();
+  old.version = 1;
+  old.profile.stardust = 1000;
+  old.profile.dustDebt = 100;
+  const migrated = normalizeState(old);
+  assert.equal(migrated.profile.stardust, Math.round(1000 * PRICE_REBASE));
+  assert.equal(migrated.profile.dustDebt, Math.round(100 * PRICE_REBASE),
+    'the debt is the same currency and has to move with it');
+  assert.equal(migrated.version, SCHEMA_VERSION);
+
+  // A save with no version at all is an old one — the field was written from
+  // the first commit but read by nothing, so a hand-edited copy may lack it.
+  const noVersion = createInitialState();
+  delete noVersion.version;
+  noVersion.profile.stardust = 500;
+  assert.equal(normalizeState(noVersion).profile.stardust, Math.round(500 * PRICE_REBASE));
+
+  // And a save already on the new schema is left alone, however many times it
+  // is loaded — this must not compound.
+  let current = createInitialState();
+  current.profile.stardust = 700;
+  for (let i = 0; i < 5; i += 1) current = normalizeState(current);
+  assert.equal(current.profile.stardust, 700, 'reloading five times must not inflate it');
 });

@@ -14,9 +14,12 @@ import { openSheet } from './sheet.js';
 import { openAddTask, openFirstTask, openAddSection } from './add-task.js';
 import { minutesFromToken } from '../keys.js';
 import { formatMinutesLong, formatMinutesShort, plural } from '../util.js';
+import { still } from './motion.js';
 
 let root = null;
 let pendingFocus = null;
+/** The row that just changed, so the next render can animate it. */
+let justToggled = null;
 
 export function focusNext(key) {
   pendingFocus = key;
@@ -96,6 +99,10 @@ export function floatXp(taskId, text) {
   const row = root?.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`);
   if (!row) return;
   const rect = row.getBoundingClientRect();
+  // In One Card mode `.app` is display:none, so the row still exists and
+  // measures 0×0 at the origin — which put the XP number at x=-92, painting
+  // itself half off the left edge of the phone. No box, no float.
+  if (!rect.width || !rect.height) return;
   const float = h('span', {
     class: 'xp-float',
     style: {
@@ -146,7 +153,12 @@ function taskRow(state, task, index) {
   const skipped = Boolean(state.night.skipped[task.id]);
   const actions = taskActions(state, task);
 
-  const title = h('span', { class: 'task__title' }, task.title);
+  // A drawn line rather than `text-decoration`, which cannot be animated. The
+  // line sweeping across the thing you just finished is the oldest reliable
+  // satisfaction in checklists and the app did not have it.
+  const title = h('span', { class: 'task__title' },
+    h('span', { class: 'task__label' }, task.title),
+    h('span', { class: 'task__strike', 'aria-hidden': 'true' }));
   const minutesChip = h('button', {
     type: 'button',
     class: 'task__minutes',
@@ -188,7 +200,14 @@ function taskRow(state, task, index) {
     role: 'checkbox',
     'aria-checked': done ? 'true' : 'false',
     'aria-label': `${done ? 'Uncheck' : 'Check off'} ${task.title}`,
-    onClick: (event) => { event.stopPropagation(); toggleTask(task.id); },
+    onClick: (event) => {
+      event.stopPropagation();
+      // The row is rebuilt already wearing its new state, so the transition
+      // declared on .task__check has never once had an old value to run from.
+      // Remembering which row moved lets the next render animate it instead.
+      justToggled = { id: task.id, done: !done };
+      toggleTask(task.id);
+    },
   }, icon('check', { size: 15 })),
   h('div', { class: 'task__body' }, title,
     skipped ? h('span', { class: 'task__flag' }, 'rain check') : null),
@@ -592,6 +611,41 @@ export function renderChecklist() {
   root.appendChild(addSectionButton);
 
   playFlip(previousRects);
+  playToggle();
   restoreDrafts(drafts);
   restoreFocus(focusKey);
+}
+
+/**
+ * The one beat the app was missing: the row you just touched reacting.
+ *
+ * Everything else already fired somewhere else on screen — a shooting star at
+ * the top, a number in the right margin, a sound — and the thing under your
+ * thumb did nothing at all.
+ */
+function playToggle() {
+  const pending = justToggled;
+  justToggled = null;
+  if (!pending || !root || still()) return;
+  const row = root.querySelector(`[data-task-id="${CSS.escape(pending.id)}"]`);
+  const box = row?.querySelector('.task__check');
+  if (!box) return;
+
+  box.animate(pending.done
+    ? [{ transform: 'scale(1)' }, { transform: 'scale(0.82)', offset: 0.28 }, { transform: 'scale(1.14)', offset: 0.62 }, { transform: 'scale(1)' }]
+    : [{ transform: 'scale(1)' }, { transform: 'scale(0.9)', offset: 0.4 }, { transform: 'scale(1)' }],
+  { duration: pending.done ? 340 : 200, easing: 'cubic-bezier(0.34, 1.4, 0.5, 1)' });
+
+  if (pending.done) {
+    const tick = box.querySelector('svg');
+    if (tick) {
+      tick.animate([{ transform: 'scale(0.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
+        { duration: 220, delay: 60, easing: 'cubic-bezier(0.34, 1.5, 0.5, 1)', fill: 'both' });
+    }
+    const strike = row.querySelector('.task__strike');
+    if (strike) {
+      strike.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+        { duration: 260, delay: 40, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' });
+    }
+  }
 }

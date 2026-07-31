@@ -193,8 +193,20 @@
   text-align: center;
   gap: 2px;
 }
-.dial__pct { font-size: 26px; font-weight: 750; line-height: 1; }
-.dial__sub { font-size: 12px; color: var(--muted); }
+/* Tabular figures, because these numbers now count rather than jump — with
+   proportional digits a 1 is narrower than a 7 and the whole dial jitters. */
+.dial__pct { font-size: 26px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+.dial__sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* The dial closing for the first time tonight. Transform and a static
+   drop-shadow only — nothing here animates a filter. */
+.tonight--complete .dial__fill { stroke: var(--accent-2); filter: drop-shadow(0 0 12px var(--glow)); }
+.tonight--complete .dial { animation: dial-seal 420ms cubic-bezier(0.34, 1.5, 0.5, 1); }
+@keyframes dial-seal {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
 
 /* pacing */
 .pacing {

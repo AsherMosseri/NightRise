@@ -14,6 +14,7 @@ import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.j
 import { achievementBoard, totalTiers } from '../achievements.js';
 import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
 import { forceNewNight, computeStats } from '../night.js';
+import { still } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
 } from '../time.js';
@@ -62,10 +63,29 @@ export function openModal(name) {
   setSkyPaused(true);
 }
 
+let closing = null;
+
 export function closeModal() {
   currentView = null;
-  if (dialog?.open) dialog.close();
   setSkyPaused(false);
+  if (!dialog?.open) return;
+  if (still()) {
+    dialog.close();
+    return;
+  }
+  // animationend can be missed — a backgrounded tab, a display change, a
+  // reduced-motion switch mid-flight — and a dialog that never closes is a
+  // trapped app. The timer is the contract; the event is the nicety.
+  clearTimeout(closing);
+  dialog.classList.add('is-closing');
+  const done = () => {
+    clearTimeout(closing);
+    dialog.removeEventListener('animationend', done);
+    dialog.classList.remove('is-closing');
+    if (dialog.open) dialog.close();
+  };
+  dialog.addEventListener('animationend', done);
+  closing = setTimeout(done, 220);
 }
 
 export function refreshModal() {

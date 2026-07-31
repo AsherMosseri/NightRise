@@ -12,6 +12,8 @@ import { computeStats } from '../night.js';
 import { plural, formatMinutesLong } from '../util.js';
 import { openSheet } from './sheet.js';
 import { toast } from '../toast.js';
+import { setSkyPaused } from '../sky.js';
+import { still, fx, rectOf } from './motion.js';
 import { lightsOut } from './goodnight.js';
 import {
   createTimer, elapsedOf, isRunning, toggleTimer, resetTimer,
@@ -61,6 +63,11 @@ export function enterCards() {
   deferred = new Set();
   timer = null;
   document.documentElement.classList.add('is-onecard');
+  // The card layer is a near-opaque scrim with a 14px backdrop-filter over the
+  // whole screen, so the sky underneath is invisible — and was still being
+  // drawn, and re-blurred, sixty times a second for the entire session. This
+  // mode is where the phone has the least patience and was paying the most.
+  setSkyPaused(true);
   // A quarter second is under the eye's patience for a clock that should tick
   // on the second, and costs nothing: it only repaints two nodes.
   if (!ticker) ticker = setInterval(paintTimer, 250);
@@ -78,14 +85,29 @@ export function exitCards() {
     ticker = null;
   }
   document.documentElement.classList.remove('is-onecard');
+  setSkyPaused(false);
   if (host) host.replaceChildren();
   if (onExit) onExit();
 }
 
-function flash(node, text) {
+/**
+ * The reward beat for One Card mode, which has never once been seen.
+ *
+ * It used to append to the check button — but toggleTask() notifies
+ * synchronously, so renderCards() has already replaced the whole card and the
+ * button being appended to is detached. It goes on the body layer instead,
+ * measured before the toggle, exactly like the list's floating XP.
+ */
+function flash(rect, text) {
+  if (!rect || still()) return;
   const bubble = h('span', { class: 'onecard__flash' }, text);
-  node.appendChild(bubble);
-  setTimeout(() => bubble.remove(), 900);
+  bubble.style.left = `${Math.round(rect.left + rect.width / 2)}px`;
+  bubble.style.top = `${Math.round(rect.top)}px`;
+  fx(bubble, [
+    { transform: 'translate(-50%, 0) scale(0.85)', opacity: 0 },
+    { transform: 'translate(-50%, -18px) scale(1)', opacity: 1, offset: 0.25 },
+    { transform: 'translate(-50%, -54px) scale(1)', opacity: 0 },
+  ], { duration: 900, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }, 1100);
 }
 
 /* --------------------------------------------------------------- the timer */
@@ -201,8 +223,10 @@ export function renderCards() {
     type: 'button',
     class: 'onecard__check',
     onClick: () => {
+      // Measured first: this button does not survive the toggle.
+      const rect = rectOf(check);
       const result = toggleTask(task.id);
-      if (result?.award) flash(check, `+${result.award.xp} XP`);
+      if (result?.award) flash(rect, `+${result.award.xp} XP`);
     },
   }, icon('check', { size: 30 }), h('span', {}, 'Done'));
 

@@ -251,13 +251,17 @@ function afterProgress(state) {
     const bonus = nightCompletionBonus(stats);
     const levels = grantXp(state, bonus.xp, bonus.dust);
     state.night.bonus = bonus;
+    // The money and the ceremony are different questions. `bonus` is the
+    // payment and has to come back when you un-tick; `celebrated` is whether
+    // tonight has had its moment, and it never un-happens. Without the split,
+    // fixing a mis-tap on the last task replayed the whole finale — every time.
+    const first = !state.night.celebrated;
     state.night.celebrated = true;
-    emit('night:complete', { stats, bonus, levels });
+    emit('night:complete', { stats, bonus, levels, first });
     if (levels.length) emit('level', levels);
   } else if (!complete && state.night.bonus) {
     revokeGrant(state, state.night.bonus.xp, state.night.bonus.dust);
     state.night.bonus = null;
-    state.night.celebrated = false;
   }
   return stats;
 }

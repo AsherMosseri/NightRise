@@ -9,6 +9,7 @@ let canvas = null;
 let ctx = null;
 let width = 0;
 let height = 0;
+let topInset = 0;
 let dpr = 1;
 let running = false;
 let reducedMotion = false;
@@ -25,6 +26,17 @@ let moonFillTarget = 0;
 let trailKind = 'none';
 let parallax = { x: 0, y: 0, tx: 0, ty: 0 };
 let nextAmbientMeteor = 0;
+
+/* The finale's instruments. All of them decay to nothing on their own, so a
+   dropped frame or a backgrounded tab can never leave the sky stuck mid-effect. */
+let rings = [];
+let ribbons = [];
+let moonGlowBoost = 0;
+let moonGlowHold = 0; // reduced motion earns a permanently brighter moon instead
+let moonFillOverride = null;
+let swell = 0;
+let swellT = 0;
+let drift = 0;
 
 const colors = {
   star: '#e9f0ff',
@@ -118,6 +130,11 @@ function resize(force = false) {
   canvas.width = Math.max(1, Math.round(width * dpr));
   canvas.height = Math.max(1, Math.round(height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // How far down the top bar reaches. The moon used to be placed at a fixed
+  // fraction of the height, which on a notched phone put its top third behind
+  // a blurred, near-opaque bar — the app's own progress meter, half-hidden.
+  const bar = document.querySelector('.topbar');
+  topInset = bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
   buildStars();
   placeConstellations(constellationSource);
   if (reducedMotion || !running) drawFrame(performance.now());
@@ -125,22 +142,29 @@ function resize(force = false) {
 
 /* ------------------------------------------------------------------ moon */
 
-function moonGeometry() {
+export function moonGeometry() {
   const r = clamp(Math.min(width, height) * 0.09, 34, 78);
-  return { x: width - r - clamp(width * 0.08, 28, 90), y: r + clamp(height * 0.08, 30, 90), r };
+  // Clear of the top bar by a whole radius, so the moon is a whole moon.
+  const y = Math.max(r + clamp(height * 0.08, 30, 90), topInset + r + 14);
+  return { x: width - r - clamp(width * 0.08, 28, 90), y, r };
 }
 
 function drawMoon(time) {
   const { x, y, r } = moonGeometry();
   const fill = clamp(moonFill, 0, 1);
 
-  const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3.2);
+  // Bloom for free: the glow gradient already runs every frame, so the finale
+  // widens and brightens it rather than adding a filter or a shadowBlur —
+  // either of which would cost more than everything else in this file combined.
+  const boost = Math.max(moonGlowBoost, moonGlowHold);
+  const reach = r * (3.2 + boost * 0.9);
+  const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, reach);
   glow.addColorStop(0, `${colors.glow}55`);
   glow.addColorStop(1, 'transparent');
   ctx.fillStyle = glow;
-  ctx.globalAlpha = 0.35 + fill * 0.5;
+  ctx.globalAlpha = clamp(0.35 + fill * 0.5 + boost * 0.5, 0, 1);
   ctx.beginPath();
-  ctx.arc(x, y, r * 3.2, 0, Math.PI * 2);
+  ctx.arc(x, y, reach, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
 
@@ -199,22 +223,90 @@ export function shootingStar(options = {}) {
   });
 }
 
-export function celebrateBurst() {
-  if (reducedMotion) return;
-  const { x, y } = moonGeometry();
-  for (let i = 0; i < 46; i += 1) {
-    const angle = (i / 46) * Math.PI * 2;
-    const speed = 1.4 + Math.random() * 3.2;
+/**
+ * A spray of particles from a point.
+ *
+ * `spread`/`aim` let a caller point it. The old fixed circle fired half its
+ * particles straight off the top-right corner, because that is where the moon
+ * is; aiming it down and inward puts the light where the list is.
+ */
+export function burstAt(x, y, {
+  count = 34, aim = null, spread = Math.PI * 2, speed = 1.4, spin = 3.2, gravity = 0.02, decay = 0.009,
+} = {}) {
+  // Not just reducedMotion: with the loop stopped nothing decays, so particles
+  // pushed while a modal has paused the sky sit frozen until it reopens and
+  // then all play at once, minutes late.
+  if (reducedMotion || !running) return;
+  for (let i = 0; i < count; i += 1) {
+    const angle = aim === null
+      ? (i / count) * spread
+      : aim + (i / count - 0.5) * spread;
+    const v = speed + Math.random() * spin;
     bursts.push({
       x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
+      vx: Math.cos(angle) * v,
+      vy: Math.sin(angle) * v,
       life: 1,
-      decay: 0.008 + Math.random() * 0.01,
+      decay: decay + Math.random() * 0.01,
       r: 1 + Math.random() * 2,
+      g: gravity,
     });
   }
+}
+
+export function celebrateBurst() {
+  if (reducedMotion || !running) return;
+  const { x, y } = moonGeometry();
+  burstAt(x, y);
   for (let i = 0; i < 3; i += 1) setTimeout(() => shootingStar(), i * 260);
+}
+
+/**
+ * A line of light from somewhere on screen to the moon.
+ *
+ * Drawn head-first with a dash offset rather than by growing a path, so the
+ * whole curve is one stroke however long it is. The curve matters: a straight
+ * line reads as a laser, an arc reads as something thrown.
+ */
+export function ribbonTo(fromX, fromY) {
+  if (reducedMotion || !running) return;
+  const { x, y } = moonGeometry();
+  const midX = (fromX + x) / 2 + (y - fromY) * 0.16;
+  const midY = (fromY + y) / 2 - Math.abs(x - fromX) * 0.22;
+  ribbons.push({ x0: fromX, y0: fromY, cx: midX, cy: midY, x1: x, y1: y, t: 0, life: 1 });
+}
+
+/** One expanding ring. Three lines of draw code for "the sky itself reacted". */
+export function ringAt(x, y, { r = 10, vr = 3.2, decay = 0.022, w = 2.4 } = {}) {
+  if (reducedMotion || !running) return;
+  rings.push({ x, y, r, vr, life: 1, decay, w });
+}
+
+/**
+ * Drive the moon to full decisively instead of easing toward it forever.
+ *
+ * The standing lerp approaches its target asymptotically, which is right for
+ * every ordinary check-off and wrong for the last one — the terminator should
+ * sweep closed and stop, not glide in over three seconds.
+ */
+export function moonSurge(ms = 320) {
+  if (reducedMotion) {
+    // Nothing can animate, so the reward is a permanent change instead: the
+    // moon is simply brighter from now on, and stays that way.
+    moonGlowHold = 0.5;
+    moonFill = moonFillTarget;
+    drawFrame(performance.now());
+    return;
+  }
+  moonFillOverride = { from: moonFill, to: moonFillTarget, start: performance.now(), ms };
+  moonGlowBoost = 1;
+}
+
+/** A brightness wave travelling outward from the moon, not a global flash. */
+export function starSwell() {
+  if (reducedMotion || !running) return;
+  swell = 1;
+  swellT = 0;
 }
 
 /* --------------------------------------------------------------- trails */
@@ -280,13 +372,20 @@ function haloSprite(color) {
 }
 
 function drawStars(time) {
+  const moon = moonGeometry();
+  const reach = Math.hypot(width, height) || 1;
   for (const star of stars) {
     const twinkle = reducedMotion ? 0.75 : 0.55 + 0.45 * Math.sin(time / 900 * star.speed + star.phase);
     const depth = (star.layer + 1) / 3;
-    const x = star.x + parallax.x * depth * 14;
-    const y = star.y + parallax.y * depth * 10;
+    // The wave arrives at nearer stars first, which is what makes it read as
+    // something spreading from the moon rather than the screen flashing.
+    const local = swell > 0
+      ? clamp(swellT * 1.6 - Math.hypot(star.x - moon.x, star.y - moon.y) / reach, 0, 1)
+      : 0;
+    const x = star.x + parallax.x * depth * 14 + Math.sin(drift * 6 + star.phase) * depth * 3;
+    const y = star.y + parallax.y * depth * 10 + Math.cos(drift * 4.4 + star.phase) * depth * 2;
     const color = star.warm ? colors.accent : star.layer === 2 ? colors.star : colors.starDim;
-    const alpha = clamp(twinkle * (0.4 + depth * 0.6), 0.05, 1);
+    const alpha = clamp(twinkle * (0.4 + depth * 0.6) * (1 + swell * 0.55 * local), 0.05, 1);
 
     if (star.layer === 2 && star.r > 1.3) {
       const sprite = haloSprite(color);
@@ -362,6 +461,52 @@ function drawMeteors() {
   ctx.globalAlpha = 1;
 }
 
+function drawRings() {
+  for (const ring of rings) {
+    ctx.strokeStyle = colors.accent;
+    ctx.globalAlpha = clamp(ring.life, 0, 1) * 0.7;
+    ctx.lineWidth = Math.max(0.4, ring.w * ring.life);
+    ctx.beginPath();
+    ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawRibbons() {
+  for (const r of ribbons) {
+    const t = clamp(r.t, 0, 1);
+    // Head-first reveal: the dash pattern is the whole curve, and the offset
+    // walks it into view. One stroke regardless of length.
+    const len = Math.hypot(r.x1 - r.x0, r.y1 - r.y0) * 1.35;
+    ctx.save();
+    ctx.strokeStyle = colors.accent;
+    ctx.globalAlpha = clamp(r.life, 0, 1) * 0.9;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([len * 0.34, len]);
+    ctx.lineDashOffset = len * 0.34 - t * (len * 1.34);
+    ctx.beginPath();
+    ctx.moveTo(r.x0, r.y0);
+    ctx.quadraticCurveTo(r.cx, r.cy, r.x1, r.y1);
+    ctx.stroke();
+    ctx.restore();
+
+    if (t < 1) {
+      // The bright head, at the quadratic's current point.
+      const u = 1 - t;
+      const hx = u * u * r.x0 + 2 * u * t * r.cx + t * t * r.x1;
+      const hy = u * u * r.y0 + 2 * u * t * r.cy + t * t * r.y1;
+      ctx.globalAlpha = clamp(r.life, 0, 1);
+      ctx.fillStyle = colors.star;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawParticles(time) {
   const color = TRAIL_COLORS[trailKind] ? TRAIL_COLORS[trailKind]() : colors.trail;
   for (const p of trailParticles) {
@@ -383,10 +528,44 @@ function drawParticles(time) {
 }
 
 function step(time) {
-  moonFill += (moonFillTarget - moonFill) * 0.08;
+  if (moonFillOverride) {
+    const o = moonFillOverride;
+    const t = clamp((time - o.start) / o.ms, 0, 1);
+    moonFill = o.from + (o.to - o.from) * (1 - (1 - t) ** 3);
+    if (t >= 1) moonFillOverride = null;
+  } else {
+    moonFill += (moonFillTarget - moonFill) * 0.08;
+  }
+
+  if (moonGlowBoost > 0.001) moonGlowBoost *= 0.955;
+  else moonGlowBoost = 0;
+
+  if (swell > 0.001) {
+    swellT += 0.03;
+    swell *= 0.972;
+  } else {
+    swell = 0;
+  }
+
+  // A baseline drift so the field is never perfectly rigid. On a phone
+  // pointermove only fires while a finger is down, so without this the sky is
+  // literally static dots the entire time you are reading the list.
+  drift += 0.00035;
 
   parallax.x += (parallax.tx - parallax.x) * 0.05;
   parallax.y += (parallax.ty - parallax.y) * 0.05;
+
+  for (const ring of rings) {
+    ring.r += ring.vr;
+    ring.life -= ring.decay;
+  }
+  rings = rings.filter((r) => r.life > 0);
+
+  for (const r of ribbons) {
+    if (r.t < 1) r.t = Math.min(1, r.t + 0.075);
+    else r.life -= 0.045;
+  }
+  ribbons = ribbons.filter((r) => r.life > 0);
 
   for (const m of meteors) {
     m.x += m.vx * 3.2;
@@ -405,7 +584,7 @@ function step(time) {
   for (const b of bursts) {
     b.x += b.vx;
     b.y += b.vy;
-    b.vy += 0.02;
+    b.vy += b.g ?? 0.02;
     b.life -= b.decay;
   }
   bursts = bursts.filter((b) => b.life > 0);
@@ -428,6 +607,8 @@ function drawFrame(time) {
   drawStars(time);
   drawConstellations(time);
   drawMoon(time);
+  drawRibbons();
+  drawRings();
   drawMeteors();
   drawParticles(time);
 }
@@ -456,9 +637,16 @@ export function setReducedMotion(value) {
   if (reducedMotion) {
     stop();
     moonFill = moonFillTarget;
+    moonFillOverride = null;
     trailParticles = [];
     meteors = [];
     bursts = [];
+    // With the loop stopped nothing decays, so anything left mid-flight would
+    // hang across the sky for the rest of the night.
+    rings = [];
+    ribbons = [];
+    moonGlowBoost = 0;
+    swell = 0;
     drawFrame(performance.now());
   } else {
     start();

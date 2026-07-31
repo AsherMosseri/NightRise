@@ -11,6 +11,7 @@ import {
   formatNightLabel, minutesUntilBedtime, pacingStatus, PACING_COPY, formatClockLabel,
 } from '../time.js';
 import { formatDuration, formatNumber, plural } from '../util.js';
+import { grow, countTo, still, forgetGrow } from './motion.js';
 import { topNudge } from '../insights.js';
 import { claimQuest } from '../actions.js';
 import { openEnvelope, envelopeWaiting, dropById } from '../envelope.js';
@@ -50,6 +51,41 @@ function statChip({ iconName, value, label, title, className = '' }) {
     h('span', { class: 'stat__label' }, label));
 }
 
+let lastLevel = null;
+
+/**
+ * The XP bar, actually moving.
+ *
+ * Levelling resets `pct` to a small number, so simply transitioning the width
+ * slid the bar *backwards* at the exact moment you gained something — a win
+ * rendered as a loss. Crossing a boundary fills to the top first, then starts
+ * the new level from empty with the transition suppressed for that one frame,
+ * so the wrap reads as an overflow rather than a reset.
+ */
+function xpFill(level) {
+  const node = h('span', { class: 'xpbar__fill' });
+  const width = `${Math.min(100, level.pct)}%`;
+  const levelled = lastLevel !== null && level.level > lastLevel;
+  lastLevel = level.level;
+
+  if (levelled && !still()) {
+    node.style.width = '100%';
+    setTimeout(() => {
+      if (!node.isConnected) return;
+      node.style.transition = 'none';
+      node.style.width = '0%';
+      requestAnimationFrame(() => {
+        node.style.transition = '';
+        forgetGrow('xp:fill');
+        grow(node, 'xp:fill', 'width', width);
+      });
+    }, 200);
+    return node;
+  }
+  grow(node, 'xp:fill', 'width', width);
+  return node;
+}
+
 export function renderStats() {
   if (!statsHost) return;
   const state = getState();
@@ -75,7 +111,7 @@ export function renderStats() {
           'aria-valuemax': '100',
           'aria-label': `${level.into} of ${level.need} XP toward level ${level.level + 1}`,
           title: `${formatNumber(level.into)} / ${formatNumber(level.need)} XP`,
-        }, h('span', { class: 'xpbar__fill', style: { width: `${Math.min(100, level.pct)}%` } })))),
+        }, xpFill(level)))),
     (() => {
       const live = effectiveStreak(state);
       const title = live.atRisk
@@ -119,16 +155,27 @@ function progressDial(pct, stats) {
   },
   svg('svg', { class: 'dial__svg', viewBox: '0 0 118 118', 'aria-hidden': 'true' },
     svg('circle', { class: 'dial__track', cx: 59, cy: 59, r: radius }),
-    svg('circle', {
-      class: 'dial__fill',
-      cx: 59,
-      cy: 59,
-      r: radius,
-      'stroke-dasharray': `${dash} ${circumference - dash}`,
-    })),
+    // The dasharray goes on `style`, not on the attribute, and through grow():
+    // layout.css has declared a 600ms transition on it since the beginning and
+    // it had never once run, because every render builds a brand new circle and
+    // a transition needs a previous value to travel from.
+    dialArc(svg('circle', { class: 'dial__fill', cx: 59, cy: 59, r: radius }), dash, circumference)),
   h('div', { class: 'dial__inner' },
-    h('span', { class: 'dial__pct' }, `${pct}%`),
+    dialPct(h('span', { class: 'dial__pct' }), pct),
     h('span', { class: 'dial__sub' }, `${stats.done}/${stats.counted || stats.total}`)));
+}
+
+function dialArc(circle, dash, circumference) {
+  grow(circle, 'dial:arc', 'stroke-dasharray', `${dash} ${circumference - dash}`);
+  return circle;
+}
+
+let lastPct = null;
+
+function dialPct(node, pct) {
+  countTo(node, lastPct === null ? pct : lastPct, pct, { ms: 520, format: (n) => `${n}%` });
+  lastPct = pct;
+  return node;
 }
 
 /**
@@ -227,9 +274,18 @@ function envelopeCard(state) {
   return h('button', {
     type: 'button',
     class: 'envelope envelope--sealed',
-    onClick: () => {
+    onPointerdown: (event) => {
+      // Couple the press to the finger, not to the click. Fifty milliseconds of
+      // perceived latency for one class.
+      event.currentTarget.classList.add('is-pressing');
+    },
+    onClick: (event) => {
+      // Measured now: update() notifies synchronously and this button is gone
+      // by the next statement, so there is nothing left to fly out of.
+      const rect = event.currentTarget.getBoundingClientRect();
+      const key = getState().night.key;
       const result = update((s) => openEnvelope(s));
-      if (result) emit('envelope', result);
+      if (result) emit('envelope', { ...result, rect, key });
     },
   },
   icon('star', { size: 15 }),

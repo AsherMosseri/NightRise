@@ -19,6 +19,12 @@ import { completedConstellations } from './constellations.js';
 import { initKeys, parseQuickAdd } from './keys.js';
 import { titleForLevel } from './game.js';
 import { checkAchievements } from './achievements.js';
+import { playEnvelopeOpen } from './render/envelope-open.js';
+import { playFinale } from './render/finale.js';
+import { still, rectOf } from './render/motion.js';
+
+/** Where the last check-off happened, so the finale can start from your thumb. */
+let lastCheckRect = null;
 import * as audio from './audio.js';
 import { storageAvailable, flushPersist, STORAGE_KEY, normalizeState } from './storage.js';
 import { plural } from './util.js';
@@ -102,7 +108,14 @@ function initQuickAdd(input, button) {
 function wireEffects() {
   on('task:done', ({ task, award }) => {
     audio.play('check');
-    shootingStar();
+    // The rect of the box you just tapped, while the old DOM is still standing:
+    // this handler runs inside update(), before subscribers re-render. If this
+    // is the last task, the finale needs somewhere to start from.
+    lastCheckRect = rectOf(document.querySelector(`[data-task-id="${CSS.escape(task.id)}"] .task__check`))
+      || rectOf(document.querySelector('.onecard__check'));
+    const remaining = computeStats(getState()).remaining;
+    // Nothing competes with the finale's own ribbon on the final check.
+    if (remaining > 0) shootingStar();
     floatXp(task.id, `+${award.xp} XP`);
     if (award.multiplier >= 2) {
       const label = `x${award.multiplier.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
@@ -143,10 +156,15 @@ function wireEffects() {
     }
   });
 
-  on('night:complete', ({ stats, bonus }) => {
-    audio.play('complete');
-    celebrateBurst();
-    celebrate('Night complete', `${plural(stats.done, 'task', 'tasks')} done · +${bonus.xp} XP · +${bonus.dust} stardust`);
+  on('night:complete', ({ stats, bonus, first }) => {
+    // Only the first time tonight. Un-ticking and re-ticking the last task
+    // pays the bonus again, correctly, but must not replay the ceremony.
+    if (!first) return;
+    playFinale({ from: lastCheckRect });
+    // In still mode the sky cannot announce anything, so the sentence does it.
+    if (still()) {
+      celebrate('Night complete', `${plural(stats.done, 'task', 'tasks')} done · +${bonus.xp} XP · +${bonus.dust} stardust`);
+    }
   });
 
   on('quest:claim', ({ def }) => {
@@ -165,10 +183,14 @@ function wireEffects() {
     toast('Not yet', { tone: 'warn', iconName: 'star', detail: reason });
   });
 
-  on('envelope', ({ drop, amount }) => {
+  on('envelope', ({ drop, amount, rect, key }) => {
     audio.play('buy');
     shootingStar();
-    celebrate(drop.label, drop.detail(amount));
+    // The ceremony is the announcement. In still mode there is no ceremony, so
+    // the toast stays — same information, delivered by words instead of motion.
+    if (!playEnvelopeOpen({ drop, amount, rect, key })) {
+      celebrate(drop.label, drop.detail(amount));
+    }
   });
 
   on('lightsout', ({ reward, onTime }) => {

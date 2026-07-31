@@ -119,12 +119,28 @@
   color: #0a0c1c;
   box-shadow: 0 0 14px -2px var(--glow);
 }
-.task--done .task__title { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.task__title { position: relative; }
+/* Drawn, not `text-decoration`, so it can sweep. It spans the label rather than
+   the whole flex cell, or a short task would get a line across empty space. */
+.task__strike {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1.5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--muted) 65%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+}
+.task--done .task__title { color: var(--muted); }
+.task--done .task__strike { transform: scaleX(1); }
 .task--skipped { opacity: 0.6; }
 .task--skipped .task__title { text-decoration: line-through dotted; }
 
 .task__body { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
-.task__title { font-size: 14.5px; word-break: break-word; }
+.task__title { font-size: 14.5px; word-break: break-word; display: inline-block; max-width: 100%; }
 .task__flag {
   font-size: 10.5px;
   text-transform: uppercase;
@@ -315,6 +331,13 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to { opacity: 1; transform: none; }
+}
+/* It grew in over 220ms and then teleported out of existence. You feel that
+   asymmetry without being able to name it, six panels a night. */
+.modal[open].is-closing { animation: modal-out 170ms var(--ease) forwards; }
+@keyframes modal-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.985); }
 }
 .modal__head {
   display: flex;
@@ -930,9 +953,111 @@ body.has-sheet { overflow: hidden; }
   color: var(--accent);
 }
 .envelope--opened { color: var(--muted); border: 1px dashed var(--border); gap: 6px; flex-wrap: wrap; }
+.envelope--sealed.is-pressing {
+  transform: scale(0.965);
+  animation-play-state: paused;
+  transition: transform 70ms var(--ease);
+}
 @keyframes envelope-breathe {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
   50% { box-shadow: 0 0 18px 2px color-mix(in srgb, var(--accent) 24%, transparent); }
+}
+
+/* ------------------------------------------------- the envelope ceremony */
+
+/* A layer for effects whose origin is destroyed by the re-render that starts
+   them. Never takes a pointer event, at any depth. */
+.fx-layer,
+.env-stage {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 62;
+}
+.fx-layer { z-index: 58; }
+.env-stage { display: grid; place-items: center; }
+
+.fx-mote {
+  position: fixed;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent-2) 60%, transparent);
+}
+
+.env-card {
+  position: relative;
+  width: min(300px, calc(100vw - 64px));
+  height: 146px;
+  margin-bottom: 14vh;
+  border-radius: var(--r-lg);
+  background: var(--panel-solid);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
+  /* perspective for the flap only. No preserve-3d anywhere: combined with
+     clip-path it is a reliable way to produce artifacts in iOS Safari. */
+  perspective: 700px;
+  overflow: hidden;
+}
+.env-card__flap {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 74%;
+  z-index: 2;
+  transform-origin: top center;
+  backface-visibility: hidden;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--accent) 46%, var(--panel-solid)),
+    color-mix(in srgb, var(--accent-2) 32%, var(--panel-solid)));
+}
+/* The note fills the card, so when the flap swings up it reveals the contents
+   rather than an empty pocket with a label parked at the bottom. */
+.env-card__note {
+  position: absolute;
+  inset: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  transition: border-color 160ms var(--ease);
+}
+.env-card__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* A window exactly one cell tall. The reel behind it is the whole mechanic. */
+.env-slot { height: 44px; overflow: hidden; }
+.env-card__note--landed { border-color: var(--accent); }
+.env-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
+  white-space: nowrap;
+}
+.env-cell > svg { color: var(--accent); flex: none; }
+/* The lower half of the envelope, in front of the note, so the card reads as
+   something the note is sitting inside rather than a floating rectangle. */
+.env-card__front {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 26%;
+  z-index: 3;
+  clip-path: polygon(0 42%, 50% 0, 100% 42%, 100% 100%, 0 100%);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 20%, var(--panel-solid)), var(--panel-solid));
+  pointer-events: none;
 }
 
 .lightsout {
@@ -990,6 +1115,23 @@ body.has-sheet { overflow: hidden; }
 .lightsout--ready .lightsout__hint { color: rgba(10, 12, 28, 0.7); }
 .lightsout--done { justify-content: flex-start; color: var(--muted); font-weight: 500; border-style: dashed; }
 
+/* The last beat of the finale. The whole argument of this app is that you
+   should press this and go to sleep, so the ceremony ends by pointing at it —
+   a sweep of light crossing the button, riding the overflow it already has. */
+#nightend.is-arriving .lightsout::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%,
+    color-mix(in srgb, var(--moon) 40%, transparent) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: lightsout-sweep 620ms cubic-bezier(0.3, 0.9, 0.4, 1) 700ms both;
+  pointer-events: none;
+}
+@keyframes lightsout-sweep {
+  to { transform: translateX(100%); }
+}
+
 /* The ending: the app takes the screen away instead of handing it back lit. */
 .goodnight { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
 .goodnight:empty { display: none; }
@@ -998,10 +1140,13 @@ body.has-sheet { overflow: hidden; }
   position: absolute;
   inset: 0;
   background: #04050c;
-  opacity: 0.94;
+  /* 0.88, not 0.94. The deep stage used to travel from 0.94 to 0.995 — a five
+     percent alpha change over near-black, which is to say nothing at all. The
+     last beat of the app's ending did not render. */
+  opacity: 0.88;
   transition: opacity 3s var(--ease);
 }
-.is-goodnight-deep .goodnight::before { opacity: 0.995; }
+.is-goodnight-deep .goodnight::before { opacity: 1; }
 
 .goodnight__panel {
   position: absolute;
@@ -1376,13 +1521,17 @@ body.has-sheet { overflow: hidden; }
 .onecard__check:hover { filter: brightness(1.06); }
 .onecard__check:active { transform: scale(0.985); }
 
+/* Lives on the body layer now, not inside the card — the card is destroyed by
+   the render this reacts to. Fixed, and driven by WAAPI rather than the shared
+   xp-rise keyframe, which assumed a positioned parent. */
 .onecard__flash {
-  position: absolute;
-  top: 18px;
-  font-size: 15px;
+  position: fixed;
+  z-index: 60;
+  font-size: 17px;
   font-weight: 750;
-  color: #0a0c1c;
-  animation: xp-rise 0.9s var(--ease) forwards;
+  color: var(--accent-2);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }
 
 .onecard__row { display: flex; gap: 8px; }

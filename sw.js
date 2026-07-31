@@ -4,7 +4,7 @@
    js/updates.js drives this from the page: it asks the registration to check
    on launch and on foreground, and messages SKIP_WAITING to take a new build. */
 
-const CACHE = 'nightcheck-v19';
+const CACHE = 'nightcheck-v20';
 
 const ASSETS = [
   './',
@@ -35,6 +35,9 @@ const ASSETS = [
   './js/toast.js',
   './js/util.js',
   './js/dom.js',
+  './js/render/motion.js',
+  './js/render/envelope-open.js',
+  './js/render/finale.js',
   './js/render/checklist.js',
   './js/render/header.js',
   './js/render/modals.js',

@@ -38,7 +38,10 @@ export function isGoodnightOpen() {
 export function dismissGoodnight({ reopened = true } = {}) {
   if (!host || !host.firstChild) return;
   host.replaceChildren();
-  document.documentElement.classList.remove('is-goodnight');
+  // Both classes. Leaving `is-goodnight-deep` behind meant the second lights-out
+  // of a night rendered its panel with the title, the line and the moon already
+  // at opacity 0 — an ending that came up blank.
+  document.documentElement.classList.remove('is-goodnight', 'is-goodnight-deep');
   if (reopened) {
     update((state) => { state.night.reopenedAfterLightsOut = true; });
   }

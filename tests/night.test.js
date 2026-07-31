@@ -7,6 +7,8 @@ import {
   advanceLightsOutStreak,
 } from '../js/night.js';
 import { createInitialState, createNight, starterTemplate } from '../js/model.js';
+import { getState, replaceState } from '../js/state.js';
+import { toggleTask, claimQuest } from '../js/actions.js';
 import { minutesUntilBedtime } from '../js/time.js';
 import { applyTaskCompletion } from '../js/game.js';
 import { ACHIEVEMENTS, checkAchievements, heldTier } from '../js/achievements.js';
@@ -492,4 +494,26 @@ test('a calendar day that arrives without real time passing did not happen', () 
   honest.profile.lastBankedAt = new Date(2026, 6, 29, 4, 0).getTime();
   for (const id of Object.keys(honest.template.tasks)) honest.night.done[id] = Date.now();
   assert.ok(rolloverIfNeeded(honest, new Date(2026, 6, 30, 22, 0)), 'a real day later banks');
+});
+
+test('the history entry records what the night actually paid', () => {
+  // It summed `night.awards` alone — the record of what the TASKS paid — and
+  // omitted the completion bonus, the start advances, the quest and the
+  // lights-out reward. So the one place a night's worth is written down
+  // permanently understated every cleared night: 313 against 419 received on
+  // the shipped list. Understating is still a claim the code does not measure.
+  //
+  // The assertion is the profile's own delta, so a reward added later that
+  // forgets to appear in the sum fails here rather than quietly shrinking the
+  // record nobody re-reads.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  replaceState(state);
+  const before = getState().profile.xp;
+  for (const id of Object.keys(getState().template.tasks)) toggleTask(id);
+  claimQuest();
+  const gained = getState().profile.xp - before;
+
+  bankNight(getState(), computeStats(getState()));
+  assert.equal(getState().history['2026-07-29'].xp, gained,
+    'the permanent record and the profile have to agree');
 });

@@ -4,6 +4,7 @@ import { createNight } from './model.js';
 import { nightKeyOf, keyDiffDays, bedtimeInstant } from './time.js';
 import { STREAK_THRESHOLD_PCT } from './game.js';
 import { checkAchievements } from './achievements.js';
+import { questById } from './quests.js';
 
 /** Live view of tonight — used by the header, sky, quests and pacing. */
 export function computeStats(state) {
@@ -79,8 +80,29 @@ function stampBedtime(entry, state) {
   return entry;
 }
 
+/**
+ * What tonight actually paid — the number the history entry keeps forever.
+ *
+ * This summed `night.awards` alone, which is the record of what the *tasks*
+ * paid. It omitted the completion bonus, the start advances, the quest and the
+ * lights-out reward, so the one place a night's worth is written down
+ * permanently understated every cleared night: 313 recorded against 419
+ * received, on the shipped list. Understating is still the app claiming
+ * something the code does not measure, and it is the direction nobody checks.
+ *
+ * The test beside this asserts the sum equals the profile's actual delta across
+ * `bankNight`, so a future reward that forgets to appear here fails loudly
+ * rather than quietly shrinking the record.
+ */
 function xpEarnedTonight(state) {
-  return Object.values(state.night.awards).reduce((sum, a) => sum + (a?.xp || 0), 0);
+  const { night } = state;
+  let sum = 0;
+  for (const award of Object.values(night.awards)) sum += award?.xp || 0;
+  for (const record of Object.values(night.started)) sum += record?.xp || 0;
+  sum += night.bonus?.xp || 0;
+  sum += night.lightsOutAward?.xp || 0;
+  if (night.quest?.claimed) sum += questById(night.quest.id)?.xp || 0;
+  return sum;
 }
 
 function updateTaskStats(state, stats) {

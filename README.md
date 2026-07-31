@@ -5,8 +5,17 @@ of sections and tasks, check them off, and watch the moon fill up. Finishing thi
 XP and levels, holds a streak, and pays **stardust** you can spend on skies, companions,
 constellations and supplies.
 
+The point is not to organise your evening. It is to **make getting to bed more fun than
+scrolling**, so you go earlier — which means the app is measured against a feed, not
+against another todo list, and every decision in here is downstream of that. It pays you
+for showing up before you have earned anything. It closes its own shop half an hour before
+your bedtime. It rewards the gap between two check-offs looking like you went and did the
+thing. And when you finish, it takes the screen away instead of handing you back a lit
+phone at midnight.
+
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
+About 14,000 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -61,7 +70,9 @@ it's the scroll.
 
 - **The envelope.** One good thing happens the moment you open the app, before you've
   earned anything: stardust, a rain check, a head start. Every other reward is downstream
-  of doing chores, which does nothing for the night the app stays closed.
+  of doing chores, which does nothing for the night the app stays closed. Tapping it
+  unfolds the button into a card and spins a four-cell reel past three things you didn't
+  get — see **Motion**, below, for why the three you didn't get are the point.
 - **Lights out.** A pill in the corner that ends the night. It stamps when you stopped,
   pays its biggest reward for stopping *early*, and then fades the screen to black instead
   of handing you back a lit phone at midnight. It keeps its own streak — nights you went
@@ -118,8 +129,8 @@ it's the scroll.
   tonight's percentage).
 
 **The rest**
-- A live canvas sky: parallax twinkling stars, shooting stars on every check-off, and a
-  moon whose phase fills with tonight's completion.
+- A live canvas sky: parallax twinkling stars that drift on their own, shooting stars on
+  every check-off, and a moon whose phase fills with tonight's completion.
 - Bedtime target with a countdown and an on-pace / cutting-it-close / over-budget read.
 - Night history as a heatmap, plus per-task insight — which tasks you actually do, and
   which have quietly slipped six nights running. Its stats say which thing they count:
@@ -155,6 +166,75 @@ it's the scroll.
   app, without deleting anything. Your night, streak and unlocks are in
   `localStorage` and are never touched by it.
 
+## Motion
+
+Two set-pieces and a lot of small things. The governing rule is that **this app exists to
+get you to bed earlier**, so nothing may ask you to sit through it: no ceremony here uses a
+scrim, an overlay, or changes `pointer-events` on anything. There is nothing to dismiss.
+
+**The envelope.** The sealed button you tap unfolds into a card in the middle of the screen
+— an inverted FLIP, so the card is built at its final size and pushed back into the
+button's footprint and is genuinely squashed flat rather than appearing over it. The flap
+swings back, and a four-cell reel spins past three drops you didn't get and stops on the
+one you did. 860ms, legible at 460, and the tap that ends it is not consumed, so it also
+lands on whatever it hit.
+
+The reel is what has to survive night 40. Its decoys are seeded from the night key — so a
+reload replays the identical spin, the same rule the drop itself follows — and they are
+*ordered*, not shuffled: win something common and the last cell before the landing is the
+rarest thing you missed; win something rare and the last cell is common, so the landing
+reads as an upgrade. Same shape every night, different contents. Six lines, and it is the
+difference between a reveal you watch once and one that still works in a month.
+
+**Finishing the list.** A line of light travels from the checkbox you just tapped up to the
+moon, drawn head-first along a curve with a dash offset. The moon sweeps closed and blooms
+— the glow gradient it already draws every frame, widened and brightened, so the bloom
+costs nothing. The star field brightens in a wave that reaches nearer stars first, so it
+reads as something spreading from the moon rather than the screen flashing. Then the Lights
+out button scrolls into reach and a light sweeps across it.
+
+That last beat is the argument. Finishing your list used to hand you a fully lit,
+fully interactive phone at 11:40pm, which is the exact shape of the thing NightCheck
+exists to beat. A nightly ceremony is only survivable if it makes the session *shorter*, so
+this one ends by pointing at the exit. And everything it announces is permanent — the full
+moon, the sealed dial, the lit button are all still there afterwards — so you can blink and
+miss it and lose nothing. That is the opposite of a toast, which punishes you for looking
+away.
+
+**And the small things**, which matter more in aggregate: the box you tick pops and draws a
+line across the task; the completion dial's arc travels and its percentage counts; stardust
+flies from your thumb to the counter it changed; the XP bar fills to the top and restarts
+from empty on a level-up instead of sliding backwards; rows slide when the list changes
+shape instead of teleporting; panels close in 170ms instead of vanishing.
+
+**Reduced motion is a branch in JavaScript, not only in CSS.** `base.css` crushes
+`animation-duration` under `[data-motion="off"]`, and that rule does not reach the Web
+Animations API at all — so a WAAPI ceremony would have played at full speed for exactly the
+people who asked it not to. Every entry point checks first, and the still forms are not
+shortened animations but permanent state changes: the moon simply stays brighter, the card
+is replaced by the sentence it would have shown you.
+
+## Keyboard
+
+| Key | Does |
+| --- | --- |
+| `Space` | Check off the focused task |
+| `↑` `↓` | Move between tasks |
+| `Alt + ↑/↓` | Move the focused task or section |
+| `E` | Rename the focused task or section |
+| `Delete` | Delete it (with undo) |
+| `N` / `S` | Add a task / add a section |
+| `/` | Jump to quick add |
+| `F` | One task at a time |
+| `→` / `T` | In one-at-a-time: leave for later / start or pause the timer |
+| `B` `G` `H` `I` `,` | Night Market, star map, history, insights, settings |
+| `M` / `D` | Mute sounds / sleep-safe dim |
+| `?` | The full list |
+| `Esc` | Close a dialog or cancel an edit |
+
+Quick add understands `Floss #wind-down !2` — title, section, minutes — and `!30s` or
+`!7.5` for odd durations.
+
 ## Running it locally
 
 Any static file server will do — ES modules need `http://`, not `file://`.
@@ -175,13 +255,31 @@ domain — every path in the app is relative.
 
 ## Tests
 
-Pure logic — the night cycle, streaks and freezes, the XP curve, combos, quests, quick-add
-parsing, the constellation economy and storage migration — is covered by Node's built-in
-test runner. No install step, no dependencies:
+**188 tests, 14 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
 ```
+
+They cover the pure modules — everything that can be reasoned about without a browser:
+
+| Suite | What it pins down |
+| --- | --- |
+| `night` `time` | the 4am boundary, rollover, banking, streaks, freezes, forward-only clock handling |
+| `game` `economy` | the XP curve, levels, momentum, and every way a reward could be paid twice |
+| `achievements` | tiers, what a rung is worth, and what can take one back |
+| `quests` `bedtime` `bedtimestats` | quest predicates, the envelope, the bedtime record and its averages |
+| `reset` `storage` | what each reset part clears, migration, and old saves |
+| `duration` `timer` `insights` `interaction` | half-minute estimates, the card clock, the history stats, quick-add parsing |
+
+Several exist because of a specific bug and say so in the test name — `a rain check is not
+a task you did`, `Clockwork needs three nights that really were consecutive`, `checking
+everything and resetting on a loop earns nothing after the first`. Two are guards on
+language rather than logic: no two things you can earn may share a name, and no achievement
+outside the on-time family may be *named* as though it measures sleep.
+
+Anything that needs a real browser — the ceremonies, the canvas, layout, focus — is
+verified by driving Chromium directly rather than mocked.
 
 The PWA icons are generated from the same design as `assets/icon.svg` by a small
 dependency-free rasteriser:
@@ -192,19 +290,56 @@ node tools/make-icons.mjs
 
 ## Layout
 
+About 14,000 lines, of which roughly 9,000 are the app, 2,200 are tests and the rest is
+markup, styling and one icon generator. Nothing is generated, bundled or installed.
+
 ```
-index.html            app shell
-css/                  base tokens, themes, layout, components
-js/                   state, actions, game rules, canvas sky, renderers
-js/render/            checklist, header, modals, sheet, confirm, add-task, cards, goodnight
-js/achievements.js    tiered achievement families, measured off live numbers
-js/reset.js           what each part of "reset" actually clears
-js/timer.js           the card clock: countdown, overtime, pause
-js/bedtime.js         the bedtime record: averages, trend, on-time rate
-js/updates.js         keeps an installed copy from booting last week's build
-tests/                node --test suites over the pure modules
-tools/make-icons.mjs  PWA icon generator
-sw.js                 cache-first service worker
+index.html               app shell — every host element the renderers write into
+sw.js                    cache-first service worker, versioned cache
+css/                     base tokens · themes (6 skies + dim) · layout · components
+
+js/main.js               bootstrap and wiring only — events to effects, nothing else
+js/state.js              the single store: getState / update / subscribe / emit
+js/actions.js            every mutation the UI can perform
+js/storage.js            debounced localStorage, schema normalise, migrate, export/import
+js/model.js              factories and the starter night
+
+js/night.js              night keys, the 4am boundary, banking, streaks, freezes
+js/time.js               bedtime countdown and pacing
+js/game.js               XP curve, levels, titles, momentum, stardust
+js/achievements.js       tiered achievement families, measured off live numbers
+js/quests.js             the nightly bonus quest and its predicates
+js/envelope.js           the unconditional nightly reward and its drop table
+js/reset.js              what each part of "reset" actually clears
+js/timer.js              the card clock: countdown, overtime, pause
+js/bedtime.js            the bedtime record: averages, trend, on-time rate
+js/insights.js           per-task stats and the history numbers
+js/shop.js               catalog, purchase, equip, consumables
+js/constellations.js     the star map and its per-star economy
+js/companion.js          the companion, its moods and evolution tiers
+
+js/sky.js                the canvas: stars, moon, meteors, particles, ribbons, rings
+js/audio.js              WebAudio chimes and sound packs (muted by default)
+js/dnd.js  js/keys.js    drag/keyboard reorder · shortcuts and quick-add parsing
+js/dom.js  js/util.js    element builders, the icon set, small pure helpers
+js/optical.js            measures the loaded font and publishes --icon-nudge
+js/updates.js            keeps an installed copy from booting last week's build
+js/toast.js              the toast/celebrate queue
+
+js/render/motion.js         reduced-motion branch, bar transitions, counters, flight
+js/render/envelope-open.js  the envelope ceremony and its reel
+js/render/finale.js         the all-tasks-done set-piece
+js/render/checklist.js      the list, inline edit, FLIP, check-off animation
+js/render/header.js         stats, the dial, tonight panel, companion, lights out
+js/render/modals.js         market, star map, history, insights, settings, help
+js/render/cards.js          One Card mode
+js/render/goodnight.js      the ending and the fade to black
+js/render/sheet.js          the phone bottom sheet
+js/render/confirm.js        the app's own confirm and chooser dialogs
+js/render/add-task.js       the three-tap add flow and the number pad
+
+tests/                   14 suites, node --test, no dependencies
+tools/make-icons.mjs     PWA icon generator
 ```
 
 Icons are one set: every glyph is measured once, then centred and scaled to a common
@@ -217,6 +352,27 @@ is mostly the empty room a font reserves for accents and descenders.
 State flows one way: the UI calls an action, the action mutates the single store in
 `js/state.js`, and subscribers re-render. One-off effects (sounds, shooting stars, toasts)
 ride a small event bus rather than being triggered from render code.
+
+Three consequences of that shape are worth knowing before changing anything:
+
+- **Renders are wholesale.** A panel is rebuilt, not patched. So a CSS transition on a
+  freshly-built node has no previous value to travel from and silently does nothing —
+  which is why four declared transitions in this app had never once run. `js/render/motion.js`
+  remembers the last value *by key* and hands it back for one frame.
+- **Actions notify synchronously.** The button you just tapped is usually gone by the next
+  statement. Anything that must outlive its origin measures a rect first and animates on a
+  body-level layer.
+- **A persistent class belongs on the host, never on a child.** `#tonight` and `#nightend`
+  survive; everything inside them does not.
+
+The whole project has one recurring failure mode, and most of the interesting commits are
+instances of it: **copy that claims more than the code measures.** A quest called "Front
+Loaded" that described a deadline but counted only completions. A "night streak" that
+implied bedtime and counted the list. "Perfect nights" sitting one tile from "to bed on
+time" while counting neither. A badge for being awake past 1am, in an app about sleeping.
+Each was fixed at the measurement rather than the wording, and left behind a test. It is
+why achievement hints are *generated from the same number the check compares against* — a
+hint physically cannot drift into saying seven while the code says three.
 
 ## Your data
 
@@ -245,3 +401,12 @@ __nightcheck.openModal('starmap')   // shop | starmap | history | insights | set
   run a timer for a page that is closed. The intended cue is your phone's own alarm; the
   app rewards you for showing up when it goes off.
 - Reordering by drag needs a pointer. On touch, use the `⋯` sheet.
+- The canvas sits behind the panels, which are translucent and blurred. The sky is fully
+  visible at the edges and in the gaps, and the moon is placed clear of the top bar, but a
+  set-piece down in the middle of the screen would be watched through frosted glass. That
+  is why the finale happens *at* the moon and the envelope happens in the DOM.
+- Reduced motion loses the ceremonies entirely rather than getting gentle versions of them.
+  An arc and a 3D flip have no honest "calm" form; the still mode gives you the same
+  information as a state change and a sentence instead.
+- The nightly quest and the envelope are seeded by the date, so they cannot be rerolled —
+  which also means a night you dislike is a night you are stuck with.

@@ -42,7 +42,13 @@ svg { display: block; }
 .quick-add-tap > svg,
 .section__add-tap > svg,
 .add-section > svg,
-.cards__minor > svg,
+.onecard__minor > svg,
+.onecard__timer-btn > svg,
+.tonight__nudge > svg,
+.goodnight__streak > svg,
+.price > svg,
+.constellation__done > svg,
+.env-cell > svg,
 .btn > svg { transform: translateY(var(--icon-nudge)); }
 
 :root {
@@ -90,6 +96,15 @@ svg { display: block; }
 [data-motion="off"] * {
   animation-duration: 0.001ms !important;
   transition-duration: 0.001ms !important;
+}
+
+/* A progress indicator is not decoration. The hold-to-end fill is the only
+   thing telling you how much longer to keep your thumb down, and collapsing it
+   to instant meant the bar read "done" for the whole 650ms the setTimeout was
+   still counting — and read "done" just the same when you let go at 200ms and
+   nothing happened. */
+[data-motion="off"] .lightsout.is-holding .lightsout__fill {
+  transition-duration: 650ms !important;
 }
 
 ::selection { background: var(--accent); color: #08091a; }

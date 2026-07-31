@@ -27,8 +27,8 @@ import { still, rectOf, flyBetween } from './render/motion.js';
 let lastCheckRect = null;
 import * as audio from './audio.js';
 import {
-  storageAvailable, flushPersist, cancelPersist, STORAGE_KEY, normalizeState,
-  recoveredCorruptData, recoveredFutureSave, onSaveFailure, serializeState,
+  storageAvailable, flushPersist, STORAGE_KEY, normalizeState,
+  recoveredCorruptData, recoveredFutureSave, recoveredDamagedSave, onSaveFailure, serializeState,
 } from './storage.js';
 import { plural } from './util.js';
 import { initOptical, applyOpticalNudge } from './optical.js';
@@ -401,7 +401,7 @@ function boot() {
     onFocusMode: () => (cardsActive() ? exitCards() : enterCards()),
     onToggleMute: () => { muteButton.click(); },
     onToggleDim: () => { dimButton.click(); },
-  });
+  }, { enabled: () => getState().profile.settings.shortcuts !== false });
 
   subscribe(() => {
     renderChecklist();
@@ -477,6 +477,23 @@ function boot() {
     });
   }
 
+  // Damage that parses is the quiet kind: the app opens looking almost right,
+  // missing a section or a month of history, and the first debounced write puts
+  // that version where the real one was. Say so while the original still exists.
+  const damaged = recoveredDamagedSave();
+  if (damaged && !wreckage) {
+    toast('Some of your saved data did not survive', {
+      tone: 'warn',
+      iconName: 'download',
+      detail: 'The app opened with what it could read. The original is kept — download it before adding anything tonight.',
+      duration: 0,
+      action: {
+        label: 'Download it',
+        onClick: () => downloadText(localStorage.getItem(damaged) || '', 'nightcheck-damaged.json'),
+      },
+    });
+  }
+
   // Keep the countdown honest and roll the night over on time.
   setInterval(() => {
     if (!checkRollover()) renderTonight();
@@ -494,11 +511,10 @@ function boot() {
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY || !event.newValue) return;
     try {
-      // Drop our own queued write first. Adopting the other tab's state and
-      // then letting a 250ms debounce fire with what we had a moment ago is
+      // hydrateState drops our own queued write: adopting the other tab's state
+      // and then letting a 250ms debounce fire with what we had a moment ago is
       // last-writer-wins by a different route — the sync would silently undo
       // the very tab it just synced from.
-      cancelPersist();
       hydrateState(normalizeState(JSON.parse(event.newValue)));
       renderAll();
       applyCosmetics();

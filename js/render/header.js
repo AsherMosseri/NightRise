@@ -206,8 +206,7 @@ function questCompact(quest) {
           icon: 'star',
           label: quest.claimed ? 'Already claimed' : quest.description,
           hint: quest.claimed ? 'Come back tomorrow for a new one' : `Progress ${quest.label}`,
-          disabled: true,
-          onClick: () => {},
+          static: true,
         }],
       });
     },
@@ -313,6 +312,7 @@ function lightsOutButton(state, stats) {
   const button = h('button', {
     type: 'button',
     class: `lightsout ${done ? 'lightsout--ready' : ''}`.trim(),
+    dataset: { focus: 'lightsout' },
     'aria-label': 'Lights out — press and hold to end the night',
   },
   h('span', { class: 'lightsout__fill', 'aria-hidden': 'true' }),
@@ -411,7 +411,8 @@ function renderTonightInner() {
             type: 'button',
             class: 'focus-btn',
             title: 'Show one task at a time (F)',
-            onClick: () => enterCards(),
+            dataset: { focus: 'focus-mode' },
+            onClick: (event) => enterCards(event.currentTarget),
           }, icon('skip', { size: 14 }), `One at a time · ${stats.remaining} left`)
           : null,
         h('div', { class: 'tonight__chips' },
@@ -439,7 +440,10 @@ function renderTonightInner() {
       envelopeCard(state),
       questCard(state, stats)));
 
-  if (nightEndHost) replace(nightEndHost, lightsOutButton(state, stats));
+  // A sibling of #tonight, so `withFocus(tonightHost, …)` never covered it:
+  // every 30-second countdown tick rebuilt this button and dropped a keyboard
+  // user onto <body>. Its own host, its own focus key.
+  if (nightEndHost) withFocus(nightEndHost, () => replace(nightEndHost, lightsOutButton(state, stats)));
 }
 
 /* -------------------------------------------------------------- companion */
@@ -507,7 +511,7 @@ export function renderCompanion() {
 export function renderNightEnd() {
   if (!nightEndHost) return;
   const state = getState();
-  replace(nightEndHost, lightsOutButton(state, computeStats(state)));
+  withFocus(nightEndHost, () => replace(nightEndHost, lightsOutButton(state, computeStats(state))));
 }
 
 export function renderHeader() {

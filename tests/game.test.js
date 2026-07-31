@@ -202,3 +202,23 @@ test('every name is out by the top of the ladder, and none at the bottom', () =>
   assert.equal(first[0].name, TITLES[0].name, 'the one you start with is yours');
   assert.deepEqual(first.slice(1).map((t) => t.name), first.slice(1).map(() => null));
 });
+
+test('the head start actually pays the x1.5 it promises', async () => {
+  // Two ways this drop used to be worth nothing. `lastDoneAt = Date.now()` put
+  // the next check-off inside the 20s momentum floor, which resets the chain to
+  // 1 — so opening the app, tapping the envelope and tapping the first box threw
+  // the prize away. And when it did survive, `combo = 1.5` yielded chain 4 and
+  // paid x1.75, not the x1.5 the label says.
+  const { DROPS } = await import('../js/envelope.js');
+  const { createInitialState } = await import('../js/model.js');
+  const drop = DROPS.find((d) => d.id === 'headstart');
+  const state = createInitialState();
+  drop.apply(state);
+  const task = Object.values(state.template.tasks)[0];
+  for (const delay of [0, 3000, 19000]) {
+    const copy = createInitialState();
+    drop.apply(copy);
+    const award = applyTaskCompletion(copy, task, Date.now() + delay);
+    assert.equal(award.multiplier, 1.5, `at +${delay}ms`);
+  }
+});

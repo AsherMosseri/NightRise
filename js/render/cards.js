@@ -15,6 +15,7 @@ import { toast } from '../toast.js';
 import { setSkyPaused } from '../sky.js';
 import { still, fx, rectOf } from './motion.js';
 import { lightsOut } from './goodnight.js';
+import { openAddTask } from './add-task.js';
 import {
   createTimer, elapsedOf, isRunning, toggleTimer, resetTimer,
   timerPhase, timerLabel, timerCaption, timerProgress,
@@ -31,6 +32,8 @@ let timer = null;
 let ticker = null;
 /** The task the previous card checked off, so it can be put back. */
 let lastChecked = null;
+let returnFocus = null;
+let lastRenderedId = null;
 let face = null; // the live nodes, so a tick repaints without a re-render
 
 export function initCards(node, { onClose } = {}) {
@@ -59,12 +62,20 @@ function queue(state) {
   return [...front, ...back];
 }
 
-export function enterCards() {
+export function enterCards(invoker = null) {
   if (!host) return;
+  // Where to put the keyboard back when this mode ends. Leaving used to drop
+  // focus to <body> on every exit path — Escape, the ✕, "Back to the list", F
+  // — because renderTonight only restores focus that was already inside
+  // #tonight, and by then it is inside a layer that no longer exists.
+  returnFocus = invoker instanceof HTMLElement
+    ? invoker
+    : (document.activeElement instanceof HTMLElement ? document.activeElement : null);
   active = true;
   deferred = new Set();
   timer = null;
   lastChecked = null;
+  lastRenderedId = null;
   document.documentElement.classList.add('is-onecard');
   // The card layer is a near-opaque scrim with a 14px backdrop-filter over the
   // whole screen, so the sky underneath is invisible — and was still being
@@ -91,6 +102,13 @@ export function exitCards() {
   setSkyPaused(false);
   if (host) host.replaceChildren();
   if (onExit) onExit();
+  // After onExit(), because that re-renders the panel the invoker lives in.
+  const target = returnFocus;
+  returnFocus = null;
+  if (target && target.isConnected) target.focus({ preventScroll: true });
+  else if (target?.dataset?.focus) {
+    document.querySelector(`[data-focus="${CSS.escape(target.dataset.focus)}"]`)?.focus({ preventScroll: true });
+  }
 }
 
 /**
@@ -186,7 +204,15 @@ function finishedCard(state, stats) {
         ? `${plural(stats.done, 'task', 'tasks')} done. Time to stop.`
         : 'Every task was rain-checked. Nothing counted tonight.'),
     h('div', { class: 'onecard__done-actions' },
-      state.night.lightsOutAt ? null : h('button', {
+      // An empty list here used to be a dead end: this mode hides the whole app
+      // including quick-add, and the only two ways out were "go to bed" and
+      // "leave". Offer the thing you actually came to do.
+      stats.total === 0 ? h('button', {
+        type: 'button',
+        class: 'btn btn--primary',
+        onClick: () => openAddTask(),
+      }, icon('plus', { size: 16 }), 'Add a task') : null,
+      state.night.lightsOutAt || stats.total === 0 ? null : h('button', {
         type: 'button',
         class: 'btn btn--primary',
         onClick: () => { exitCards(); lightsOut(); },
@@ -287,8 +313,18 @@ export function renderCards() {
 
   const inner = h('div', { class: 'onecard__inner' }, head, body, check, row);
   host.replaceChildren(inner);
-  requestAnimationFrame(() => inner.classList.add('onecard__inner--in'));
-  check.focus({ preventScroll: true });
+  // renderCards is wired into the global subscriber, so it runs on every store
+  // notification — including ones raised from a modal or a sheet layered over
+  // this card. Focusing (and replaying the entry animation) unconditionally
+  // meant buying something in the shop threw the keyboard out of the dialog and
+  // onto a button nobody could see. Only when the card itself changed, and only
+  // when nothing is layered above it.
+  const changed = lastRenderedId !== task.id;
+  lastRenderedId = task.id;
+  const layered = document.querySelector('dialog[open], .sheet');
+  if (changed && !layered) requestAnimationFrame(() => inner.classList.add('onecard__inner--in'));
+  else inner.classList.add('onecard__inner--in');
+  if (changed && !layered) check.focus({ preventScroll: true });
 }
 
 /** Space or Enter checks, Right defers, Escape leaves. */

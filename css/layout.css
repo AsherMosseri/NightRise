@@ -25,6 +25,11 @@
   gap: var(--sp-4);
   padding: var(--sp-3) var(--sp-5);
   padding-top: max(var(--sp-3), env(safe-area-inset-top));
+  /* index.html opts into `viewport-fit=cover`, which means all four insets, not
+     just the top one. Held sideways on a notched phone the left inset is ~45px
+     and the brand mark sat under the notch. */
+  padding-left: max(var(--sp-5), env(safe-area-inset-left));
+  padding-right: max(var(--sp-5), env(safe-area-inset-right));
   background: linear-gradient(to bottom, color-mix(in srgb, var(--sky-1) 94%, transparent) 55%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -118,7 +123,10 @@
   color: var(--muted);
   white-space: nowrap;
 }
-.stat__value { font-weight: 700; color: var(--text); font-size: 14px; }
+/* Stardust changes on every single check-off, and it lives in an `auto` grid
+   track on a phone — with proportional digits its width changes, which resizes
+   the `1fr` track and slides the level title sideways as you work. */
+.stat__value { font-weight: 700; color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
 .stat__label { font-size: 11.5px; letter-spacing: 0.02em; }
 .stat--hot { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 34%, transparent); }
 .stat--hot .stat__value { color: var(--warn); }
@@ -132,6 +140,8 @@
   margin: 0 auto;
   padding: var(--sp-6) var(--sp-5) var(--sp-7);
   padding-bottom: max(var(--sp-7), env(safe-area-inset-bottom));
+  padding-left: max(var(--sp-5), env(safe-area-inset-left));
+  padding-right: max(var(--sp-5), env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
@@ -216,7 +226,7 @@
   border: 1px solid var(--border);
 }
 .pacing__top { display: flex; align-items: center; gap: 8px; }
-.pacing__count { font-weight: 700; font-size: 15px; }
+.pacing__count { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 .pacing__bed { margin-left: auto; font-size: 12px; color: var(--muted); }
 .pacing__bottom { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 12.5px; }
 .pacing__label { font-weight: 600; }
@@ -357,7 +367,10 @@
   .level, .level__meta { display: contents; }
   .level__badge { grid-area: badge; width: 40px; min-height: 40px; border-radius: 12px; }
   .level__num { font-size: 16px; }
-  .level__title { grid-area: title; font-size: 14px; }
+  /* `1fr` floors at min-content, and min-content for nowrap text is the whole
+     string — so "Constellation Keeper" pushed the stardust chip off the row
+     rather than giving up a single pixel. Nowrap plus ellipsis, as elsewhere. */
+  .level__title { grid-area: title; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .xpbar { grid-area: bar; width: 100%; min-width: 0; }
   .topbar__stats > .stat--streak { grid-area: streak; }
   .topbar__stats > .stat--stardust { grid-area: dust; }

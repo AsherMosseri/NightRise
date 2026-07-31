@@ -122,14 +122,25 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
   }
   openInvoker = invoker || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
 
-  const buttons = items.filter(Boolean).map((item) => h('button', {
+  // `static: true` is read-only content, not an inactive control. Rendering it
+  // as a disabled button dimmed it to 0.4 — the phone quest description landed
+  // at 2.2:1 — and took it out of the tab ring, so the one thing the sheet
+  // existed to say could be neither read comfortably nor reached by keyboard.
+  const buttons = items.filter(Boolean).map((item) => h(item.static ? 'div' : 'button', item.static ? {
+    class: 'sheet__item sheet__item--static',
+  } : {
     type: 'button',
     class: `sheet__item ${item.danger ? 'sheet__item--danger' : ''}`.trim(),
     disabled: item.disabled || false,
     onClick: () => {
       closeSheet();
-      // Let the sheet start closing before the list re-renders underneath it.
-      requestAnimationFrame(() => item.onClick());
+      // Let the sheet start closing before the list re-renders underneath it —
+      // unless the action puts the caret in a field. iOS raises the software
+      // keyboard only for a focus() inside the gesture's own task, and a rAF
+      // callback is a separate one: Rename lit the field up and left you
+      // tapping it again to get a keyboard.
+      if (item.immediate) item.onClick();
+      else requestAnimationFrame(() => item.onClick());
     },
   },
   h('span', { class: 'sheet__item-icon' }, icon(item.icon, { size: 19 })),
@@ -167,7 +178,7 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
   // is a no-op on a disabled button, and the phone quest sheet's only item is
   // disabled until the quest is claimable — so focus stayed on the invoker
   // behind the scrim and Tab walked straight out of the trap into the app.
-  else (buttons.find((b) => !b.disabled) || panel.querySelector('.sheet__cancel') || panel)
+  else (buttons.find((b) => b.tagName === 'BUTTON' && !b.disabled) || panel.querySelector('.sheet__cancel') || panel)
     .focus({ preventScroll: true });
 
   // Modal semantics without <dialog>: trap the tab ring, swallow app shortcuts.

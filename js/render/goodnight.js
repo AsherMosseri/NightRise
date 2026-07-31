@@ -14,8 +14,10 @@ import { grantXp } from '../game.js';
 import { checkAchievements } from '../achievements.js';
 import { minutesUntilBedtime, formatClockLabel } from '../time.js';
 import { formatDuration, plural } from '../util.js';
+import { setSkyPaused } from '../sky.js';
 
 let host = null;
+let deepTimer = null;
 
 /**
  * Take the app out of the tab order behind the ending.
@@ -60,11 +62,14 @@ export function isGoodnightOpen() {
 
 export function dismissGoodnight({ reopened = true } = {}) {
   if (!host || !host.firstChild) return;
+  clearTimeout(deepTimer);
+  deepTimer = null;
   host.replaceChildren();
   // Both classes. Leaving `is-goodnight-deep` behind meant the second lights-out
   // of a night rendered its panel with the title, the line and the moon already
   // at opacity 0 — an ending that came up blank.
   document.documentElement.classList.remove('is-goodnight', 'is-goodnight-deep');
+  setSkyPaused(false);
   setBehindInert(false);
   if (reopened) {
     update((state) => { state.night.reopenedAfterLightsOut = true; });
@@ -158,11 +163,20 @@ function render({ stats, minutesLeft, onTime, reward, achievements: earned }) {
 
   host.replaceChildren(panel);
   document.documentElement.classList.add('is-goodnight');
+  // The scrim over the canvas is solid black on its way to fully opaque, and
+  // the starfield went on drawing 400 stars a frame underneath it until the
+  // phone locked. This is the one screen where nothing is left to look at.
+  setSkyPaused(true);
   setBehindInert(true);
   requestAnimationFrame(() => panel.classList.add('goodnight__panel--in'));
 
   // The screen goes almost black on its own. Nothing left to look at.
-  setTimeout(() => {
+  // Held, because `host.firstChild` is not a good enough guard: tap "I'm still
+  // up" a second in and press Lights out a second later, and the first timer
+  // fires against the *second* panel two seconds into it — an ending that
+  // starts fading out before you have finished reading it.
+  clearTimeout(deepTimer);
+  deepTimer = setTimeout(() => {
     if (host.firstChild) document.documentElement.classList.add('is-goodnight-deep');
   }, 4200);
 

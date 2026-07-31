@@ -133,19 +133,24 @@ function rainCheck(taskId) {
 /** One definition of what you can do to a task, shared by the row and the sheet. */
 function taskActions(state, task) {
   const skipped = Boolean(state.night.skipped[task.id]);
+  const done = state.night.done[task.id] !== undefined;
   return [
-    {
+    // Not offered on a task you have already done. There is nothing to excuse,
+    // and taking it spent a rain check *and* silently revoked the XP and
+    // stardust the task had paid — the toast mentioned neither, and a rain
+    // check that dropped you a level said nothing at all.
+    done ? null : {
       key: 'skip',
       icon: 'skip',
       label: skipped ? 'Undo rain check' : 'Rain check',
       hint: skipped ? 'Count it against tonight again' : 'Excuse it from tonight’s percentage',
       run: () => rainCheck(task.id),
     },
-    { key: 'edit', icon: 'pencil', label: 'Rename', run: () => startRenameTask(task.id) },
+    { key: 'edit', icon: 'pencil', label: 'Rename', immediate: true, run: () => startRenameTask(task.id) },
     { key: 'up', icon: 'up', label: 'Move up', run: () => { focusNext(`task:${task.id}`); expectReorder(); moveTaskByStep(task.id, -1); } },
     { key: 'down', icon: 'down', label: 'Move down', run: () => { focusNext(`task:${task.id}`); expectReorder(); moveTaskByStep(task.id, 1); } },
     { key: 'del', icon: 'trash', label: 'Delete', danger: true, run: () => removeTask(task.id) },
-  ];
+  ].filter(Boolean);
 }
 
 function taskRow(state, task, index, total = 0) {
@@ -178,7 +183,9 @@ function taskRow(state, task, index, total = 0) {
       title: task.title,
       subtitle: `${formatMinutesLong(task.minutes)}${done ? ' · done' : ''}${skipped ? ' · rain-checked' : ''}`,
       invoker: menuButton,
-      items: actions.map((a) => ({ icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, onClick: a.run })),
+      items: actions.map((a) => ({
+        icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, immediate: a.immediate, onClick: a.run,
+      })),
     });
   }, { class: 'task__menu', dataset: { focus: `task-menu:${task.id}` } });
 
@@ -278,6 +285,7 @@ function sectionActions(section, addInput) {
       // (hover: none) and ≤640px — and this same list feeds the touch sheet,
       // so on a phone the tap did nothing at all. The add sheet works at every
       // width and is what the row's own "+" already opens.
+      immediate: true, // opens a field; iOS wants the focus inside the gesture
       run: () => {
         if (addInput?.isConnected && addInput.offsetParent !== null) {
           focusNext(`section-add:${section.id}`);
@@ -287,7 +295,7 @@ function sectionActions(section, addInput) {
         openAddTask({ sectionId: section.id });
       },
     },
-    { key: 'edit', icon: 'pencil', label: 'Rename section', run: () => startRenameSection(section.id) },
+    { key: 'edit', icon: 'pencil', label: 'Rename section', immediate: true, run: () => startRenameSection(section.id) },
     { key: 'up', icon: 'up', label: 'Move section up', run: () => { focusNext(`section:${section.id}`); expectReorder(); moveSection(section.id, -1); } },
     { key: 'down', icon: 'down', label: 'Move section down', run: () => { focusNext(`section:${section.id}`); expectReorder(); moveSection(section.id, 1); } },
     { key: 'del', icon: 'trash', label: 'Delete section', danger: true, run: () => removeSection(section.id) },
@@ -350,7 +358,8 @@ function rowKeys(event, task) {
     removeTask(task.id);
   } else if (key.toLowerCase() === 'x') {
     event.preventDefault();
-    toggleSkip(task.id);
+    // Same rule as the menu: nothing to excuse on a task already done.
+    if (getState().night.done[task.id] === undefined) rainCheck(task.id);
   }
 }
 
@@ -408,7 +417,7 @@ function sectionNode(state, section, index) {
       subtitle: `Section · ${stats.done}/${stats.total} done`,
       invoker: sectionMenu,
       items: sectionActions(section, addInput).map((a) => ({
-        icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, onClick: a.run,
+        icon: a.icon, label: a.label, hint: a.hint, danger: a.danger, immediate: a.immediate, onClick: a.run,
       })),
     });
   }, { class: 'section__menu', dataset: { focus: `section-menu:${section.id}` } });
@@ -637,6 +646,15 @@ export function renderChecklist() {
         class: 'btn btn--primary',
         onClick: () => openFirstTask(),
       }, 'Add your first task')));
+    // The same tail the normal path runs. Returning early left `expectMove`
+    // armed, so the next render measured every row for a FLIP nobody asked for,
+    // and left `pendingFocus` set — removeSection() arms 'add-section' before
+    // deleting the last section, and the button it names does not exist here,
+    // so the key sat waiting to hijack focus on an unrelated later render.
+    playFlip(previousRects);
+    playToggle();
+    restoreDrafts(drafts);
+    restoreFocus(focusKey);
     return;
   }
 

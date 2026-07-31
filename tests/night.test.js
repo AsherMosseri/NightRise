@@ -5,7 +5,7 @@ import {
   computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak,
   advanceLightsOutStreak,
 } from '../js/night.js';
-import { createInitialState } from '../js/model.js';
+import { createInitialState, createNight, starterTemplate } from '../js/model.js';
 import { minutesUntilBedtime } from '../js/time.js';
 import { applyTaskCompletion } from '../js/game.js';
 import { ACHIEVEMENTS, checkAchievements, heldTier } from '../js/achievements.js';
@@ -405,4 +405,31 @@ test('the header promises a freeze only when it will actually be spent', () => {
   const enough = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
   assert.equal(enough.covered, 2);
   assert.equal(enough.streak, 6, 'covered in full, so it stands');
+});
+
+test('a night with an empty list is not judged, in either direction', () => {
+  // It used to skip `lastBankedKey` along with the scoring, so every unjudged
+  // night still accumulated in the gap and was charged in bulk against the
+  // streak the moment you did some work again.
+  const state = createInitialState(new Date('2026-07-24T22:00:00'));
+  state.profile.streak = 6;
+  state.profile.tokens.freeze = 0;
+  state.profile.lastBankedKey = '2026-07-24';
+  state.template = { order: [], sections: {}, tasks: {} };
+
+  for (const key of ['2026-07-25', '2026-07-26', '2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30']) {
+    state.night = createNight(key);
+    const empty = bankNight(state, computeStats(state));
+    assert.equal(empty.missedNights, 0, key);
+    assert.equal(state.profile.streak, 6, key);
+    assert.equal(state.profile.lastBankedKey, key);
+  }
+
+  // And now a real night, cleared: it follows straight on, not seven days late.
+  state.template = starterTemplate();
+  state.night = createNight('2026-07-31');
+  for (const id of Object.keys(state.template.tasks)) state.night.done[id] = Date.now();
+  const real = bankNight(state, computeStats(state));
+  assert.equal(real.missedNights, 0);
+  assert.equal(state.profile.streak, 7);
 });

@@ -89,10 +89,13 @@ export function isTypingTarget(target) {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
-export function initKeys(handlers) {
+export function initKeys(handlers, { enabled = () => true } = {}) {
   window.addEventListener('keydown', (event) => {
     if (event.metaKey || event.ctrlKey) return;
     if (isTypingTarget(event.target)) return;
+    // Escape is not a single-character shortcut and is never turned off — it is
+    // the way out of every dialog in the app.
+    if (event.key !== 'Escape' && !enabled()) return;
     // Any modal surface owns the keyboard while it is up.
     if (document.querySelector('dialog[open], .sheet, .goodnight__panel') && event.key !== 'Escape') return;
 

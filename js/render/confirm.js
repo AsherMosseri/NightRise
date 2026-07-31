@@ -50,6 +50,9 @@ export function confirmAction({
     }, confirmLabel);
 
     dialog.className = `confirm ${danger ? 'confirm--danger' : ''}`.trim();
+    // A dialog with no accessible name announces as just "dialog". The heading
+    // is right there and it is rebuilt on every open, so name it from that.
+    dialog.setAttribute('aria-label', title);
     dialog.replaceChildren(h('div', { class: 'confirm__inner' },
       iconName ? h('span', { class: 'confirm__icon' }, icon(iconName, { size: 22 })) : null,
       h('h2', { class: 'confirm__title' }, title),
@@ -133,6 +136,7 @@ export function chooseAction({
     });
 
     dialog.className = `confirm confirm--wide ${danger ? 'confirm--danger' : ''}`.trim();
+    dialog.setAttribute('aria-label', title);
     dialog.replaceChildren(h('div', { class: 'confirm__inner' },
       iconName ? h('span', { class: 'confirm__icon' }, icon(iconName, { size: 22 })) : null,
       h('h2', { class: 'confirm__title' }, title),

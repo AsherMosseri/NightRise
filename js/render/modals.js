@@ -13,7 +13,7 @@ import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../compani
 import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
 import { achievementBoard, totalTiers } from '../achievements.js';
 import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
-import { forceNewNight, computeStats } from '../night.js';
+import { forceNewNight, computeStats, effectiveStreak } from '../night.js';
 import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
@@ -355,9 +355,14 @@ VIEWS.history = () => {
     const entry = state.history[key];
     const isTonight = key === today;
     const level = entry ? heatLevel(entry.pct) : 0;
+    // "Tonight" and "streak freeze used" existed only as a border colour and an
+    // outline — the click detail knew both and the label said neither, so a
+    // screen reader got 126 identical-sounding cells.
+    const marks = `${isTonight ? 'tonight, ' : ''}`;
+    const frozen = entry?.frozen ? ', streak freeze used' : '';
     const label = entry
-      ? `${formatShortDate(key)}: ${entry.pct}% (${entry.done}/${entry.total})`
-      : `${formatShortDate(key)}: no record`;
+      ? `${marks}${formatShortDate(key)}: ${entry.pct}% (${entry.done}/${entry.total})${frozen}`
+      : `${marks}${formatShortDate(key)}: no record`;
     const cell = h('button', {
       type: 'button',
       class: `heat heat--l${level} ${isTonight ? 'heat--today' : ''} ${entry?.frozen ? 'heat--frozen' : ''}`.trim(),
@@ -389,7 +394,11 @@ VIEWS.history = () => {
     title: 'Night History',
     body: h('div', {},
       h('div', { class: 'stat-row' },
-        h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.streak)), h('span', {}, 'current streak')),
+        // `profile.streak` is a banking implementation detail: it is only ever
+        // updated when a night is banked, so after forty days away it still
+        // holds the number from the last night you logged — the top bar read 0
+        // and this read 10, on the same evening. Both read the live one now.
+        h('div', { class: 'stat-box' }, h('strong', {}, String(effectiveStreak(state).streak)), h('span', {}, 'current streak')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.bestStreak)), h('span', {}, 'best streak')),
         h('div', {
           class: 'stat-box',
@@ -472,8 +481,10 @@ function bedtimeChart(state) {
 
   series.forEach((night, i) => {
     if (!night.recorded) {
-      marks.push(svg('circle', { class: 'bt__gap', cx: x(i).toFixed(2), cy: baseY, r: 1.6 },
-        svg('title', {}, `${formatShortDate(night.key)}: no Lights out`)));
+      marks.push(svg('line', {
+        class: 'bt__gap',
+        x1: x(i).toFixed(2), x2: x(i).toFixed(2), y1: baseY, y2: baseY,
+      }, svg('title', {}, `${formatShortDate(night.key)}: no Lights out`)));
       return;
     }
     const cy = y(night.minutes);
@@ -481,15 +492,36 @@ function bedtimeChart(state) {
       + (typeof night.late === 'number'
         ? ` · ${night.late <= 0 ? `${Math.abs(night.late)} min early` : `${night.late} min late`}`
         : '');
-    if (target !== null) {
+    // The stem hangs from the target *that night* was judged against, not from
+    // today's. `onTime` is stamped when the night ends and never restamped
+    // (js/night.js), so moving your bedtime later used to leave a green dot
+    // hanging below the line — the colour telling the truth and the geometry
+    // contradicting it on the same pixel. The dashed line is still today's
+    // target: that is the line you are aiming at now.
+    const own = night.target ? targetFromNoon(night.target) : target;
+    if (own !== null) {
       marks.push(svg('line', {
         class: `bt__stem ${night.onTime ? 'is-ontime' : 'is-late'}`,
-        x1: x(i).toFixed(2), x2: x(i).toFixed(2), y1: y(target).toFixed(2), y2: cy.toFixed(2),
+        x1: x(i).toFixed(2), x2: x(i).toFixed(2), y1: y(own).toFixed(2), y2: cy.toFixed(2),
       }));
+      // A tick at its own target whenever that is not where the dashed line is,
+      // so a moved bedtime is visible rather than silently reinterpreted.
+      if (target === null || Math.abs(own - target) > 1) {
+        marks.push(svg('line', {
+          class: 'bt__own',
+          x1: (x(i) - 3).toFixed(2), x2: (x(i) + 3).toFixed(2),
+          y1: y(own).toFixed(2), y2: y(own).toFixed(2),
+        }, svg('title', {}, `Target that night: ${formatClockLabel(night.target)}`)));
+      }
     }
-    marks.push(svg('circle', {
+    // A zero-length round-capped line, not a <circle>. The chart is drawn with
+    // `preserveAspectRatio: none` so it can fill any width, which on the 760px
+    // insights panel is a 2:1 non-uniform stretch — the stems survived it via
+    // `vector-effect`, and the filled circles painted as 15x8 ovals. Stroke
+    // geometry is what vector-effect protects, so the dots are stroke now.
+    marks.push(svg('line', {
       class: `bt__dot ${night.onTime ? 'is-ontime' : 'is-late'}`,
-      cx: x(i).toFixed(2), cy: cy.toFixed(2), r: 3.4,
+      x1: x(i).toFixed(2), x2: x(i).toFixed(2), y1: cy.toFixed(2), y2: cy.toFixed(2),
     }, svg('title', {}, label)));
   });
 
@@ -568,7 +600,7 @@ VIEWS.insights = () => {
   }))))));
 
   const table = rows.length
-    ? h('ul', { class: 'insight-list' }, ...rows.slice(0, 20).map((row) => h('li', { class: 'insight' },
+    ? h('ul', { class: 'insight-list', role: 'list' }, ...rows.slice(0, 20).map((row) => h('li', { class: 'insight' },
       h('div', { class: 'insight__head' },
         h('span', { class: 'insight__title' }, row.title),
         h('span', { class: 'insight__rate' }, row.rate === null ? '—' : `${row.rate}%`)),
@@ -602,7 +634,7 @@ VIEWS.insights = () => {
       badgeGrid,
       h('h3', { class: 'modal__section' }, 'Titles'),
       h('p', { class: 'muted small' }, 'You find out what each one is called when you get there.'),
-      h('ul', { class: 'titles' }, ...titleLadder(level.level).map((t) => h('li', {
+      h('ul', { class: 'titles', role: 'list' }, ...titleLadder(level.level).map((t) => h('li', {
         class: t.earned ? 'is-earned' : 'is-locked',
         'aria-label': t.earned ? `${t.name}, level ${t.level}` : `Unknown title, level ${t.level}`,
       },
@@ -791,7 +823,8 @@ VIEWS.settings = () => {
         toggle('muted', 'Mute sounds', 'Sound effects are off by default.'),
         toggle('hideCompleted', 'Hide completed tasks', 'They still count — they just get out of the way.'),
         toggle('autoTimer', 'Start the timer automatically', 'In one-at-a-time, the clock runs the moment a card appears instead of waiting for Start.'),
-        toggle('curfew', 'Close the market before bed', 'The shop, star map, history and insights shut 30 minutes before bedtime, so this app is not the thing keeping you up.')),
+        toggle('curfew', 'Close the market before bed', 'The shop, star map, history and insights shut 30 minutes before bedtime, so this app is not the thing keeping you up.'),
+        toggle('shortcuts', 'Single-key shortcuts', 'N, S, B, H and the rest open things with one keypress. Turn this off if you reach them by accident; Esc always works.')),
       h('h3', { class: 'modal__section' }, 'Your data'),
       h('p', { class: 'muted small' }, 'Everything lives in this browser only. Export if you want it anywhere else.'),
       h('div', { class: 'row' },
@@ -928,8 +961,11 @@ VIEWS.help = () => ({
     h('p', { class: 'modal__lead' },
       'Press ', h('kbd', {}, 'F'), ' for one task at a time — a single card with a big '
       + 'target, which is the easy way through a long list at midnight.'),
-    h('ul', { class: 'shortcuts' }, ...SHORTCUTS.map(([keys, description]) => h('li', {},
-      h('kbd', {}, keys), h('span', {}, description))))),
+    h('ul', { class: 'shortcuts', role: 'list' }, ...SHORTCUTS.map(([keys, description]) => h('li', {},
+      h('kbd', {}, keys), h('span', {}, description)))),
+    h('p', { class: 'muted small' },
+      'Single-key shortcuts can be turned off in Settings if you reach them by '
+      + 'accident. ', h('kbd', {}, 'Esc'), ' always works either way.')),
 });
 
 export const MODAL_NAMES = Object.keys(VIEWS);

@@ -189,8 +189,12 @@ export function openAddTask({ sectionId = null, invoker = null } = {}) {
     content,
     invoker,
     onOpen: () => {
-      // A phone keyboard should be up before you have to think about it.
-      setTimeout(() => input.focus(), 60);
+      // A phone keyboard should be up before you have to think about it — and
+      // iOS only raises it when focus() runs in the same task as the tap that
+      // caused it. openSheet() connects the panel synchronously and calls this
+      // straight after, so no timer: the 60ms delay was a separate task, and
+      // the field lit up focused with no keyboard behind it.
+      input.focus();
     },
   });
 }
@@ -317,7 +321,7 @@ export function openAddSection({ invoker = null, onCreated = null } = {}) {
       h('button', { type: 'button', class: 'btn btn--primary addsheet__go', onClick: submit },
         icon('plus', { size: 16 }), 'Create it')),
     invoker,
-    onOpen: () => setTimeout(() => input.focus(), 60),
+    onOpen: () => input.focus(), // synchronous, or iOS never raises the keyboard
   });
 }
 

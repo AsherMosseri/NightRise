@@ -188,7 +188,9 @@
 /* The veil cannot cover the dialog (top layer) or anything fixed above z-40, so
    those surfaces are warmed directly — otherwise the brightest things on the
    screen were exactly the ones sleep-safe mode missed.
-   ANY new fixed layer above the veil must be added here. One Card mode (z-45),
+   ANY new fixed layer above the veil must be added here — and only those: the
+   companion sits at z-15, under the veil, and warming it here as well took it
+   to 0.62 x 0.62 brightness against 0.62 for everything around it. One Card mode (z-45),
    the envelope ceremony (z-62), the effects layer (z-58) and the goodnight
    screen (z-80) were each escaping it — and One Card is the mode most likely to
    be open at midnight, which is the whole audience for this setting. */
@@ -196,7 +198,6 @@
 .is-dim .sheet,
 .is-dim .sheet-scrim,
 .is-dim .toast,
-.is-dim .companion,
 .is-dim .onecard,
 .is-dim .env-stage,
 .is-dim .fx-layer,

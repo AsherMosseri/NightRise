@@ -142,8 +142,11 @@ it's the scroll.
   your bedtime later cannot rewrite whether you made it. Insights shows the on-time
   streak, the on-time rate, your average bedtime this week **against the week before** —
   the only one of those numbers that answers "am I getting better" — plus earliest and
-  latest, and three weeks of nights charted against your target line: green standing above
-  it, red hanging below, faint dots for nights nobody ended. Averaging clock times is done
+  latest, and three weeks of nights charted against your target line: green if it beat the
+  target in force *that* night, red if it did not, faint dots for nights nobody ended. Each
+  stem hangs from the target that night was judged against, with a small tick marking it
+  whenever that is not where today's dashed line sits — so moving your bedtime shows up as
+  a moved tick rather than quietly recolouring the past. Averaging clock times is done
   in minutes from noon, so 11:50pm and 12:10am are twenty minutes apart rather than 1420.
 - Sleep-safe dim mode (which reaches the dialogs and sheets too), sound effects (muted by
   default), full keyboard control, and `prefers-reduced-motion` support throughout.

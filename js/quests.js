@@ -163,7 +163,12 @@ export function evaluateQuest(state, stats) {
     progress,
     goal: def.goal,
     complete: progress >= def.goal,
-    claimed: Boolean(quest.claimed),
+    // Also claimed if tonight's date has already been paid. "Bank tonight and
+    // start fresh" builds a new night for the same key, which rolls a fresh
+    // quest with `claimed: false` while `lastQuestKey` still points here — so
+    // the quest rendered as claimable, could be completed again, and the button
+    // did precisely nothing for the rest of the night with nothing said.
+    claimed: Boolean(quest.claimed) || state.profile?.lastQuestKey === state.night.key,
     label: def.progressLabel ? def.progressLabel(state) : `${progress}/${def.goal}`,
   };
 }

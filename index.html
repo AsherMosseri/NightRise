@@ -71,9 +71,9 @@
   <div id="sheet" class="sheet-host"></div>
   <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
 
-  <dialog id="modal" class="modal">
+  <dialog id="modal" class="modal" aria-labelledby="modal-title">
     <div class="modal__head">
-      <h2 data-modal-title>Panel</h2>
+      <h2 id="modal-title" data-modal-title>Panel</h2>
       <button type="button" class="icon-btn" data-icon="close" data-modal-close aria-label="Close"></button>
     </div>
     <div class="modal__body" data-modal-body></div>

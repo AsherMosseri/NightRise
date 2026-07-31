@@ -229,6 +229,37 @@ function safeLocalStorage() {
 const store = typeof window !== 'undefined' ? safeLocalStorage() : null;
 export const storageAvailable = Boolean(store);
 
+/**
+ * Did normalising this save quietly throw away something real?
+ *
+ * The recovery path only ever fired when `JSON.parse` threw, which is the least
+ * likely kind of damage. A save that parses but is structurally wrong — a
+ * truncated write that left `template` as a string, a hand-edited file, a
+ * half-synced copy — never threw: it was normalised into something plausible,
+ * shown as an empty checklist, and committed over the real save 250ms later by
+ * the first debounced write. Nothing was kept, and nothing was said.
+ *
+ * So the test is not "did it throw", it is "did we lose anything". Anything the
+ * save claimed to hold that did not survive normalisation counts.
+ */
+export function damagedSave(parsed, normalized) {
+  if (!isObject(parsed)) return true;
+  // A container present but not an object is replaced wholesale with a default.
+  for (const key of ['template', 'night', 'history', 'profile']) {
+    if (parsed[key] !== undefined && !isObject(parsed[key])) return true;
+  }
+  const rawTasks = isObject(parsed.template?.tasks) ? Object.keys(parsed.template.tasks) : [];
+  if (rawTasks.some((id) => !normalized.template.tasks[id])) return true;
+  const rawSections = isObject(parsed.template?.sections) ? Object.keys(parsed.template.sections) : [];
+  if (rawSections.some((id) => !normalized.template.sections[id])) return true;
+  const rawHistory = isObject(parsed.history) ? Object.keys(parsed.history) : [];
+  if (rawHistory.some((key) => !normalized.history[key])) return true;
+  // A save that has history or a profile but no task list at all lost its
+  // template somewhere; an empty `{}` is just a new install and is not damage.
+  if (!isObject(parsed.template) && (rawHistory.length > 0 || isObject(parsed.profile))) return true;
+  return false;
+}
+
 export function loadState(now = new Date()) {
   if (!store) return createInitialState(now);
   try {
@@ -244,7 +275,12 @@ export function loadState(now = new Date()) {
       futureSaveKey = keepAside('newer');
       console.warn('NightCheck: this save was written by a newer version.');
     }
-    return normalizeState(parsed, now);
+    const normalized = normalizeState(parsed, now);
+    if (damagedSave(parsed, normalized)) {
+      damagedBackupKey = keepAside('damaged');
+      console.warn('NightCheck: parts of the saved data could not be understood.');
+    }
+    return normalized;
   } catch (err) {
     // A corrupt blob used to mean a silent fresh start — a year of nights gone
     // with no warning and nothing to recover from. Keep the wreckage.
@@ -262,10 +298,16 @@ export function loadState(now = new Date()) {
 
 let corruptBackupKey = null;
 let futureSaveKey = null;
+let damagedBackupKey = null;
 
 /** Set when the last load read a save from a newer build and stashed it aside. */
 export function recoveredFutureSave() {
   return futureSaveKey;
+}
+
+/** Set when the last load read a save that parsed but had lost something. */
+export function recoveredDamagedSave() {
+  return damagedBackupKey;
 }
 
 /** Set when the last load found unreadable data and stashed it aside. */

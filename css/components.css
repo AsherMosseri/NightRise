@@ -268,9 +268,11 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   left: 50%;
   bottom: calc(22px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  /* Above the sheet (70). A toast with a button on it — "Undo", "Load it" —
-     is useless underneath the scrim, and that is exactly when one appears. */
-  z-index: 75;
+  /* Above the sheet (70) and the goodnight screen (80). A toast with a button
+     on it — "Undo", "Load it" — is useless underneath the scrim, and that is
+     exactly when one appears; lights-out announces achievements, and every one
+     of them was rendering under an opaque black layer. */
+  z-index: 85;
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;
@@ -448,18 +450,30 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   overflow-x: auto;
   padding-bottom: 6px;
 }
+/* 13px squares with a 3px gutter are about a fifth of a fingertip in each
+   direction, and the `heat--pad` spacers are interleaved, so a miss on a phone
+   could land on nothing at all. The row already scrolls horizontally, so the
+   bigger cells cost nothing but a shorter visible window. */
+@media (hover: none) {
+  .heatmap { --heat-size: 22px; gap: 4px; }
+}
 .heat {
-  width: 13px;
-  height: 13px;
+  width: var(--heat-size, 13px);
+  height: var(--heat-size, 13px);
   border-radius: 3px;
   background: var(--panel-2);
   border: 1px solid transparent;
   padding: 0;
 }
-.heat--pad { background: none; }
-.heat--l1 { background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); }
-.heat--l2 { background: color-mix(in srgb, var(--accent) 45%, var(--panel-2)); }
-.heat--l3 { background: color-mix(in srgb, var(--accent) 70%, var(--panel-2)); }
+.heat--pad { background: none; border-color: transparent; }
+/* A wider ramp. l1 at 22% measured 1.45:1 against an empty cell, and the empty
+   cell itself was 1.03:1 against the panel — so a quiet week and a blank week
+   looked identical, which is the one comparison this grid exists to make. The
+   border gives level 0 an edge so the grid reads as cells at all. */
+.heat { border-color: color-mix(in srgb, var(--border-strong) 60%, transparent); }
+.heat--l1 { background: color-mix(in srgb, var(--accent) 40%, var(--panel-2)); }
+.heat--l2 { background: color-mix(in srgb, var(--accent) 62%, var(--panel-2)); }
+.heat--l3 { background: color-mix(in srgb, var(--accent) 84%, var(--panel-2)); }
 .heat--l4 { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
 .heat--today { border-color: var(--text); }
 .heat--frozen { outline: 1px solid var(--warn); outline-offset: -1px; }
@@ -532,7 +546,11 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .ach__bar {
   height: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--border) 70%, transparent);
+  /* Opaque, not a 0.11-alpha border colour over the card. A progress bar you
+     cannot see the unfilled half of does not read as a progress bar at all —
+     it measured 1.22:1 against the card, where the graphic minimum is 3:1.
+     38% is where the measured ratio clears 3:1 on all six skies (3.06–3.22). */
+  background: color-mix(in srgb, var(--text) 38%, var(--panel-solid));
   overflow: hidden;
 }
 .ach__bar > span {
@@ -550,7 +568,7 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   width: 100%;
   height: 3px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--text) 38%, var(--panel-solid));
 }
 .ach__pip.is-lit { background: color-mix(in srgb, var(--accent) 75%, transparent); }
 .ach.is-maxed .ach__pip.is-lit { background: color-mix(in srgb, var(--warn) 80%, transparent); }
@@ -585,11 +603,30 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   vector-effect: non-scaling-stroke;
   opacity: 0.5;
 }
+/* Where that night's own target sat, when it is not where today's line is. */
+.bt__own {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.75;
+}
 .bt__stem.is-ontime { stroke: var(--good); }
 .bt__stem.is-late { stroke: var(--bad); }
-.bt__dot.is-ontime { fill: var(--good); }
-.bt__dot.is-late { fill: var(--bad); }
-.bt__gap { fill: var(--border-strong); }
+/* Drawn as zero-length round-capped strokes so `vector-effect` can hold them
+   round under the chart's non-uniform scale. `stroke-width` is the diameter. */
+.bt__dot {
+  stroke-width: 6.8;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.bt__dot.is-ontime { stroke: var(--good); }
+.bt__dot.is-late { stroke: var(--bad); }
+.bt__gap {
+  stroke: var(--border-strong);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
 .bt__axis {
   display: flex;
   justify-content: space-between;
@@ -607,9 +644,11 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   padding: 8px 12px;
   border-radius: var(--r-sm);
   border: 1px solid var(--border);
-  opacity: 0.55;
 }
-.titles li.is-earned { opacity: 1; border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--panel-2); }
+/* No `opacity: 0.55` here. It took the locked rows to 3.03:1 — and to 1.95:1
+   under sleep-safe dim, which is the mode you are most likely to be reading
+   them in. The dashed border and the muted colour already say "locked". */
+.titles li.is-earned { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--panel-2); }
 /* A rung you have not reached shows how far off it is, not what it is called. */
 .titles li.is-locked { border-style: dashed; }
 .titles li.is-locked strong { color: var(--muted); letter-spacing: 0.18em; font-weight: 500; }
@@ -848,6 +887,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 }
 .sheet__item:hover, .sheet__item:focus-visible { background: var(--panel-hover); }
 .sheet__item:disabled { opacity: 0.4; }
+/* Read-only content at full strength — it is not an inactive control. */
+.sheet__item--static { cursor: default; }
+.sheet__item--static:hover { background: none; }
 .sheet__item-icon { color: var(--accent); display: grid; place-items: center; width: 24px; }
 .sheet__item-body { display: flex; flex-direction: column; min-width: 0; }
 .sheet__item-label { font-size: 15px; font-weight: 550; }
@@ -879,7 +921,11 @@ body.has-sheet { overflow: hidden; }
   .task__grip, .section__grip { display: none; }
 }
 
-@media (max-width: 640px) {
+/* Width said "phone", but what decides whether a 24px checkbox is reachable is
+   whether you are aiming with a finger. An iPad, or an iPhone held sideways, is
+   wider than 640px and got the desktop 24px box next to a 44px menu button. The
+   guard matches the one above, which already decided this is a touch device. */
+@media (hover: none), (max-width: 640px) {
   .task__actions, .section__actions { display: none; }
   .task__menu, .section__menu { display: inline-grid; width: 44px; height: 44px; opacity: 1; }
   .task__grip, .section__grip { display: none; }
@@ -897,13 +943,15 @@ body.has-sheet { overflow: hidden; }
     width: 46px;
     height: 46px;
   }
-  .task__title { font-size: 15.5px; }
   .task__minutes { font-size: 12.5px; padding: 4px 6px; }
+  .section__collapse { width: 32px; height: 32px; }
+}
 
+@media (max-width: 640px) {
+  .task__title { font-size: 15.5px; }
   .section__head { padding: 12px 8px 12px 12px; gap: 8px; }
   .section__title { font-size: 15.5px; }
   .section__bar { display: none; }
-  .section__collapse { width: 32px; height: 32px; }
 }
 
 @media (max-width: 560px) {
@@ -914,8 +962,10 @@ body.has-sheet { overflow: hidden; }
 
 /* iOS Safari zooms the whole page when you focus an input under 16px, and then
    you are pinching your way back out in the dark. This file loads last, so it
-   is the one that gets to win. */
-@media (max-width: 640px) {
+   is the one that gets to win. Gated on touch as well as width: the controls
+   that open these inputs — the row menu, the minutes chip — exist on any touch
+   device, including the iPads and landscape iPhones that are wider than 640px. */
+@media (hover: none), (max-width: 640px) {
   input, select, textarea,
   .quick-add input,
   .inline-edit,
@@ -1098,6 +1148,12 @@ body.has-sheet { overflow: hidden; }
 }
 .lightsout.is-holding .lightsout__fill { width: 100%; transition: width 650ms linear; }
 .lightsout.is-holding { border-color: var(--accent); }
+/* Once the list is done the button is painted in `--accent`, so a 26% `--accent`
+   fill over it is literally no colour change — the one state you are most
+   likely to be holding it in was the one with no progress bar. A dark wash
+   instead, the same one `.quest-compact__cta` uses to sit on this gradient. */
+.lightsout--ready .lightsout__fill { background: rgba(10, 12, 28, 0.22); }
+.lightsout--ready.is-holding { border-color: rgba(10, 12, 28, 0.4); }
 .lightsout > svg, .lightsout__label, .lightsout__hint { position: relative; }
 .lightsout:hover { background: var(--panel-hover); }
 .lightsout__label { white-space: nowrap; }
@@ -1158,7 +1214,8 @@ body.has-sheet { overflow: hidden; }
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: var(--sp-5);
+  padding: var(--sp-5) max(var(--sp-5), env(safe-area-inset-right))
+           var(--sp-5) max(var(--sp-5), env(safe-area-inset-left));
   text-align: center;
   pointer-events: auto;
   opacity: 0;
@@ -1401,8 +1458,10 @@ body.has-sheet { overflow: hidden; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  padding: max(var(--sp-4), env(safe-area-inset-top)) var(--sp-4)
-           calc(var(--sp-4) + env(safe-area-inset-bottom));
+  padding: max(var(--sp-4), env(safe-area-inset-top))
+           max(var(--sp-4), env(safe-area-inset-right))
+           calc(var(--sp-4) + env(safe-area-inset-bottom))
+           max(var(--sp-4), env(safe-area-inset-left));
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 260ms var(--ease), transform 260ms var(--ease);
@@ -1428,7 +1487,11 @@ body.has-sheet { overflow: hidden; }
   justify-content: center;
   gap: 10px;
   text-align: center;
+  /* A 40px title with no ceiling on its line count grew the column until it ran
+     into the check target below it. It scrolls inside its own box instead. */
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .onecard__section {
   font-size: 12px;

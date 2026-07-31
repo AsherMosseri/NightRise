@@ -209,8 +209,11 @@ function drawMoon(time) {
 
 export function shootingStar(options = {}) {
   // Reduced motion means no motion: with the rAF loop stopped nothing decays,
-  // so a meteor drawn here would stay frozen across the sky forever.
-  if (reducedMotion) return;
+  // so a meteor drawn here would stay frozen across the sky forever. The same
+  // is true of a paused loop — One Card mode and the goodnight screen both stop
+  // it — and every sibling effect below already carries this guard. Without it,
+  // a session's worth of meteors sat queued and all arrived at once on resume.
+  if (reducedMotion || !running) return;
   const startX = options.x ?? width * (0.15 + Math.random() * 0.7);
   const startY = options.y ?? height * (0.02 + Math.random() * 0.25);
   meteors.push({
@@ -319,7 +322,7 @@ export function setTrail(kind) {
 }
 
 function emitTrail(x, y) {
-  if (trailKind === 'none' || reducedMotion) return;
+  if (trailKind === 'none' || reducedMotion || !running) return;
   const count = trailKind === 'comet' ? 2 : 1;
   for (let i = 0; i < count; i += 1) {
     trailParticles.push({

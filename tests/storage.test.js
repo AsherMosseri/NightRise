@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeState, parseImport, serializeState } from '../js/storage.js';
+import { normalizeState, parseImport, serializeState, damagedSave } from '../js/storage.js';
 import { createInitialState } from '../js/model.js';
 
 test('garbage in gives a usable starter night', () => {
@@ -103,5 +103,30 @@ test('a malformed field gets its default back instead of bricking the app', () =
     assert.ok(Array.isArray(state.profile.inventory.themes));
     assert.equal(state.profile.equipped.theme, 'midnight');
     assert.deepEqual(state.profile.constellations, {});
+  }
+});
+
+test('damage that parses is still damage', () => {
+  // The recovery path only ever fired when JSON.parse threw, which is the least
+  // likely kind of damage. A save that parses but is structurally wrong was
+  // normalised into something plausible, opened as a near-empty checklist, and
+  // committed over the real save by the first debounced write — no backup, no
+  // warning. The test is not "did it throw", it is "did we lose anything".
+  const good = createInitialState();
+  assert.equal(damagedSave(good, normalizeState(good)), false);
+  assert.equal(damagedSave({}, normalizeState({})), false);
+
+  const cases = [
+    { template: 'truncated' },
+    { history: 7 },
+    { profile: [] },
+    { night: 'x' },
+    { history: { '2026-07-01': { pct: 100 } } }, // history with no template at all
+    (() => { const s = createInitialState(); s.template.tasks[Object.keys(s.template.tasks)[0]] = null; return s; })(),
+    (() => { const s = createInitialState(); s.template.sections[s.template.order[0]] = 'gone'; return s; })(),
+    (() => { const s = createInitialState(); s.history['2026-07-01'] = 'not an entry'; return s; })(),
+  ];
+  for (const raw of cases) {
+    assert.equal(damagedSave(raw, normalizeState(raw)), true, JSON.stringify(raw).slice(0, 60));
   }
 });

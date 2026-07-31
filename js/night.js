@@ -151,7 +151,15 @@ export function bankNight(state, stats) {
     return result;
   }
 
-  if (stats.total === 0) return result; // Nothing was ever on the list; don't judge it.
+  // Nothing was ever on the list; don't judge it. But the night was still seen,
+  // and `lastBankedKey` is what `gapMissed` measures from — leaving it behind
+  // meant six empty nights were "not judged" at the time and then charged all at
+  // once against the first night you did work, taking a six-night streak to one.
+  // The streak, the freezes, the history entry and the task stats stay untouched.
+  if (stats.total === 0) {
+    profile.lastBankedKey = night.key;
+    return result;
+  }
 
   const gapMissed = profile.lastBankedKey
     ? Math.max(0, keyDiffDays(profile.lastBankedKey, night.key) - 1)

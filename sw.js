@@ -4,7 +4,7 @@
    js/updates.js drives this from the page: it asks the registration to check
    on launch and on foreground, and messages SKIP_WAITING to take a new build. */
 
-const CACHE = 'nightcheck-v29';
+const CACHE = 'nightcheck-v30';
 
 const ASSETS = [
   './',
@@ -100,14 +100,16 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => {
+      // Deliberately no opportunistic `cache.put` here. install() precaches the
+      // whole asset list atomically under a fresh CACHE name, and that atomicity
+      // is the only thing tying a build's modules together — there is no
+      // manifest hash and no per-file version. Writing network responses back
+      // into the *active* cache refreshed each file on its own schedule, so a
+      // deploy landing mid-session, or a network that died halfway, left one
+      // cache name holding a mixture of two builds: index.html from build N with
+      // half its ES modules from build N+1, booted that way on next launch.
+      // Updates arrive the one way that stays self-consistent — a new version.
       const network = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
         .catch(() => {
           if (cached) return cached;
           // Only a navigation may fall back to the shell. Handing index.html to a

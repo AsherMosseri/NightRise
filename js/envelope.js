@@ -8,6 +8,7 @@
  */
 
 import { hashString, seededRandom } from './util.js';
+import { MOMENTUM_MIN_GAP_MS } from './game.js';
 
 export const DROPS = [
   {
@@ -58,8 +59,15 @@ export const DROPS = [
     label: 'A head start',
     detail: () => 'Tonight begins at x1.5 momentum',
     apply: (state) => {
-      state.night.combo = Math.max(state.night.combo || 1, 1.5);
-      state.night.lastDoneAt = Date.now();
+      // Stamped one momentum-window back, not at "now". `chainLengthFor` resets
+      // the chain to 1 when two check-offs are less than MOMENTUM_MIN_GAP_MS
+      // apart — so the natural flow, open the app, tap the envelope, tap the
+      // first box, threw the whole prize away. And `combo` is 1.25 rather than
+      // 1.5 because the chain the next completion earns is derived from it:
+      // 1.25 yields chain 3, and comboMultiplier(3) is exactly the x1.5 the
+      // label promises. Setting 1.5 here paid x1.75 on the next task.
+      state.night.combo = Math.max(state.night.combo || 1, 1.25);
+      state.night.lastDoneAt = Date.now() - MOMENTUM_MIN_GAP_MS;
       state.night.lastMinutes = 10;
       return 1.5;
     },

@@ -1,7 +1,7 @@
 /* The single store: one state object, subscribers, and a small event bus
    for one-off effects (sounds, shooting stars, toasts). */
 
-import { loadState, persist } from './storage.js';
+import { loadState, persist, cancelPersist } from './storage.js';
 
 let state = loadState();
 const listeners = new Set();
@@ -40,8 +40,16 @@ export function replaceState(next) {
   notify();
 }
 
-/** Adopt state written by another tab. Deliberately does not write it back. */
+/**
+ * Adopt state written by another tab. Deliberately does not write it back.
+ *
+ * But storage keeps its own pending copy behind a 250ms debounce, and that copy
+ * is our *pre-sync* snapshot. Left alone it fired a quarter-second later and
+ * wrote the state we had just abandoned over the tab we synced from — the exact
+ * last-writer-wins clobber this whole path exists to avoid.
+ */
 export function hydrateState(next) {
+  cancelPersist();
   state = next;
   notify();
 }

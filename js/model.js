@@ -97,6 +97,10 @@ export function createProfile() {
       autoTimer: false,
       motion: 'auto',
       hideCompleted: false,
+      // WCAG 2.1 SC 2.1.4: single-character shortcuts need a way off. The
+      // letters in js/keys.js are bound bare on `window` and only inputs are
+      // exempt — a focused task row, a heat cell or any button is live.
+      shortcuts: true,
     },
   };
 }

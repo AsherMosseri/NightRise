@@ -24,6 +24,7 @@
 import { COMBO_MAX } from './game.js';
 import { nightsFullyCleared } from './insights.js';
 import { plural, formatMultiplier } from './util.js';
+import { CONSTELLATIONS } from './constellations.js';
 
 /** Stardust for reaching a tier, paid once per tier ever. */
 export function tierDust(tier) {
@@ -160,10 +161,16 @@ export const ACHIEVEMENTS = [
     goal: (at) => `Finish ${plural(at, 'constellation', 'constellations')}`,
     measure: (state) => Object.values(state.profile.constellations)
       .filter((c) => c && c.complete).length,
+    // Derived from the catalog, not written down. "Whole Sky" at a hardcoded 7
+    // was true of a seven-constellation map and became a lie the moment the map
+    // grew — the same way "Completionist" asked for 25 purchases against a
+    // catalog of 18. A rung named for finishing something has to move with the
+    // thing it finishes.
     tiers: [
       { at: 1, name: 'Cartographer' },
-      { at: 3, name: 'Star Charter' },
-      { at: 7, name: 'Whole Sky' },
+      { at: Math.max(2, Math.round(CONSTELLATIONS.length * 0.25)), name: 'Star Charter' },
+      { at: Math.max(3, Math.round(CONSTELLATIONS.length * 0.6)), name: 'Wide Field' },
+      { at: CONSTELLATIONS.length, name: 'Whole Sky' },
     ],
   },
   {

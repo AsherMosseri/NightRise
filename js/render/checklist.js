@@ -268,7 +268,18 @@ function sectionActions(section, addInput) {
       key: 'plus',
       icon: 'plus',
       label: 'Add a task here',
-      run: () => { focusNext(`section-add:${section.id}`); addInput.focus(); },
+      // The inline input this used to focus is `display: none` under
+      // (hover: none) and ≤640px — and this same list feeds the touch sheet,
+      // so on a phone the tap did nothing at all. The add sheet works at every
+      // width and is what the row's own "+" already opens.
+      run: () => {
+        if (addInput?.isConnected && addInput.offsetParent !== null) {
+          focusNext(`section-add:${section.id}`);
+          addInput.focus();
+          return;
+        }
+        openAddTask({ sectionId: section.id });
+      },
     },
     { key: 'edit', icon: 'pencil', label: 'Rename section', run: () => startRenameSection(section.id) },
     { key: 'up', icon: 'up', label: 'Move section up', run: () => { focusNext(`section:${section.id}`); expectReorder(); moveSection(section.id, -1); } },

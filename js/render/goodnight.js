@@ -103,12 +103,16 @@ export function lightsOut() {
   });
 
   emit('lightsout', result);
-  if (result.achievements?.length) emit('achievement', result.achievements);
+  // Not as toasts. #toasts is z-index 75 and .goodnight is 80 with an 88%
+  // opaque black over it, added a few statements later — so every rung earned
+  // by going to bed on time was painted under the blackout for its whole life,
+  // and the on-time family is the one you can *only* earn at this exact moment.
+  // The panel says it instead, where you are actually looking.
   render(result);
   return result;
 }
 
-function render({ stats, minutesLeft, onTime, reward }) {
+function render({ stats, minutesLeft, onTime, reward, achievements: earned }) {
   if (!host) return;
   const state = getState();
   const { bedtime } = state.profile.settings;
@@ -131,6 +135,10 @@ function render({ stats, minutesLeft, onTime, reward }) {
     lights.streak > 1
       ? h('p', { class: 'goodnight__streak' }, icon('flame', { size: 14 }), `${plural(lights.streak, 'night', 'nights')} in a row to bed on time`)
       : null,
+    ...(earned || []).map((step) => h('p', { class: 'goodnight__earned' },
+      icon(step.icon, { size: 14 }),
+      h('strong', {}, step.name),
+      h('span', { class: 'muted' }, step.dust ? ` · +${step.dust} stardust` : ''))),
     h('button', {
       type: 'button',
       class: 'goodnight__stay',

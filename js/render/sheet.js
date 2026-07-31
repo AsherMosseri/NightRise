@@ -140,6 +140,7 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
   const panel = h('div', {
     class: 'sheet',
     role: 'dialog',
+    tabIndex: -1, // so it can hold focus when every item is disabled
     'aria-modal': 'true',
     'aria-label': title ? `Actions for ${title}` : 'Actions',
   },
@@ -162,7 +163,12 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
     panel.classList.add('sheet--in');
   });
   if (onOpen) onOpen(panel);
-  else buttons[0]?.focus({ preventScroll: true });
+  // The first *enabled* control, falling back to the panel. `buttons[0].focus()`
+  // is a no-op on a disabled button, and the phone quest sheet's only item is
+  // disabled until the quest is claimable — so focus stayed on the invoker
+  // behind the scrim and Tab walked straight out of the trap into the app.
+  else (buttons.find((b) => !b.disabled) || panel.querySelector('.sheet__cancel') || panel)
+    .focus({ preventScroll: true });
 
   // Modal semantics without <dialog>: trap the tab ring, swallow app shortcuts.
   onKeydown = (event) => {
@@ -189,3 +195,26 @@ export function openSheet({ title, subtitle, items = [], content = null, invoker
   };
   document.addEventListener('keydown', onKeydown, true);
 }
+
+/**
+ * Publish how much of the viewport the software keyboard is eating.
+ *
+ * `dvh` is the viewport minus browser chrome and does not shrink when the iOS
+ * keyboard opens, so a `bottom: 0` fixed panel stays pinned to the layout
+ * bottom with the keyboard drawn over it. `visualViewport` is the only thing
+ * that actually knows, and it is the one surface in this app that hosts a text
+ * field at the bottom of a small screen.
+ */
+function trackKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const sync = () => {
+    const eaten = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--kb-height', `${eaten}px`);
+  };
+  vv.addEventListener('resize', sync, { passive: true });
+  vv.addEventListener('scroll', sync, { passive: true });
+  sync();
+}
+
+if (typeof window !== 'undefined') trackKeyboard();

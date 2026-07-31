@@ -10,6 +10,8 @@ let ctx = null;
 let width = 0;
 let height = 0;
 let topInset = 0;
+/** A full-screen panel is covering the sky; nothing may restart it. */
+let paused = false;
 let dpr = 1;
 let running = false;
 let reducedMotion = false;
@@ -621,7 +623,12 @@ function loop(time) {
 }
 
 function start() {
-  if (running || reducedMotion) return;
+  // `paused` is explicit because start() has several callers that know nothing
+  // about panels: setReducedMotion, refreshTheme and the visibilitychange
+  // handler all called it unconditionally, so equipping a theme from inside the
+  // Night Market restarted the loop behind a full-screen opaque panel and left
+  // it running there — the exact cost setSkyPaused exists to avoid.
+  if (running || reducedMotion || paused) return;
   running = true;
   frame = requestAnimationFrame(loop);
 }
@@ -662,9 +669,10 @@ export function setMoonFill(pct) {
 }
 
 /** Nothing to animate while a full-screen panel is covering the sky. */
-export function setSkyPaused(paused) {
+export function setSkyPaused(value) {
+  paused = Boolean(value);
   if (paused) stop();
-  else if (!reducedMotion && !document.hidden) start();
+  else if (!document.hidden) start();
 }
 
 export function refreshTheme() {

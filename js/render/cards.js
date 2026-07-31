@@ -29,6 +29,8 @@ let onExit = null;
    sitting, not a record. Leaving one-at-a-time or moving on forgets it. */
 let timer = null;
 let ticker = null;
+/** The task the previous card checked off, so it can be put back. */
+let lastChecked = null;
 let face = null; // the live nodes, so a tick repaints without a re-render
 
 export function initCards(node, { onClose } = {}) {
@@ -62,6 +64,7 @@ export function enterCards() {
   active = true;
   deferred = new Set();
   timer = null;
+  lastChecked = null;
   document.documentElement.classList.add('is-onecard');
   // The card layer is a near-opaque scrim with a 14px backdrop-filter over the
   // whole screen, so the sky underneath is invisible — and was still being
@@ -227,6 +230,12 @@ export function renderCards() {
     onClick: () => {
       // Measured first: this button does not survive the toggle.
       const rect = rectOf(check);
+      // Set BEFORE the toggle. toggleTask notifies synchronously, so the
+      // re-render that builds the next card runs inside it — assigning after
+      // meant the new card was built while this was still null and the Undo
+      // never appeared. The one mistake this mode is built to invite deserves
+      // better than a mode that quietly cannot undo it.
+      lastChecked = { id: task.id, title: task.title };
       const result = toggleTask(task.id);
       if (result?.award) flash(rect, `+${result.award.xp} XP`);
     },
@@ -237,13 +246,24 @@ export function renderCards() {
     h('h2', { class: 'onecard__title' }, task.title),
     timerFace(state, task));
 
+  const undoable = lastChecked && state.night.done[lastChecked.id] !== undefined
+    ? lastChecked
+    : null;
+
   const row = h('div', { class: 'onecard__row' },
-    h('button', {
-      type: 'button',
-      class: 'onecard__minor',
-      disabled: pending.length < 2,
-      onClick: () => { deferred.add(task.id); renderCards(); },
-    }, icon('down', { size: 15 }), 'Later'),
+    undoable
+      ? h('button', {
+        type: 'button',
+        class: 'onecard__minor',
+        title: `Put “${undoable.title}” back`,
+        onClick: () => { toggleTask(undoable.id); lastChecked = null; renderCards(); },
+      }, icon('undo', { size: 15 }), 'Undo')
+      : h('button', {
+        type: 'button',
+        class: 'onecard__minor',
+        disabled: pending.length < 2,
+        onClick: () => { deferred.add(task.id); renderCards(); },
+      }, icon('down', { size: 15 }), 'Later'),
     h('button', {
       type: 'button',
       class: 'onecard__minor',

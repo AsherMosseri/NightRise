@@ -777,7 +777,6 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .sheet {
   position: fixed;
   left: 50%;
-  bottom: 0;
   width: min(460px, 100%);
   transform: translate(-50%, 100%);
   display: flex;
@@ -790,9 +789,13 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   border-bottom: none;
   box-shadow: var(--shadow-lg);
   transition: transform 240ms var(--ease);
-  /* With the number pad open and a keyboard up, the sheet can outgrow a small
-     phone. It scrolls rather than pushing "Add it" off the bottom. */
-  max-height: 92dvh;
+  /* --kb-height is published by js/render/sheet.js from visualViewport. `dvh`
+     alone does not do what the comment used to claim here: it is the viewport
+     minus browser chrome, and it does not shrink when the iOS software keyboard
+     opens — so a bottom-anchored fixed panel stayed pinned to the layout bottom
+     with the keyboard drawn straight over "Add it". */
+  bottom: var(--kb-height, 0px);
+  max-height: calc(92dvh - var(--kb-height, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -1223,6 +1226,9 @@ body.has-sheet { overflow: hidden; }
   }
   .lightsout { transition: opacity 220ms var(--ease), transform 220ms var(--ease), border-color var(--speed) var(--ease); }
   .lightsout__hint { margin-left: 4px; font-size: 11.5px; max-width: none; white-space: nowrap; }
+  /* .section__bar is what pushed the trailing controls right, and this
+     breakpoint hides it — leaving the ⋯ stranded against the task count. */
+  .section__menu { margin-left: auto; }
   .app { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
   .toasts { bottom: calc(78px + env(safe-area-inset-bottom)); }
   .companion-slot { bottom: calc(74px + env(safe-area-inset-bottom)); }
@@ -1602,3 +1608,15 @@ body.has-sheet { overflow: hidden; }
 }
 .stat--risk { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
 .stat--risk .stat__value { color: var(--warn); }
+
+/* Rungs earned by stopping, said in the ending itself. As toasts they were
+   painted under the blackout — z-index 75 beneath a z-80 panel that is 88%
+   opaque black — and the on-time family can only ever be earned right here. */
+.goodnight__earned {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--accent);
+}

@@ -239,6 +239,7 @@ export function normalizeState(raw, now = new Date()) {
   profile.bestCombo = Math.max(1, Number(profile.bestCombo) || 1);
   profile.dustDebt = Math.max(0, Math.round(Number(profile.dustDebt) || 0));
   profile.lastLightsOutKey = typeof profile.lastLightsOutKey === 'string' ? profile.lastLightsOutKey : null;
+  profile.lastBankedAt = Math.max(0, Number(profile.lastBankedAt) || 0);
   // mergeDefaults copies a value through whenever it is not an object, so a
   // save carrying `tokens: null` or `inventory: "x"` — hand-edited, imported,
   // half-written, or produced by any future bug — arrived here intact and then

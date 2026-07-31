@@ -74,6 +74,12 @@ export function createProfile() {
     bestStreak: 0,
     nightsLogged: 0,
     lastBankedKey: null,
+    // Wall-clock time of the last bank. The night KEY is derived from the
+    // device clock, so every per-date guard in the app is only as honest as
+    // that clock — moving it forward a day and back paid a full night's
+    // rewards, without limit. Two banks less than a few hours apart in real
+    // time did not happen, whatever the calendar says.
+    lastBankedAt: 0,
     // One envelope and one quest reward per date, not per fresh start.
     lastEnvelopeKey: null,
     lastQuestKey: null,

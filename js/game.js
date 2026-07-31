@@ -185,9 +185,14 @@ export function chainLengthFor(night, at, lastMinutes = 0) {
  * resistance — and `applyTaskCompletion` deducts it from what finishing pays,
  * so the total for a task is unchanged and nothing is printed.
  *
- * The ceiling on earning-without-finishing is deliberate and small: twelve
- * tasks started and none finished is 36 XP, less than the completion bonus for
- * a single night. It buys no stardust at all.
+ * It buys no stardust at all — see applyTaskStart for why that has to be spelled
+ * out rather than passed as a zero.
+ *
+ * The XP it can pay is bounded by the same nightly ceiling as everything else
+ * (see `nightBudget`), because "twelve tasks started is only 36 XP" was true of
+ * a twelve-task list and of nothing else: five thousand rows started and none
+ * finished measured 15,000 XP and level 13. A ceiling that holds only at the
+ * size you happened to test it is not a ceiling.
  */
 export const START_ADVANCE_XP = 3;
 
@@ -197,7 +202,15 @@ export function applyTaskStart(state, task, at = Date.now()) {
   // Not a completion: it must not touch the combo, `lastDoneAt` or
   // `lastMinutes`. Momentum is for work you finished.
   night.started[task.id] = { at, xp: START_ADVANCE_XP };
-  grantXp(state, START_ADVANCE_XP, 0);
+  // Not through grantXp. The `0` there only suppresses the direct dust
+  // argument — the level-up loop inside it pays `levelUpDust` on its own, so
+  // "starting buys no stardust" held only until the advances crossed a level
+  // boundary. On the eleven-task starter list that never happens, which is
+  // exactly where the test sampled it; at 27 tasks it paid 60 stardust and at
+  // 5,000 it paid 1,380, with nothing ever completed. The claim is now true by
+  // construction rather than by list size.
+  state.profile.xp = Math.max(0, state.profile.xp + START_ADVANCE_XP);
+  state.profile.level = levelFromXp(state.profile.xp).level;
   return { xp: START_ADVANCE_XP, at };
 }
 

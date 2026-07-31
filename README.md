@@ -54,8 +54,8 @@ About 14,000 lines, and all of it ships as written.
   the next fifteen minutes. Nothing is printed — the advance comes off what finishing
   pays, so `+3` up front becomes "+9 XP left on this one" and finishing lands on the same
   total it always did. Starting buys no stardust, does not feed momentum, and does not
-  move the percentage; the whole list started and nothing done is worth less than a single
-  night's completion bonus, which a test pins. `Done` never gets smaller.
+  move the percentage, and what it can pay is bounded by the same nightly ceiling as
+  everything else. `Done` never gets smaller.
 - **What a task pays, before you do it.** The card says `+12 XP` under the title,
   computed with the identical call chain the payment uses, so the promise and the payout
   cannot drift. It is rendered once and left stale on purpose: the multiplier decays with

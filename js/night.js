@@ -157,7 +157,26 @@ export function bankNight(state, stats) {
   // once against the first night you did work, taking a six-night streak to one.
   // The streak, the freezes, the history entry and the task stats stay untouched.
   if (stats.total === 0) {
-    profile.lastBankedKey = night.key;
+    // Forward only, here too. This used to write the key unconditionally, so a
+    // backwards clock quietly reset the high-water mark and the next honest
+    // night was charged for a gap that never happened.
+    if (!profile.lastBankedKey || keyDiffDays(profile.lastBankedKey, night.key) > 0) {
+      profile.lastBankedKey = night.key;
+    }
+    return result;
+  }
+
+  // A night older than the last one banked is a wrong clock, not a night.
+  //
+  // `gapMissed` clamps a negative day-difference to zero, which reads a night
+  // dated BACKWARDS as "no gap at all" — so `needed` was 0, the streak grew by
+  // one, a history entry appeared and nightsLogged went up, every single time.
+  // Marching the key backwards was an unbounded streak, history and
+  // achievement farm; the on-time and nights families are measured off exactly
+  // these numbers. Treated like the already-banked case: the history entry may
+  // still improve, and nothing else is touched.
+  if (profile.lastBankedKey && keyDiffDays(profile.lastBankedKey, night.key) < 0) {
+    result.alreadyBanked = true;
     return result;
   }
 
@@ -197,6 +216,15 @@ export function bankNight(state, stats) {
  * Roll over to a new night if the clock has crossed the 4am boundary.
  * Returns the banking result, or null when nothing changed.
  */
+/**
+ * The shortest real time in which one night can honestly become the next.
+ *
+ * A night is at least a day long, so six hours is generous — it only has to be
+ * shorter than any real gap and longer than the time it takes to change a
+ * device clock twice.
+ */
+export const MIN_REAL_MS_BETWEEN_BANKS = 6 * 60 * 60 * 1000;
+
 export function rolloverIfNeeded(state, now = new Date()) {
   const key = nightKeyOf(now);
   if (state.night.key === key) return null;
@@ -214,8 +242,25 @@ export function rolloverIfNeeded(state, now = new Date()) {
     if (drift === -1) state.night.key = key;
     return null;
   }
+  // Every per-date guard in this app keys off the night key, and the night key
+  // comes from the device clock — so a clock nudged forward a day and back paid
+  // a full night's task XP, completion bonus, envelope, quest and lights-out
+  // reward, on a loop, with no limit. A calendar day that arrives without real
+  // time passing did not happen: retitle the night so the app is not stuck, and
+  // bank nothing.
+  const elapsed = now.getTime() - (state.profile.lastBankedAt || 0);
+  if (state.profile.lastBankedAt && elapsed < MIN_REAL_MS_BETWEEN_BANKS) {
+    state.night.key = key;
+    return null;
+  }
   const stats = computeStats(state);
   const result = bankNight(state, stats);
+  // Stamped here, from the same clock the guard above reads — not inside
+  // bankNight from `Date.now()`, which is a different clock the moment anything
+  // passes an explicit `now`. And only on this path: "bank tonight and start
+  // fresh" does not advance the date, so stamping there would refuse the real
+  // 4am rollover for six hours afterwards and the night would never bank.
+  state.profile.lastBankedAt = now.getTime();
   state.night = createNight(key);
   return result;
 }

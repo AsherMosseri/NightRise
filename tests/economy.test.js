@@ -9,7 +9,7 @@ import {
   toggleTask, toggleSkip, deleteTask, deleteSection, undo, claimQuest, addTask, addSection,
   setTaskMinutes, pushUndo,
 } from '../js/actions.js';
-import { createInitialState } from '../js/model.js';
+import { createInitialState, createSection, createTask, emptyTemplate } from '../js/model.js';
 import { computeStats, forceNewNight } from '../js/night.js';
 import {
   grantXp, revokeGrant, applyTaskStart, applyTaskCompletion, revokeTaskCompletion,
@@ -375,17 +375,28 @@ test('un-checking a started task keeps the advance and takes back the rest', () 
   assert.ok(state.night.started[task.id], 'the record of having started stays');
 });
 
-test('starting everything and finishing nothing has a small ceiling', () => {
-  // The one way to earn without finishing. The bound is stated here so it stays
-  // bounded: the whole list started and nothing done is worth less than a
-  // single night's completion bonus.
-  const state = reset();
-  const tasks = Object.values(state.template.tasks);
-  for (const task of tasks) applyTaskStart(state, task, 1000);
-  assert.equal(state.profile.xp, tasks.length * START_ADVANCE_XP);
-  assert.ok(state.profile.xp < nightCompletionBonus(computeStats(state)).xp,
-    'less than finishing the list pays as a bonus, on its own');
-  assert.equal(state.profile.stardust, 0);
+test('starting buys no stardust, at any list size', () => {
+  // This sampled an eleven-task list, which is the one size where the claim
+  // held by accident. applyTaskStart paid through grantXp(state, XP, 0), and
+  // the `0` only suppresses the direct dust argument — grantXp's level-up loop
+  // pays levelUpDust on its own. At 27 rows that crossed level 2 and paid 60
+  // stardust; at 5,000 rows it paid 1,380, with nothing ever completed. The
+  // code comment and the README both asserted the opposite.
+  for (const count of [11, 27, 100, 1000]) {
+    const state = reset();
+    state.template = emptyTemplate();
+    const section = createSection('S');
+    state.template.sections[section.id] = section;
+    state.template.order.push(section.id);
+    for (let i = 0; i < count; i += 1) {
+      const task = createTask(`t${i}`, 0);
+      state.template.tasks[task.id] = task;
+      section.taskIds.push(task.id);
+    }
+    for (const task of Object.values(state.template.tasks)) applyTaskStart(state, task, 1000);
+    assert.equal(state.profile.stardust, 0, `${count} rows started, nothing finished`);
+    assert.equal(state.profile.xp, count * START_ADVANCE_XP);
+  }
 });
 
 test('undo settles awards by amount, not by presence', () => {

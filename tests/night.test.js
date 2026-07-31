@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak, effectiveLightsOutStreak,
+  MIN_REAL_MS_BETWEEN_BANKS,
   advanceLightsOutStreak,
 } from '../js/night.js';
 import { createInitialState, createNight, starterTemplate } from '../js/model.js';
@@ -448,4 +449,47 @@ test('the bedtime streak lapses when you stop pressing Lights out', () => {
   assert.equal(effectiveLightsOutStreak(state, new Date('2026-07-29T22:00:00')), 5);
   state.profile.lightsOut.lastKey = '2026-07-29';
   assert.equal(effectiveLightsOutStreak(state, new Date('2026-07-29T22:00:00')), 5);
+});
+
+test('a night dated earlier than the last one banked is a wrong clock, not a night', () => {
+  // `gapMissed` clamps a negative day-difference to zero, which read a night
+  // dated BACKWARDS as "no gap at all" — so the streak grew by one, a history
+  // entry appeared and nightsLogged went up, every single time. The on-time and
+  // nights achievement families are measured off exactly those numbers.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.lastBankedKey = '2026-07-29';
+  state.profile.streak = 3;
+  const ids = Object.keys(state.template.tasks);
+
+  for (let i = 0; i < 50; i += 1) {
+    state.night = createNight('2026-07-2' + (i % 8));
+    for (const id of ids) state.night.done[id] = Date.now();
+    bankNight(state, computeStats(state));
+  }
+  assert.equal(state.profile.streak, 3, 'the streak is untouched');
+  assert.equal(state.profile.nightsLogged, 0);
+  assert.equal(state.profile.lastBankedKey, '2026-07-29', 'the high-water mark holds');
+});
+
+test('a calendar day that arrives without real time passing did not happen', () => {
+  // Every per-date guard in the app keys off the night key, and the night key
+  // comes from the device clock — so nudging it forward a day and back paid a
+  // full night's task XP, completion bonus, envelope, quest and lights-out
+  // reward, on a loop, with no limit.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  for (const id of Object.keys(state.template.tasks)) state.night.done[id] = Date.now();
+
+  let banked = 0;
+  for (let i = 0; i < 50; i += 1) {
+    if (rolloverIfNeeded(state, new Date(2026, 6, 30, 22, 0))) banked += 1;
+    rolloverIfNeeded(state, new Date(2026, 6, 29, 22, 0));
+  }
+  assert.equal(banked, 1, '50 nudges, one night');
+
+  // And an honest day still rolls over: the guard is on real elapsed time, and
+  // a night is at least a day long.
+  const honest = createInitialState(new Date(2026, 6, 29, 22, 0));
+  honest.profile.lastBankedAt = new Date(2026, 6, 29, 4, 0).getTime();
+  for (const id of Object.keys(honest.template.tasks)) honest.night.done[id] = Date.now();
+  assert.ok(rolloverIfNeeded(honest, new Date(2026, 6, 30, 22, 0)), 'a real day later banks');
 });

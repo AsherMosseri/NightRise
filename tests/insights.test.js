@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { nightsFullyCleared, overallRate, taskInsights, topNudge } from '../js/insights.js';
+import { nightsFullyCleared, overallRate, taskInsights, topNudge, onTimeNights } from '../js/insights.js';
 import { ACHIEVEMENTS } from '../js/achievements.js';
 import { createInitialState, createTask } from '../js/model.js';
 
@@ -103,3 +103,23 @@ function addTaskTo(state, sectionId, title) {
   state.template.sections[sectionId].taskIds.push(task.id);
   return task.id;
 }
+
+test('the sky records the nights you went to bed on time', () => {
+  // Not bought — earned by sleeping, and the only thing here that grows
+  // forever. Tonight is on loan until 4am, the same rule the `cleared` family
+  // uses, so the star appears the moment you press the button rather than at
+  // the rollover that writes the history entry it will later be read from.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.history = {
+    '2026-07-26': { total: 3, done: 3, pct: 100, xp: 30, onTime: true },
+    '2026-07-27': { total: 3, done: 3, pct: 100, xp: 30, onTime: false },
+    '2026-07-28': { total: 3, done: 3, pct: 100, xp: 30, onTime: true },
+  };
+  assert.deepEqual(onTimeNights(state), ['2026-07-26', '2026-07-28']);
+
+  state.night.lightsOutOnTime = true;
+  assert.deepEqual(onTimeNights(state), ['2026-07-26', '2026-07-28', '2026-07-29']);
+  // And banking it must not double it.
+  state.history['2026-07-29'] = { total: 3, done: 3, pct: 100, xp: 30, onTime: true };
+  assert.deepEqual(onTimeNights(state), ['2026-07-26', '2026-07-28', '2026-07-29']);
+});

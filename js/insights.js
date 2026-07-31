@@ -76,6 +76,21 @@ export function topNudge(state) {
   };
 }
 
+/**
+ * Every date you ended before your bedtime, plus tonight if you just did.
+ *
+ * Tonight is on loan until 4am — the same rule the `cleared` achievement family
+ * uses — because the star should appear the moment you press the button, and
+ * the history entry it will be read from does not exist until the night banks.
+ */
+export function onTimeNights(state) {
+  const keys = Object.entries(state.history)
+    .filter(([, entry]) => entry?.onTime)
+    .map(([key]) => key);
+  if (state.night.lightsOutOnTime && !keys.includes(state.night.key)) keys.push(state.night.key);
+  return keys.sort();
+}
+
 export function overallRate(state) {
   const history = Object.values(state.history);
   if (!history.length) return null;

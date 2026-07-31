@@ -12,7 +12,7 @@ import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemaining
 import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../companion.js';
 import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
 import { achievementBoard, totalTiers, checkAchievements } from '../achievements.js';
-import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
+import { taskInsights, reliableTasks, overallRate, nightsFullyCleared, onTimeNights } from '../insights.js';
 import { forceNewNight, computeStats, effectiveStreak, effectiveLightsOutStreak } from '../night.js';
 import { still, growTo } from './motion.js';
 import {
@@ -429,7 +429,13 @@ VIEWS.history = () => {
         h('div', {
           class: 'stat-box',
           title: 'Nights you ticked off every task on the list. Nothing to do with what time you went to bed — a rain-checked task does not count as done.',
-        }, h('strong', {}, String(cleared)), h('span', {}, 'every task done'))),
+        }, h('strong', {}, String(cleared)), h('span', {}, 'every task done')),
+        // The record, in words as well as in pixels. Every one of these is a
+        // star in your own sky, and it is the only thing here you cannot buy.
+        h('div', {
+          class: 'stat-box',
+          title: 'Every one of these is a star in your sky. Not bought — earned by going to bed on time. Look up during the good-night screen.',
+        }, h('strong', {}, String(onTimeNights(state).length)), h('span', {}, 'stars in your sky'))),
       h('div', { class: 'heatmap' }, ...cells),
       h('div', { class: 'heatmap__key' },
         h('span', { class: 'muted small' }, 'less'),

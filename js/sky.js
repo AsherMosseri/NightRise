@@ -22,6 +22,7 @@ let meteors = [];
 let trailParticles = [];
 let bursts = [];
 let constellations = [];
+let nightStars = [];
 
 let moonFill = 0;
 let moonFillTarget = 0;
@@ -96,10 +97,41 @@ function placeConstellations(list) {
 }
 
 let constellationSource = [];
+let nightStarKeys = [];
 
 export function setConstellations(list) {
   constellationSource = list || [];
   if (width) placeConstellations(constellationSource);
+}
+
+/**
+ * One star for every night you went to bed on time.
+ *
+ * Not bought — earned by sleeping. It is the only thing in the app that grows
+ * forever, and it is a picture of the one behaviour the app exists to cause.
+ * Placed by a seed derived from the night key, so a given night always lands in
+ * the same spot and the sky you built is stable across reloads and devices.
+ */
+export function setNightStars(keys) {
+  nightStarKeys = keys || [];
+  if (width) placeNightStars(nightStarKeys);
+}
+
+function placeNightStars(keys) {
+  nightStars = keys.map((key) => {
+    const rand = seededRandom(hashString(`night-star:${key}`));
+    // Spread over the whole sky, not the top third. During the night the panels
+    // cover the middle and only the ones in the margins show — which is fine,
+    // because the surface this is really for is the ending, where the app fades
+    // away and the sky is all that is left.
+    return {
+      key,
+      x: 0.03 * width + rand() * (width * 0.94),
+      y: 0.04 * height + rand() * (height * 0.92),
+      r: 1.2 + rand() * 1.0,
+      phase: rand() * Math.PI * 2,
+    };
+  });
 }
 
 /**
@@ -139,6 +171,7 @@ function resize(force = false) {
   topInset = bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
   buildStars();
   placeConstellations(constellationSource);
+  placeNightStars(nightStarKeys);
   if (reducedMotion || !running) drawFrame(performance.now());
 }
 
@@ -456,6 +489,31 @@ function drawConstellations(time) {
   ctx.globalAlpha = 1;
 }
 
+/**
+ * The record, drawn. Warm rather than accent-coloured so it reads as something
+ * of yours rather than as another unlockable, and always at least as bright as
+ * an ordinary star — a night you actually went to bed on time should not be
+ * indistinguishable from the background.
+ */
+function drawNightStars(time) {
+  if (!nightStars.length) return;
+  ctx.fillStyle = colors.moon || colors.star;
+  for (const s of nightStars) {
+    const twinkle = reducedMotion ? 0.72 : 0.6 + 0.22 * Math.sin(time / 2600 + s.phase);
+    const x = s.x + parallax.x * 5;
+    const y = s.y + parallax.y * 4;
+    ctx.globalAlpha = twinkle;
+    ctx.beginPath();
+    ctx.arc(x, y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = twinkle * 0.22;
+    ctx.beginPath();
+    ctx.arc(x, y, s.r * 4.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawMeteors() {
   for (const m of meteors) {
     const gradient = ctx.createLinearGradient(m.x, m.y, m.x - m.vx * m.len * 0.1, m.y - m.vy * m.len * 0.1);
@@ -622,6 +680,7 @@ function drawFrame(time) {
   ctx.restore();
   drawStars(time);
   drawConstellations(time);
+  drawNightStars(time);
   drawMoon(time);
   drawRibbons();
   drawRings();

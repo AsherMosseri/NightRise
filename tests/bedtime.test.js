@@ -150,3 +150,19 @@ test('what tomorrow is teased as is what tomorrow pays', () => {
     assert.equal(typeof rare, 'boolean');
   }
 });
+
+test('stopping early with an untouched list is not the best move in the game', () => {
+  // `+ stats.done * 2` was far too weak to matter: ninety minutes early with
+  // an untouched eleven-task list paid 128 XP and 38 stardust — ten tasks'
+  // worth for holding a button — so opening the app and immediately ending the
+  // night beat doing anything at all.
+  const nothing = lightsOutReward(90, { done: 0, total: 11, counted: 11 });
+  const everything = lightsOutReward(90, { done: 11, total: 11, counted: 11 });
+  assert.ok(everything.xp > nothing.xp * 2, 'clearing the list is worth much more than not');
+  assert.ok(everything.dust > nothing.dust * 2);
+
+  // But a bad night must still be worth ending — that is the whole argument.
+  assert.ok(nothing.xp > lightsOutReward(-30, { done: 11, total: 11, counted: 11 }).xp,
+    'stopping early having done nothing still beats stopping late having done everything');
+  assert.ok(nothing.dust > 0);
+});

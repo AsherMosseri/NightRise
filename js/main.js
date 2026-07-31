@@ -14,8 +14,9 @@ import { openAddTask, openAddSection } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
 import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown } from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
-import { initSky, setMoonFill, setTrail, setConstellations, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
+import { initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations } from './constellations.js';
+import { onTimeNights } from './insights.js';
 import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
 import { titleForLevel } from './game.js';
 import { checkAchievements } from './achievements.js';
@@ -66,6 +67,9 @@ function applyCosmetics() {
   setTrail(equipped.trail);
   setReducedMotion(reducedMotionActive(state));
   setConstellations(completedConstellations(state).map((c) => ({ id: c.id, stars: c.stars, lines: c.lines })));
+  // The one thing in this app that grows forever, and the only one you cannot
+  // buy: a star for every night you actually went to bed on time.
+  setNightStars(onTimeNights(state));
 }
 
 function syncSky() {
@@ -232,7 +236,13 @@ function wireEffects() {
 
   on('lightsout', ({ reward, onTime }) => {
     if (reward) audio.play('complete');
-    if (onTime) celebrateBurst();
+    if (onTime) {
+      celebrateBurst();
+      // Tonight's star, added the moment you earn it rather than at 4am. The
+      // ending fades the app away and leaves the sky, so it is the thing you
+      // are actually looking at when it arrives.
+      setNightStars(onTimeNights(getState()));
+    }
   });
 
   on('equip', () => applyCosmetics());

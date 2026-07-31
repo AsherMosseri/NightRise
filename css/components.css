@@ -1260,18 +1260,33 @@ body.has-sheet { overflow: hidden; }
 /* The ending: the app takes the screen away instead of handing it back lit. */
 .goodnight { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
 .goodnight:empty { display: none; }
+/* A vignette, not a sheet.
+   The last four seconds of every night used to hide the sky — a flat #04050c
+   over the canvas, which is the thing you spent three thousand stardust on and
+   the thing that carries a star for every night you got to bed on time. The app
+   fades away and the sky stays: darker at the edges, clear in the middle, and
+   the deep stage takes the middle down too so the screen still ends black. */
 .goodnight::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: #04050c;
-  /* 0.88, not 0.94. The deep stage used to travel from 0.94 to 0.995 — a five
-     percent alpha change over near-black, which is to say nothing at all. The
-     last beat of the app's ending did not render. */
-  opacity: 0.88;
-  transition: opacity 3s var(--ease);
+  background:
+    radial-gradient(120% 90% at 50% 45%, rgba(4, 5, 12, 0.42) 0%, rgba(4, 5, 12, 0.82) 55%, #04050c 100%);
+  transition: opacity 3s var(--ease), background 3s var(--ease);
 }
-.is-goodnight-deep .goodnight::before { opacity: 1; }
+.is-goodnight-deep .goodnight::before {
+  background: radial-gradient(120% 90% at 50% 45%, rgba(4, 5, 12, 0.94) 0%, #04050c 60%);
+}
+
+/* The app itself goes, rather than being covered. They are already inert and
+   pointer-inert here; this is the visual half of the same statement. */
+.is-goodnight .topbar,
+.is-goodnight .app,
+.is-goodnight .companion-slot,
+.is-goodnight .quick-add {
+  opacity: 0;
+  transition: opacity 900ms var(--ease);
+}
 
 .goodnight__panel {
   position: absolute;

@@ -5,7 +5,7 @@ import {
   xpForLevel, levelFromXp, titleForLevel, nextTitle, comboMultiplier, taskXp,
   stardustFor, grantXp, applyTaskCompletion, revokeTaskCompletion, chainLengthFor,
   nightCompletionBonus, COMBO_MAX, MOMENTUM_MIN_GAP_MS, momentumWindow,
-  TITLES, titleLadder,
+  TITLES, titleLadder, minuteCurve, TASK_FULL_MINUTES,
 } from '../js/game.js';
 import { ACHIEVEMENTS } from '../js/achievements.js';
 import { QUEST_DEFS } from '../js/quests.js';
@@ -42,6 +42,45 @@ test('the combo multiplier steps up and caps', () => {
   assert.equal(comboMultiplier(2), 1.25);
   assert.equal(comboMultiplier(5), 2);
   assert.equal(comboMultiplier(50), COMBO_MAX);
+});
+
+test('the row taper leaves every real bedtime task exactly as it was', () => {
+  // The whole design of the row taper is that nobody with an honest list ever
+  // notices it. A shower, a tidy, a stretch, twenty minutes of reading — all of
+  // it sits inside the full-pay band and is priced linearly, as it always was.
+  for (const minutes of [0, 0.5, 1, 2, 5, 7.5, 10, 15, 20, 25, 30]) {
+    assert.equal(minuteCurve(minutes), minutes, `${minutes}m must be untouched`);
+    assert.equal(taskXp(minutes), Math.max(1, Math.round(10 + minutes)));
+  }
+});
+
+test('the row taper is monotonic and smooth at the join', () => {
+  // Monotonic so raising an estimate can never lower what the row pays — the
+  // same property that stops a tap costing you XP, one level down. Smooth so
+  // there is no step at the boundary to notice or to game.
+  let previous = -1;
+  for (let m = 0; m <= 600; m += 0.5) {
+    const value = minuteCurve(m);
+    assert.ok(value >= previous, `minuteCurve fell between ${m - 0.5} and ${m}`);
+    previous = value;
+  }
+  const step = minuteCurve(TASK_FULL_MINUTES + 0.5) - minuteCurve(TASK_FULL_MINUTES);
+  assert.ok(step > 0.45 && step <= 0.5, `slope at the join is ${step / 0.5}, not ~1`);
+});
+
+test('the longest row the app allows cannot out-earn an honest night', () => {
+  // This is what the row taper is for. `taskXp` was flat 10 + minutes all the
+  // way to the 600-minute ceiling, so one ten-hour row paid 765 XP for a single
+  // tap — more than a genuine eighteen-task night pays for eighteen taps. The
+  // night taper could not see it: one row of face 1,525 looks exactly like a
+  // long honest night from the outside.
+  const longestRow = taskXp(600, COMBO_MAX);
+  const honestNight = 18 * taskXp(8, COMBO_MAX);
+  assert.ok(longestRow < honestNight / 2,
+    `one 600-minute row is worth ${longestRow} face against a night's ${honestNight}`);
+  // Still worth more than a short one, because it is still more work.
+  assert.ok(taskXp(600) > taskXp(30), 'a longer task must always be worth more');
+  assert.ok(taskXp(600) < 3 * taskXp(30), 'but not twenty times more');
 });
 
 test('task xp scales with minutes and multiplier', () => {

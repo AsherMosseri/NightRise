@@ -618,3 +618,22 @@ test('a settled night pays what the README says a settled night pays', () => {
   assert.ok(paid >= 120 && paid <= 145,
     `a settled eighteen-row night paid ${paid} stardust; the README says about 131`);
 });
+
+test('stopping early pays the same whether your list was short or long', () => {
+  // Lights out sits outside the taper on purpose, and it used to carry a
+  // `+ done * 2` term — a per-row payment in the one reward meant to be free of
+  // them. Three tasks finished and ended at ten o'clock earned less for
+  // stopping than eighteen did, which is the same padding pressure the taper
+  // exists to remove, in the last place it should be.
+  const ended = (total) => lightsOutReward(45, { total, counted: total, done: total });
+  assert.deepEqual(ended(3), ended(18), 'a short honest night ends for what a long one does');
+  assert.deepEqual(ended(3), ended(40));
+  // It still follows the fraction, so an untouched list is not worth ending for
+  // the same amount as a finished one.
+  const untouched = lightsOutReward(45, { total: 18, counted: 18, done: 0 });
+  assert.ok(untouched.xp < ended(18).xp / 2, 'doing none of it must still pay less');
+  assert.ok(untouched.xp > 0, 'but a bad night must still be worth ending');
+  // And earlier is still better than later, at every list size.
+  assert.ok(lightsOutReward(90, { total: 5, counted: 5, done: 5 }).xp
+    > lightsOutReward(10, { total: 5, counted: 5, done: 5 }).xp);
+});

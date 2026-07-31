@@ -53,13 +53,21 @@ export function lightsOutReward(minutesEarly, stats) {
   if (!stats || stats.total === 0) return { xp: 15, dust: 3 };
   if (minutesEarly <= 0) return { xp: 15, dust: 3 };
   const capped = Math.min(minutesEarly, 90);
-  // Scaled by how much of the night you actually did, not just by the clock.
-  // `+ stats.done * 2` was far too weak to matter: stopping ninety minutes
-  // early with an untouched eleven-task list paid 128 XP and 38 stardust — ten
-  // tasks' worth for holding a button — so the best move in the game was to
-  // open the app and immediately close it. A third of the reward is
-  // unconditional, because stopping early genuinely is the point and a bad
-  // night must still be worth ending; the rest follows the work.
+  // Scaled by how much of the night you actually did, not just by the clock:
+  // stopping ninety minutes early with an untouched eleven-task list used to pay
+  // 128 XP and 38 stardust — ten tasks' worth for holding a button — so the best
+  // move in the game was to open the app and immediately close it. A third of
+  // the reward is unconditional, because stopping early genuinely is the point
+  // and a bad night must still be worth ending; the rest follows the work.
+  //
+  // It follows the FRACTION and nothing else. There used to be a `+ done * 2`
+  // term, left over from the version where it was the only scaling and never
+  // removed when `share` replaced it. That made this — the one reward that sits
+  // outside the taper on purpose — pay per row again, so three tasks finished
+  // and ended at ten o'clock earned less for stopping than eighteen did. It is
+  // the same padding pressure the taper exists to remove, in the last place it
+  // should be. A short honest night now ends for exactly what a long one does.
+  //
   // `counted` is the total minus rain checks, which is the denominator the
   // percentage uses; a task you excused should not count against you here
   // either. Falling back through total and then done keeps a partial stats
@@ -68,7 +76,7 @@ export function lightsOutReward(minutesEarly, stats) {
   const scope = Math.max(1, Number(stats.counted) || Number(stats.total) || done || 1);
   const share = 1 / 3 + (2 / 3) * Math.min(1, done / scope);
   return {
-    xp: Math.round((20 + capped * 1.2 + done * 2) * share),
+    xp: Math.round((26 + capped * 1.5) * share),
     dust: Math.round((6 + capped * 0.35) * share),
   };
 }

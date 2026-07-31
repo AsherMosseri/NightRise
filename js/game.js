@@ -85,8 +85,40 @@ export function comboMultiplier(chainLength) {
   return clamp(1 + (Math.max(1, chainLength) - 1) * COMBO_STEP, 1, COMBO_MAX);
 }
 
+/**
+ * The row taper — the same rule as the night's, one level down.
+ *
+ * `taskXp` was `10 + minutes`, flat, all the way to the 600-minute ceiling the
+ * duration field allows. The night taper bounds an evening, not a row, so the
+ * cheapest way to earn was still to type one number: a single ten-hour row paid
+ * 765 XP for one tap, more than a genuine eighteen-task night pays for eighteen.
+ * The taper could not catch it, because one row of face 1,525 is exactly what a
+ * long honest night looks like from the outside.
+ *
+ * So a row's minutes get their own full-pay band and their own log tail. Below
+ * `TASK_FULL_MINUTES` nothing changes at all, which is every real task on a
+ * bedtime list — a shower, a tidy, a stretch, twenty minutes of reading. Past it
+ * a longer estimate is still worth more, just never proportionally more: the
+ * ten-hour row is now worth about twice the half-hour one rather than twenty
+ * times it.
+ *
+ * Same three properties as `nightCurve`, for the same reasons: continuous and
+ * smooth at the join (slope 1 on both sides), strictly concave after it, and
+ * monotonic — so raising a task's estimate can never lower what it pays, and no
+ * edit to a minute field can make a tap cost you XP.
+ */
+export const TASK_FULL_MINUTES = 30;
+export const TASK_TAPER_MINUTES = 20;
+
+export function minuteCurve(minutes) {
+  const m = Math.max(0, minutes || 0);
+  if (m <= TASK_FULL_MINUTES) return m;
+  return TASK_FULL_MINUTES + TASK_TAPER_MINUTES
+    * Math.log1p((m - TASK_FULL_MINUTES) / TASK_TAPER_MINUTES);
+}
+
 export function taskXp(minutes, multiplier = 1) {
-  return Math.max(1, Math.round((BASE_TASK_XP + Math.max(0, minutes || 0)) * multiplier));
+  return Math.max(1, Math.round((BASE_TASK_XP + minuteCurve(minutes)) * multiplier));
 }
 
 /**
@@ -117,7 +149,7 @@ export function levelUpDust(level) {
 /**
  * How much of a night's face value the night actually pays.
  *
- * The economy used to price ROWS, not evenings. `taskXp` is `10 + minutes`, and
+ * The economy used to price ROWS, not evenings. `taskXp` was `10 + minutes`, and
  * that flat 10 is a per-row subsidy — so the same forty-five minutes of work
  * paid 183 XP written as four tasks and 6,440 written as four hundred, a factor
  * of thirty-five. `nightCompletionBonus` is `40 + total * 6`, a second per-row

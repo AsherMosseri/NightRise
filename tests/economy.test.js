@@ -13,7 +13,7 @@ import { createInitialState, createSection, createTask, emptyTemplate } from '..
 import { computeStats, forceNewNight } from '../js/night.js';
 import {
   grantXp, revokeGrant, applyTaskStart, applyTaskCompletion, revokeTaskCompletion,
-  nightCompletionBonus, START_ADVANCE_XP, NIGHT_FULL_XP,
+  nightCompletionBonus, START_ADVANCE_XP, NIGHT_FULL_XP, levelFromXp, COMBO_MAX,
 } from '../js/game.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
 import { equipItem } from '../js/shop.js';
@@ -22,6 +22,27 @@ import { worthOf } from '../js/render/cards.js';
 function reset() {
   replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
   return getState();
+}
+
+/**
+ * Run a block with the clock advancing a fixed step per read.
+ *
+ * Momentum keys off the gap between check-offs, so a test that toggles in a
+ * tight loop measures a x1 night no matter what it says it is measuring. Pass
+ * the gap you mean.
+ */
+function withClock(stepMs, body) {
+  const real = Date.now;
+  let t = real.call(Date);
+  Date.now = () => {
+    t += stepMs;
+    return t;
+  };
+  try {
+    return body();
+  } finally {
+    Date.now = real;
+  }
 }
 
 const balance = () => {
@@ -514,11 +535,17 @@ test('the taper bounds the night without ever paying a negative amount', () => {
     section.taskIds.push(task.id);
   }
   replaceState(state);
-  for (const id of Object.keys(getState().template.tasks)) {
-    const before = getState().profile.xp;
-    toggleTask(id);
-    assert.ok(getState().profile.xp >= before, 'no tap may cost you XP');
-  }
+  // Paced, not hammered. Momentum now rises on gaps that look like you went and
+  // did the thing, so a burst of instant taps sits at x1 — this test used to
+  // claim maximum momentum while measuring the cheapest possible night.
+  withClock(60 * 1000, () => {
+    for (const id of Object.keys(getState().template.tasks)) {
+      const before = getState().profile.xp;
+      toggleTask(id);
+      assert.ok(getState().profile.xp >= before, 'no tap may cost you XP');
+    }
+  });
+  assert.equal(getState().night.combo, COMBO_MAX, 'the worst case is the paced one');
   // 400 rows of the longest task the app allows, at maximum momentum, used to
   // be worth 246,440 XP. The whole sink is 8,525 stardust.
   assert.ok(getState().profile.xp < 2500, `one night paid ${getState().profile.xp} XP`);
@@ -539,11 +566,55 @@ test('the same evening pays roughly the same however finely it is written', () =
       section.taskIds.push(task.id);
     }
     replaceState(state);
-    for (const id of Object.keys(getState().template.tasks)) toggleTask(id);
+    withClock(60 * 1000, () => {
+      for (const id of Object.keys(getState().template.tasks)) toggleTask(id);
+    });
     return getState().profile.xp;
   };
   // It was 35x. It is not 1x and should not be — a longer list is more work and
   // has to be worth more — but splitting is no longer the best move in the game.
+  // Measured paced rather than hammered, which is the version that pays most.
   const ratio = evening(400) / evening(4);
   assert.ok(ratio < 8, `400 rows pays ${ratio.toFixed(1)}x what 4 rows pays`);
+});
+
+test('a settled night pays what the README says a settled night pays', () => {
+  // The README quotes a stardust-per-night figure and paces every sink off it.
+  // That number is the whole argument for the rebalance, so it is measured here
+  // rather than remembered: eighteen rows, all ticked, quest claimed, lights out
+  // on time, on a profile too high for a level-up to inflate the total.
+  const state = reset();
+  state.template = emptyTemplate();
+  const section = createSection('S');
+  state.template.sections[section.id] = section;
+  state.template.order.push(section.id);
+  for (let i = 0; i < 18; i += 1) {
+    const task = createTask(`t${i}`, 8);
+    state.template.tasks[task.id] = task;
+    section.taskIds.push(task.id);
+  }
+  // High enough that tonight's XP cannot cross a rung, so no level-up stardust.
+  state.profile.xp = 4_000_000;
+  state.profile.level = levelFromXp(state.profile.xp).level;
+  state.profile.stardust = 0;
+  replaceState(state);
+  const paced = () => withClock(60 * 1000, () => {
+    for (const id of Object.keys(getState().template.tasks)) toggleTask(id);
+  });
+  // Settle the one-time ledgers first. The momentum rungs pay 150 stardust the
+  // first time you reach x2.5, ever, which is real income on an early night and
+  // no income at all on a later one — the number the sinks are paced against is
+  // the later one.
+  paced();
+  update((s) => forceNewNight(s, '2026-07-30'));
+  update((s) => { s.profile.stardust = 0; });
+  paced();
+  claimQuest();
+  update((s) => {
+    const reward = lightsOutReward(45, computeStats(s));
+    s.profile.stardust += reward.dust;
+  });
+  const paid = getState().profile.stardust;
+  assert.ok(paid >= 120 && paid <= 145,
+    `a settled eighteen-row night paid ${paid} stardust; the README says about 131`);
 });

@@ -80,8 +80,8 @@ About 14,000 lines, and all of it ships as written.
   face runs through one curve: the first 450 XP of a night pays pound for pound, which
   covers a good honest night with headroom, and past that each further pound pays a little
   less than the one before. No wall — a longer list always earns more, just never
-  proportionally more. The same evening now varies 5.5x across granularities instead of
-  35x, and four hundred ten-hour rows at perfect momentum pay 2,146 XP instead of
+  proportionally more. The same evening now varies 6.1x across granularities instead of
+  35x, and four hundred ten-hour rows at perfect momentum pay 1,696 XP instead of
   4,928,040.
 - **Reversibility is structural, not maintained.** What the profile holds from tonight is
   a pure function of the face tonight holds, so any sequence returning the records to a
@@ -94,6 +94,20 @@ About 14,000 lines, and all of it ships as written.
   the moment a long list stops being worth much, going to bed becomes the best-paying
   thing left, and the card says so: *"+3 XP · tonight has had its fill — lights out still
   pays in full"*. The arithmetic finally agrees with the prose.
+- **Stardust is slower now, and it has to be.** An eighteen-row night used to pay out
+  fast enough to own every sky, every companion and every constellation inside about a
+  fortnight — and an app you have finished is an app you stop opening. Task stardust went
+  from `xp/5` to `xp/8`, and the three places a reset could mint fresh dust were closed:
+  clearing your progress no longer forgets which levels and achievement rungs have already
+  been paid for, clearing your stardust no longer forgets what you owe, and clearing your
+  unlocks no longer leaves you holding the freezes and rain checks it refunded. **Nobody
+  loses savings over it** — the migration multiplies the balance you already had, so a
+  jar of dust buys exactly what it bought the day before the change.
+- What that buys, simulated through the real action layer rather than estimated. A solid
+  eighteen-row night — everything ticked, quest claimed, lights out on time — pays about
+  **200 stardust early on** and settles to **131** once the level-ups thin out. Saving
+  every night's worth from a standing start, the whole market is affordable on **night 59**,
+  a companion's last tier on night 3, and the star map is the long game below.
 
 **The night cycle**
 - A night rolls over at **4am**, so anything you tick off at 1am still counts for the
@@ -191,7 +205,21 @@ it's the scroll.
 - **Companions** — an owl, cat, fox or bat that lives in the corner, reacts to your
   progress, and evolves through four tiers as you feed it.
 - **Star map** — light constellations one star at a time. Finish one and it is drawn
-  permanently into your night sky.
+  permanently into your night sky. Twenty real figures, from Ursa Minor's little dipper to
+  Scorpius' hook, each one placed where it actually sits and joined along the lines people
+  actually draw. They are ordered by price so the map ramps: Delphinus and Corona Borealis
+  are small and early, Perseus and Scorpius are large and late. Ursa Minor is yours on the
+  first night; all twenty shapes are 152 stars and 23,342 dust, which lands around
+  **night 134**.
+- **And then the faint stars.** A finished constellation used to be finished, which made
+  the whole map a thing you could run out of. Now every figure keeps going: past its last
+  bright star the button offers **a fainter star**, drawn smaller and dimmer and left
+  unjoined, filling in the real sky around the shape you already own. 229 of them across
+  the twenty, on the same escalating curve, which is 87,691 more dust: the whole map, both
+  tiers, is **night 713**. Not endless — when a figure's last faint star is lit its button
+  goes quiet rather than inventing more, because an invented star beside Cassiopeia reads
+  as the real content having run out. Just long enough that it is never the reason you
+  stop opening the app.
 - **Sounds, trails and type** — swappable sound packs, pointer trails and font packs.
 - **Supplies** — Streak Freezes and Rain Checks (a rain check excuses one task from
   tonight's percentage).

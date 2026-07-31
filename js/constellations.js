@@ -9,8 +9,10 @@
    collected.
 
    Not "endless" — that word was here before and it was not true of forty-seven
-   stars. It is finite and it is long: the whole map, both tiers, is on the order
-   of a year of nightly play at the current earning rate. Deliberately no
+   stars. It is finite and it is long: 152 bright stars and 229 faint ones,
+   111,033 stardust, which simulates at night 713 of solid play at the current
+   earning rate. When the last faint star of a figure is lit its button goes
+   quiet rather than inventing more. Deliberately no
    procedurally-generated constellations: a random scatter of points joined by
    random lines reads as noise, and an invented name beside Cassiopeia reads as
    the real content having run out. */

@@ -47,6 +47,23 @@ About 14,000 lines, and all of it ships as written.
 - **One at a time** (`F`) hides the list and shows a single task with a check target
   filling the bottom third of the screen. A twelve-row list at 11:40pm is twelve
   decisions; a card is a prompt. `Later` pushes one to the back of the sitting.
+- **The app pays for starting, not only for finishing.** The whole economy used to pay at
+  the far end of a task, which for someone who dreads the task puts every bit of the
+  reward on the other side of the exact moment they bail. The card leads with **Start it**:
+  a small advance, the clock running, and an ask about the next three seconds rather than
+  the next fifteen minutes. Nothing is printed — the advance comes off what finishing
+  pays, so `+3` up front becomes "+9 XP left on this one" and finishing lands on the same
+  total it always did. Starting buys no stardust, does not feed momentum, and does not
+  move the percentage; the whole list started and nothing done is worth less than a single
+  night's completion bonus, which a test pins. `Done` never gets smaller.
+- **What a task pays, before you do it.** The card says `+12 XP` under the title,
+  computed with the identical call chain the payment uses, so the promise and the payout
+  cannot drift. It is rendered once and left stale on purpose: the multiplier decays with
+  wall-clock time, and a number ticking down while you decide is a pressure clock.
+- **The clock survives leaving the card.** Press `Later`, glance at the list, background
+  the phone — the minutes are still there when you come back, and the card says "4m in
+  already". It is paused on every exit and never restored running, because a clock that
+  keeps counting while you are elsewhere is a guilt machine.
 - **A timer that refuses to end.** Each card counts down from its own estimate (`T`, or
   automatically if you turn that on in Settings). At zero it does not alarm, block or ask
   to be dismissed — it turns over and counts *up* in a warmer colour. Nothing beeps. The
@@ -73,6 +90,32 @@ it's the scroll.
   of doing chores, which does nothing for the night the app stays closed. Tapping it
   unfolds the button into a card and spins a four-cell reel past three things you didn't
   get — see **Motion**, below, for why the three you didn't get are the point.
+- **The mat.** Come back after a week away and the first thing on screen is "3 envelopes
+  waiting", not a broken streak. A night you skipped used to vanish silently and forever,
+  and the app greeted a returning user with a red chip and a reset notice — which is
+  exactly the moment you close it and open a feed. Being away is the reason there is
+  something to open. Capped at three, paid from the same weight table as any night you
+  turned up for (a test opens the same date both ways and asserts the same drop), and
+  while anything is still on the mat the streak chip stays quiet. The gift lands before
+  the accounting.
+- **One sentence about tomorrow, on the last frame.** This app can never notify you —
+  see **Known trade-offs** — so the only channel it has is memory and the only moment it
+  controls is the one before you put the phone down. The good-night screen names
+  tomorrow's quest, and says whether tomorrow's envelope is one of the rare ones without
+  naming the prize. Both come off the same seeds the real rolls use, so neither can
+  overclaim. No countdown, no second mention when you open: a named prize waiting is an
+  obligation, and that is the grammar of the apps this one exists to beat.
+- **Permission to stop.** When there is more work left than time left, the Lights out
+  button lights up and reads "Call it here · the rest can wait". The app already knew you
+  could not finish and its only suggestion was "rain check something?". Never after
+  bedtime, where that would be a scolding, and never while the list is still winnable.
+- **The nudge is an offer.** "Screens off has slipped 6 nights running" was the one purely
+  punitive number here, aimed at exactly the task you dread most, with nothing you could
+  do about it. Tap it: do it first tonight, say it takes less, **retire it**, leave it. A
+  task that has slipped six nights is usually not a task, it is a monument, and no todo
+  app will ever suggest you delete it — so it sits there taxing every glance at the list.
+  "Say it takes less" says *you'll be told it takes 7½m, not 15m — the job is the same
+  size*, because halving an estimate does not halve the work.
 - **Lights out.** A pill in the corner that ends the night. It stamps when you stopped,
   pays its biggest reward for stopping *early*, and then fades the screen to black instead
   of handing you back a lit phone at midnight. It keeps its own streak — nights you went
@@ -132,6 +175,12 @@ it's the scroll.
 - A live canvas sky: parallax twinkling stars that drift on their own, a shooting star on
   every check-off but the last — that one gets the finale instead — and a moon whose phase
   fills with tonight's completion.
+- **The sky keeps the record.** One star, permanently, for every night you went to bed on
+  time. Not bought — earned by sleeping, and the only thing here that grows forever. Each
+  is placed from a seed derived from its night key, so the sky you built is the same one
+  on every device. The good-night screen used to paint a flat black sheet over the canvas;
+  it is a vignette now, so the last thing you see is your own sky rather than a receipt on
+  a black rectangle. Insights counts them in words too.
 - Bedtime target with a countdown and an on-pace / cutting-it-close / over-budget read.
 - Night history as a heatmap, plus per-task insight — which tasks you actually do, and
   which have quietly slipped six nights running. Its stats say which thing they count:
@@ -227,8 +276,9 @@ is replaced by the sentence it would have shown you.
 | `Alt + ↑/↓` | Move the focused task or section |
 | `E` | Rename the focused task or section |
 | `Delete` | Delete it (with undo) |
-| `N` / `S` | Add a task / add a section |
-| `/` | Jump to quick add |
+| `X` | Rain-check the focused task |
+| `N` / `/` | Jump to quick add |
+| `S` | Add a section |
 | `F` | One task at a time |
 | `→` / `T` | In one-at-a-time: leave for later / start or pause the timer |
 | `B` `G` `H` `I` `,` | Night Market, star map, history, insights, settings |
@@ -237,7 +287,12 @@ is replaced by the sentence it would have shown you.
 | `Esc` | Close a dialog or cancel an edit |
 
 Quick add understands `Floss #wind-down !2` — title, section, minutes — and `!30s` or
-`!7.5` for odd durations.
+`!7.5` for odd durations. A `#hint` matches a section in any script, so `#ערב` and
+`#تنظيف` work as well as `#wind-down`.
+
+Single-key shortcuts can be turned off in Settings (WCAG 2.1.4 asks for a way out, and a
+letter that opens a panel is easy to hit by accident on a focused row). `Esc` always works
+either way.
 
 ## Running it locally
 
@@ -259,7 +314,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**188 tests, 14 suites, zero dependencies**, on Node's built-in runner. No install step:
+**229 tests, 14 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -278,7 +333,10 @@ They cover the pure modules — everything that can be reasoned about without a 
 
 Several exist because of a specific bug and say so in the test name — `a rain check is not
 a task you did`, `Clockwork needs three nights that really were consecutive`, `checking
-everything and resetting on a loop earns nothing after the first`. Two are guards on
+everything and resetting on a loop earns nothing after the first`, `starting then
+finishing pays exactly what finishing alone paid`, `a week away hands you three
+envelopes, not seven`, `stopping early with an untouched list is not the best move in the
+game`, `every ladder can actually be climbed to the top`. Two are guards on
 language rather than logic: no two things you can earn may share a name, and no achievement
 outside the on-time family may be *named* as though it measures sleep.
 

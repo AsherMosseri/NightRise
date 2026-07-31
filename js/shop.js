@@ -29,7 +29,12 @@ export const TRAILS = [
 ];
 
 export const FONTS = [
-  { id: 'aurora', name: 'Aurora Sans', cost: 0, desc: 'The clean default.' },
+  // `sans`, not `aurora`. The Aurora *sky* is also `aurora`, and ids are global
+  // in `itemById` — so tapping Equip on this card looked up the theme, and the
+  // default typeface could never be equipped again once you left it. Renamed
+  // rather than disambiguated alone, because two things in one market sharing a
+  // name is a trap whatever the lookup does. Saves are migrated in storage.js.
+  { id: 'sans', name: 'Aurora Sans', cost: 0, desc: 'The clean default.' },
   { id: 'mono', name: 'Terminal', cost: 260, desc: 'Monospaced, for the very online.' },
   { id: 'serif', name: 'Bedside', cost: 310, desc: 'A quiet book serif.' },
   { id: 'display', name: 'Neon', cost: 480, reqLevel: 5, desc: 'Wide letterforms with a glow.' },
@@ -71,8 +76,19 @@ export function allItems() {
   return items;
 }
 
-export function itemById(id) {
-  return allItems().find((item) => item.id === id) || null;
+/**
+ * Look an item up, optionally within one bucket.
+ *
+ * Ids are global here, and the market grew until two categories shared one:
+ * the Aurora sky and the Aurora Sans typeface were both `aurora`, themes come
+ * first, and so the Equip button on the typeface card equipped a sky. Passing
+ * the bucket makes the lookup say which shelf it means. The id collision is
+ * gone and a test keeps it gone, but every call from the UI carries a bucket
+ * now, because relying on a naming convention across ten categories is how the
+ * first one happened.
+ */
+export function itemById(id, bucket = null) {
+  return allItems().find((item) => item.id === id && (!bucket || item.bucket === bucket)) || null;
 }
 
 export function owns(state, item) {
@@ -108,8 +124,8 @@ function settleTiers(state) {
   if (earned.length) emit('achievement', earned);
 }
 
-export function purchase(itemId) {
-  const item = itemById(itemId);
+export function purchase(itemId, bucket = null) {
+  const item = itemById(itemId, bucket);
   if (!item) return null;
   return update((state) => {
     const check = canBuy(state, item);
@@ -131,8 +147,8 @@ export function purchase(itemId) {
   });
 }
 
-export function equipItem(itemId) {
-  const item = itemById(itemId);
+export function equipItem(itemId, bucket = null) {
+  const item = itemById(itemId, bucket);
   if (!item) return null;
   return update((state) => {
     if (!owns(state, item)) return null;

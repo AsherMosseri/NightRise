@@ -364,34 +364,66 @@ export function starSwell() {
 
 /* --------------------------------------------------------------- trails */
 
+/**
+ * What each trail is, as data.
+ *
+ * This was five ternaries on `trailKind` spread across the emitter and the
+ * renderer, so adding a trail meant finding all five and adding a branch to
+ * each — and forgetting one gave you a trail that half-worked. A trail is now
+ * one row. `drift` null means the particle wanders; a drift object makes it
+ * rise, which is what separates fireflies from dust.
+ */
+const TRAIL_SPECS = {
+  stardust: { per: 1, decay: 0.03, r: 1, jitter: 1, drift: null, flicker: false, color: () => colors.trail },
+  comet: { per: 2, decay: 0.045, r: 1.6, jitter: 1.6, drift: null, flicker: false, color: () => colors.star },
+  fireflies: { per: 1, decay: 0.012, r: 1, jitter: 1, drift: { up: 0.15, spread: 0.3 }, flicker: true, color: () => '#ffe58a' },
+};
+
+/** Which trails this renderer can actually draw — the shop is tested against it. */
+export const TRAIL_IDS = Object.keys(TRAIL_SPECS);
+
 export function setTrail(kind) {
   trailKind = kind || 'none';
-  if (trailKind === 'none') trailParticles = [];
+  if (!TRAIL_SPECS[trailKind]) trailParticles = [];
 }
 
-function emitTrail(x, y) {
-  if (trailKind === 'none' || reducedMotion || !running) return;
-  const count = trailKind === 'comet' ? 2 : 1;
+function spawnTrail(x, y, count, spread) {
+  const spec = TRAIL_SPECS[trailKind];
+  if (!spec || reducedMotion || !running) return;
   for (let i = 0; i < count; i += 1) {
     trailParticles.push({
-      x: x + (Math.random() - 0.5) * 6,
-      y: y + (Math.random() - 0.5) * 6,
+      x: x + (Math.random() - 0.5) * spread,
+      y: y + (Math.random() - 0.5) * spread,
       vx: (Math.random() - 0.5) * 0.5,
-      vy: trailKind === 'fireflies' ? -0.15 - Math.random() * 0.3 : (Math.random() - 0.5) * 0.4,
+      vy: spec.drift
+        ? -(spec.drift.up + Math.random() * spec.drift.spread)
+        : (Math.random() - 0.5) * 0.4,
       life: 1,
-      decay: trailKind === 'comet' ? 0.045 : trailKind === 'fireflies' ? 0.012 : 0.03,
-      r: trailKind === 'comet' ? 1.6 + Math.random() * 1.6 : 1 + Math.random(),
+      decay: spec.decay,
+      r: spec.r + Math.random() * spec.jitter,
       phase: Math.random() * Math.PI * 2,
     });
   }
   if (trailParticles.length > 260) trailParticles.splice(0, trailParticles.length - 260);
 }
 
-const TRAIL_COLORS = {
-  stardust: () => colors.trail,
-  comet: () => colors.star,
-  fireflies: () => '#ffe58a',
-};
+/** The pointer emitter: a thin ribbon, one spec-sized puff per move event. */
+function emitTrail(x, y) {
+  spawnTrail(x, y, TRAIL_SPECS[trailKind]?.per || 0, 6);
+}
+
+/**
+ * The check-off emitter.
+ *
+ * Trails used to hang entirely off `pointermove`, which on a touch screen only
+ * fires while a finger is held down — so on the device this app is built for,
+ * buying a trail bought very nearly nothing. This fires once, at the box you
+ * just tapped, which is the moment the trail is actually for. It is a puff
+ * rather than a ribbon because it gets one event rather than sixty a second.
+ */
+export function emitTrailAt(x, y) {
+  spawnTrail(x, y, 16, 14);
+}
 
 /* ---------------------------------------------------------------- render */
 
@@ -599,9 +631,10 @@ function drawRibbons() {
 }
 
 function drawParticles(time) {
-  const color = TRAIL_COLORS[trailKind] ? TRAIL_COLORS[trailKind]() : colors.trail;
+  const spec = TRAIL_SPECS[trailKind];
+  const color = spec ? spec.color() : colors.trail;
   for (const p of trailParticles) {
-    const flicker = trailKind === 'fireflies' ? 0.5 + 0.5 * Math.sin(time / 200 + p.phase) : 1;
+    const flicker = spec?.flicker ? 0.5 + 0.5 * Math.sin(time / 200 + p.phase) : 1;
     ctx.globalAlpha = clamp(p.life * flicker, 0, 1) * 0.85;
     ctx.fillStyle = color;
     ctx.beginPath();

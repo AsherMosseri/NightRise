@@ -218,6 +218,18 @@ export function normalizeState(raw, now = new Date()) {
     // or a rebased balance would pay off an un-rebased debt at a discount.
     profile.dustDebt = Math.round(Math.max(0, Number(profile.dustDebt) || 0) * PRICE_REBASE);
   }
+  if (from < 3) {
+    // The default typeface was `aurora`, which is also the id of the Aurora sky.
+    // Ids are global in `itemById`, themes are listed first, so the Equip button
+    // on the typeface card looked up a sky — and the default type could never be
+    // put back once you had changed it. Renamed to `sans`; every save carries the
+    // old id because it is the free default, so it is rewritten here. Scoped to
+    // the two font fields, so the sky of the same name is untouched.
+    if (isObject(profile.equipped) && profile.equipped.font === 'aurora') profile.equipped.font = 'sans';
+    if (isObject(profile.inventory) && Array.isArray(profile.inventory.fonts)) {
+      profile.inventory.fonts = profile.inventory.fonts.map((id) => (id === 'aurora' ? 'sans' : id));
+    }
+  }
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
   // Derived, never trusted. A save claiming level 40 against 100 XP showed 40
@@ -321,6 +333,19 @@ export function normalizeState(raw, now = new Date()) {
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
     const list = Array.isArray(profile.inventory[kind]) ? profile.inventory[kind] : [];
     profile.inventory[kind] = Array.from(new Set([...defaults, ...list.filter((id) => typeof id === 'string')]));
+  }
+  // And the slot that says which one is worn. Inventory buckets have always
+  // arrived by merging the factory's defaults in, so a category added to the
+  // market appeared in every existing save for free — but `equipped` only got
+  // the is-it-an-object check above, so the matching slot came back `undefined`
+  // and every renderer for a new category would need its own fallback. A slot
+  // the save has no opinion about gets the free default; `companion` is
+  // deliberately nullable and is left alone when the save says null.
+  for (const [slot, fallback] of Object.entries(fresh.equipped)) {
+    const worn = profile.equipped[slot];
+    if (typeof worn !== 'string' && !(slot in profile.equipped && worn === null)) {
+      profile.equipped[slot] = fallback;
+    }
   }
   return {
     version: SCHEMA_VERSION,

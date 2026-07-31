@@ -141,7 +141,7 @@ function shopCard(state, item, { onPreview } = {}) {
           type: 'button',
           class: 'btn btn--primary btn--sm',
           dataset: { focus: `shop:${item.id}` },
-          onClick: () => { equipItem(item.id); refreshModal(); },
+          onClick: () => { equipItem(item.id, item.bucket); refreshModal(); },
         }, 'Equip'))
       : h('button', {
         type: 'button',
@@ -149,7 +149,7 @@ function shopCard(state, item, { onPreview } = {}) {
         disabled: !check.ok,
         title: check.ok ? `Buy for ${item.cost} stardust` : check.reason,
         dataset: { focus: `shop:${item.id}` },
-        onClick: () => { purchase(item.id); refreshModal(); },
+        onClick: () => { purchase(item.id, item.bucket); refreshModal(); },
       }, check.ok ? 'Buy' : check.reason)));
 }
 

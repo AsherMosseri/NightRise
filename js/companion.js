@@ -37,6 +37,59 @@ export const TIER_NAMES = ['Fledgling', 'Companion', 'Familiar', 'Guardian'];
  * Build the companion's SVG. Species differ by silhouette; tier adds glow,
  * stars and a small crown of light. Mood drives the eyes.
  */
+/**
+ * Each species as path data in a shared 100x100 box.
+ *
+ * This was an if / else-if chain whose final `else` was the bat, so a species
+ * added to COMPANIONS but not to the chain rendered silently as a bat — a whole
+ * animal you paid for, drawn as a different one, with nothing anywhere saying
+ * so. A miss here returns null instead, which every caller already handles.
+ *
+ * `body` takes the species gradient; each layer after it is drawn in order.
+ * `fill: 'dark'` resolves to the species' own dark palette colour, which is why
+ * the layers are data rather than finished attributes.
+ */
+const SPECIES = {
+  owl: {
+    body: 'M50 18c16 0 26 14 26 32s-11 32-26 32-26-14-26-32 10-32 26-32z',
+    layers: [
+      { d: 'M28 26l10 8-12 4zM72 26L62 34l12 4z', fill: 'dark' },
+      { d: 'M50 56l-6 10h12z', fill: '#f4c86a' },
+    ],
+    eyeY: 48,
+  },
+  cat: {
+    body: 'M50 22c15 0 24 12 24 28S65 82 50 82 26 66 26 50 35 22 50 22z',
+    layers: [
+      { d: 'M30 30l2-14 13 9zM70 30l-2-14-13 9z', fill: 'dark' },
+      {
+        d: 'M42 58h16M50 54v6',
+        stroke: '#f6f2ff', 'stroke-width': 1.5, 'stroke-linecap': 'round', fill: 'none', opacity: 0.7,
+      },
+    ],
+    eyeY: 48,
+  },
+  fox: {
+    body: 'M50 24c14 0 23 11 23 26 0 17-10 32-23 32S27 67 27 50c0-15 9-26 23-26z',
+    layers: [
+      { d: 'M29 32l-3-16 15 8zM71 32l3-16-15 8z', fill: 'dark' },
+      { d: 'M50 62l-5 8h10z', fill: '#2a1a10' },
+    ],
+    eyeY: 48,
+  },
+  bat: {
+    body: 'M50 30c11 0 18 9 18 22s-7 22-18 22-18-9-18-22 7-22 18-22z',
+    layers: [
+      { d: 'M32 42C20 30 10 32 8 28c6 2 10-6 24 6zM68 42c12-12 22-10 24-14-6 2-10-6-24 6z', fill: 'dark', opacity: 0.95 },
+      { d: 'M40 30l3-10 4 8zM60 30l-3-10-4 8z', fill: 'dark' },
+    ],
+    eyeY: 46,
+  },
+};
+
+/** Which species can actually be drawn — the shop is tested against it. */
+export const SPECIES_IDS = Object.keys(SPECIES);
+
 export function companionSvg(type, tier = 1, mood = 'idle') {
   const def = companionById(type);
   if (!def) return null;
@@ -57,25 +110,14 @@ export function companionSvg(type, tier = 1, mood = 'idle') {
   }
 
   // Species silhouettes, all built from the same 100x100 box.
-  if (type === 'owl') {
-    parts.push(svg('path', { d: 'M50 18c16 0 26 14 26 32s-11 32-26 32-26-14-26-32 10-32 26-32z', fill: `url(#${gradientId})` }));
-    parts.push(svg('path', { d: 'M28 26l10 8-12 4zM72 26L62 34l12 4z', fill: dark }));
-    parts.push(svg('path', { d: 'M50 56l-6 10h12z', fill: '#f4c86a' }));
-  } else if (type === 'cat') {
-    parts.push(svg('path', { d: 'M50 22c15 0 24 12 24 28S65 82 50 82 26 66 26 50 35 22 50 22z', fill: `url(#${gradientId})` }));
-    parts.push(svg('path', { d: 'M30 30l2-14 13 9zM70 30l-2-14-13 9z', fill: dark }));
-    parts.push(svg('path', { d: 'M42 58h16M50 54v6', stroke: '#f6f2ff', 'stroke-width': 1.5, 'stroke-linecap': 'round', fill: 'none', opacity: 0.7 }));
-  } else if (type === 'fox') {
-    parts.push(svg('path', { d: 'M50 24c14 0 23 11 23 26 0 17-10 32-23 32S27 67 27 50c0-15 9-26 23-26z', fill: `url(#${gradientId})` }));
-    parts.push(svg('path', { d: 'M29 32l-3-16 15 8zM71 32l3-16-15 8z', fill: dark }));
-    parts.push(svg('path', { d: 'M50 62l-5 8h10z', fill: '#2a1a10' }));
-  } else {
-    parts.push(svg('path', { d: 'M50 30c11 0 18 9 18 22s-7 22-18 22-18-9-18-22 7-22 18-22z', fill: `url(#${gradientId})` }));
-    parts.push(svg('path', { d: 'M32 42C20 30 10 32 8 28c6 2 10-6 24 6zM68 42c12-12 22-10 24-14-6 2-10-6-24 6z', fill: dark, opacity: 0.95 }));
-    parts.push(svg('path', { d: 'M40 30l3-10 4 8zM60 30l-3-10-4 8z', fill: dark }));
+  const shape = SPECIES[type];
+  if (!shape) return null;
+  parts.push(svg('path', { d: shape.body, fill: `url(#${gradientId})` }));
+  for (const layer of shape.layers) {
+    parts.push(svg('path', { ...layer, fill: layer.fill === 'dark' ? dark : layer.fill }));
   }
 
-  const eyeY = type === 'bat' ? 46 : 48;
+  const eyeY = shape.eyeY;
   if (eyeOpen) {
     parts.push(svg('circle', { cx: 42, cy: eyeY, r: 4.4, fill: '#0d0b1c' }));
     parts.push(svg('circle', { cx: 58, cy: eyeY, r: 4.4, fill: '#0d0b1c' }));

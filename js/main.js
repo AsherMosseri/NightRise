@@ -14,7 +14,7 @@ import { openAddTask, openAddSection } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
 import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown, pauseCardTimer } from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
-import { initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
+import { initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar, emitTrailAt, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations, progressFor } from './constellations.js';
 import { onTimeNights } from './insights.js';
 import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
@@ -55,7 +55,7 @@ function applyCosmetics() {
   const { equipped, settings } = state.profile;
   const root = document.documentElement;
   root.dataset.theme = equipped.theme || 'midnight';
-  root.dataset.font = equipped.font || 'aurora';
+  root.dataset.font = equipped.font || 'sans';
   applyOpticalNudge(); // a different face centres its letters differently
   root.dataset.motion = reducedMotionActive(state) ? 'off' : 'on';
   root.classList.toggle('is-dim', Boolean(settings.dim));
@@ -137,6 +137,11 @@ function wireEffects() {
     const remaining = computeStats(getState()).remaining;
     // Nothing competes with the finale's own ribbon on the final check.
     if (remaining > 0) shootingStar();
+    // The trail, at the box you just tapped. It used to follow the pointer and
+    // nothing else, which on a phone meant it appeared only while dragging.
+    if (lastCheckRect) {
+      emitTrailAt(lastCheckRect.x + lastCheckRect.width / 2, lastCheckRect.y + lastCheckRect.height / 2);
+    }
     floatXp(task.id, `+${award.xp} XP`);
     // XP floats off the row already; stardust — the currency that buys every
     // single thing you actually want — arrived with no sign it had happened at

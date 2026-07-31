@@ -108,18 +108,36 @@ export function levelUpDust(level) {
  * again every time — the level is recomputed from XP, so the same boundary can
  * be crossed all night.
  */
+/**
+ * Pay stardust, settling any debt first.
+ *
+ * A debt exists when something was taken back that you had already spent. It is
+ * never shown to you and it cannot make the balance negative — it just means
+ * the next dust you earn goes to the shortfall before it reaches your pocket.
+ */
+export function addDust(profile, amount) {
+  let credit = Math.max(0, amount || 0);
+  const debt = Math.max(0, profile.dustDebt || 0);
+  if (debt > 0) {
+    const cleared = Math.min(debt, credit);
+    profile.dustDebt = debt - cleared;
+    credit -= cleared;
+  }
+  profile.stardust = Math.max(0, profile.stardust + credit);
+}
+
 export function grantXp(state, xp, dust = 0) {
   const { profile } = state;
   const before = profile.level;
   profile.xp = Math.max(0, profile.xp + xp);
-  profile.stardust = Math.max(0, profile.stardust + dust);
+  addDust(profile, dust);
   const after = levelFromXp(profile.xp).level;
   profile.level = after;
   const levelsGained = [];
   for (let lvl = before + 1; lvl <= after; lvl += 1) {
     levelsGained.push(lvl);
     if (lvl > (profile.maxLevelRewarded || 1)) {
-      profile.stardust += levelUpDust(lvl);
+      addDust(profile, levelUpDust(lvl));
       profile.maxLevelRewarded = lvl;
     }
   }
@@ -197,7 +215,14 @@ export function revokeGrant(state, xp, dust) {
   const { profile } = state;
   const before = profile.level;
   profile.xp = Math.max(0, profile.xp - (xp || 0));
-  profile.stardust = Math.max(0, profile.stardust - (dust || 0));
+  // Taking back dust you have already spent cannot come out of the balance, and
+  // clamping it at zero *forgave* it: earn 100, spend 100, un-tick, and the
+  // same 100 could be earned again with the goods already in hand. What cannot
+  // be taken is remembered instead, and the next dust you earn pays it off.
+  const owed = Math.max(0, dust || 0);
+  const taken = Math.min(profile.stardust, owed);
+  profile.stardust -= taken;
+  if (owed > taken) profile.dustDebt = Math.max(0, profile.dustDebt || 0) + (owed - taken);
   profile.level = levelFromXp(profile.xp).level;
   refundLevelUps(profile);
   const levelsLost = [];

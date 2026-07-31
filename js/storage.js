@@ -179,6 +179,7 @@ export function normalizeState(raw, now = new Date()) {
   }
   delete profile.badges;
   profile.bestCombo = Math.max(1, Number(profile.bestCombo) || 1);
+  profile.dustDebt = Math.max(0, Math.round(Number(profile.dustDebt) || 0));
   const defaultInventory = createProfile().inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {
     const list = Array.isArray(profile.inventory[kind]) ? profile.inventory[kind] : [];

@@ -117,6 +117,7 @@ const APPLY = {
       tiersBanked: {},
       tiersPaid: {},
       bestCombo: 1,
+      dustDebt: 0,
     });
     // The night's awards recorded XP that no longer exists; un-checking later
     // must not subtract it a second time.
@@ -140,6 +141,9 @@ const APPLY = {
 
   stardust(state) {
     state.profile.stardust = 0;
+    // Clearing the balance clears what you owed against it too. Carrying a
+    // debt through a reset would be a punishment nobody asked for.
+    state.profile.dustDebt = 0;
   },
 
   unlocks(state) {

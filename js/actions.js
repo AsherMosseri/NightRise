@@ -38,6 +38,25 @@ export function pushUndo(label) {
 }
 
 /**
+ * Put the award record back *and* the profile with it.
+ *
+ * Assigning `night.awards` wholesale was silently destructive: a snapshot taken
+ * before you ticked something, restored after, dropped that award's record
+ * while its XP and stardust stayed banked — so ticking the same task again paid
+ * for it a second time. The record and the balance have to move together, so
+ * the difference is settled in both directions rather than overwritten.
+ */
+function restoreAwards(state, target) {
+  for (const [id, award] of Object.entries(state.night.awards)) {
+    if (!target[id]) revokeGrant(state, award.xp, award.dust);
+  }
+  for (const [id, award] of Object.entries(target)) {
+    if (!state.night.awards[id]) grantXp(state, award.xp, award.dust);
+  }
+  state.night.awards = deepClone(target);
+}
+
+/**
  * Undo a specific entry. The toast passes the id of the deletion it announced,
  * so pressing Undo on the "Deleted Floss" toast restores Floss even if you have
  * deleted something else since — a bare LIFO pop restored the wrong thing.
@@ -52,7 +71,7 @@ export function undo(id = null) {
     state.template = entry.data.template;
     state.night.done = entry.data.done;
     state.night.skipped = entry.data.skipped;
-    state.night.awards = entry.data.awards;
+    restoreAwards(state, entry.data.awards);
     afterProgress(state);
   });
   return entry.label;
@@ -83,6 +102,7 @@ export function deleteSection(id) {
     const section = state.template.sections[id];
     if (!section) return null;
     for (const taskId of section.taskIds) {
+      revokeTaskCompletion(state, taskId); // same debt as deleting one task
       delete state.template.tasks[taskId];
       delete state.night.done[taskId];
       delete state.night.skipped[taskId];
@@ -168,6 +188,10 @@ export function deleteTask(id) {
   return update((state) => {
     const task = state.template.tasks[id];
     if (!task) return null;
+    // Hand back what it paid before the record of it is gone. Deleting a task
+    // you had ticked used to keep its XP and stardust with nothing left to
+    // revoke them, so add-a-task, tick it, delete it, repeat printed money.
+    revokeTaskCompletion(state, id);
     delete state.template.tasks[id];
     delete state.night.done[id];
     delete state.night.skipped[id];

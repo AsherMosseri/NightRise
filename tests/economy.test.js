@@ -10,6 +10,7 @@ import {
 } from '../js/actions.js';
 import { createInitialState } from '../js/model.js';
 import { computeStats } from '../js/night.js';
+import { grantXp, revokeGrant } from '../js/game.js';
 
 function reset() {
   replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
@@ -42,13 +43,22 @@ test('a check/uncheck loop cannot farm xp', () => {
   assert.deepEqual(balance(), before, 'twenty five round trips left the balance moved');
 });
 
-test('deleting a completed task keeps the xp you earned', () => {
+/* This test used to assert the opposite — "you did the thing; the xp stays" —
+   which is a coherent position and is not survivable. The app cannot tell
+   tidying your list apart from farming it, and add-a-task / tick / delete is
+   three taps that repeat forever. The rest of the app had already taken the
+   other side: clearTonight revokes every award for exactly this reason, and the
+   README's rule is that nothing you can un-tick leaves you holding what it paid
+   for. Deleting is a stronger form of un-ticking. The cost is that genuinely
+   doing a task and then deleting it loses the XP — mitigated by undo, which
+   now puts both the row and the balance back. */
+test('deleting a completed task hands back the xp you earned', () => {
   const state = reset();
   const id = Object.keys(state.template.tasks)[0];
   toggleTask(id);
-  const earned = balance();
+  assert.ok(balance().xp > 0);
   deleteTask(id);
-  assert.equal(getState().profile.xp, earned.xp, 'you did the thing; the xp stays');
+  assert.equal(getState().profile.xp, 0, 'nothing is left holding what it paid for');
   assert.equal(getState().night.awards[id], undefined);
 });
 
@@ -70,19 +80,20 @@ test('delete then undo then uncheck subtracts the award exactly once', () => {
   assert.deepEqual(balance(), before, 'unchecking the restored task settles the books');
 });
 
-test('deleting a section of completed tasks keeps their xp and clears their awards', () => {
+test('deleting a section of completed tasks hands back all of their xp', () => {
   const state = reset();
   const sectionId = state.template.order[0];
   const taskIds = [...state.template.sections[sectionId].taskIds];
   for (const id of taskIds) toggleTask(id);
   const earned = balance();
+  assert.ok(earned.xp > 0);
 
   deleteSection(sectionId);
-  assert.equal(getState().profile.xp, earned.xp);
+  assert.equal(getState().profile.xp, 0, 'a section is just several tasks');
   for (const id of taskIds) assert.equal(getState().night.awards[id], undefined);
 
   undo();
-  assert.equal(getState().profile.xp, earned.xp, 'undo restores rows, not balances');
+  assert.equal(getState().profile.xp, earned.xp, 'and undo restores rows AND balances');
   for (const id of taskIds) toggleTask(id);
   assert.equal(getState().profile.xp, 0, 'unchecking everything returns to zero');
 });
@@ -183,4 +194,75 @@ test('a task added to an empty app creates its own home', () => {
   assert.ok(state.template.sections[state.template.order[0]].taskIds.includes(task.id));
   addSection('Second');
   assert.equal(getState().template.order.length, 2);
+});
+
+/* ---------------------------------------- printers found by the audit sweep */
+
+test('deleting a task you had ticked hands back what it paid', () => {
+  // Add, tick, delete, repeat was an unbounded XP and stardust faucet: the
+  // award record went with the task and nothing was left to revoke it.
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const sectionId = getState().template.order[0];
+  const before = { xp: getState().profile.xp, dust: getState().profile.stardust };
+  for (let i = 0; i < 5; i += 1) {
+    const { task } = addTask(sectionId, `Farm ${i}`, 30);
+    toggleTask(task.id);
+    deleteTask(task.id);
+  }
+  assert.equal(getState().profile.xp, before.xp, 'no XP survives the task that earned it');
+  assert.equal(getState().profile.stardust, before.dust);
+});
+
+test('deleting a whole section hands back every award inside it', () => {
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const before = getState().profile.xp;
+  const section = addSection('Farm');
+  for (let i = 0; i < 3; i += 1) toggleTask(addTask(section.id, `t${i}`, 20).task.id);
+  assert.ok(getState().profile.xp > before);
+  deleteSection(section.id);
+  assert.equal(getState().profile.xp, before);
+});
+
+test('undo cannot sell the same check-off twice', () => {
+  // The snapshot is taken before the task is ticked; restoring it used to drop
+  // the award record while its XP stayed banked, so ticking again paid again.
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const [a, b] = Object.keys(getState().template.tasks);
+  const undoId = deleteTask(b).undoId;
+  toggleTask(a);
+  const earned = getState().profile.xp;
+  assert.ok(earned > 0);
+
+  undo(undoId);
+  assert.equal(getState().profile.xp, 0, 'the award and the XP moved together');
+  toggleTask(a);
+  assert.equal(getState().profile.xp, earned, 'and the second tick pays once, not twice');
+});
+
+test('undo of a deletion puts back the XP that deletion took', () => {
+  replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
+  const [a] = Object.keys(getState().template.tasks);
+  toggleTask(a);
+  const earned = getState().profile.xp;
+  const undoId = deleteTask(a).undoId;
+  assert.equal(getState().profile.xp, 0, 'deleting took it back');
+  undo(undoId);
+  assert.equal(getState().profile.xp, earned, 'and undoing gives it back');
+  assert.ok(getState().night.awards[a], 'with the record intact');
+});
+
+test('dust spent before un-ticking is owed, not forgiven', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  grantXp(state, 0, 50);
+  state.profile.stardust -= 50; // spent on something
+  revokeGrant(state, 0, 50);
+  assert.equal(state.profile.stardust, 0, 'the balance never goes negative');
+  assert.equal(state.profile.dustDebt, 50, 'but the shortfall is remembered');
+
+  grantXp(state, 0, 50); // earn it again
+  assert.equal(state.profile.stardust, 0, 'which pays the debt rather than your pocket');
+  assert.equal(state.profile.dustDebt, 0);
+
+  grantXp(state, 0, 20); // and after that, earnings are yours again
+  assert.equal(state.profile.stardust, 20);
 });

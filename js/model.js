@@ -60,6 +60,9 @@ export function createProfile() {
     tiersBanked: {},
     tiersPaid: {},
     bestCombo: 1,
+    // Dust taken back that had already been spent. Never shown; the next dust
+    // you earn pays it off before it reaches the balance.
+    dustDebt: 0,
     inventory: {
       themes: ['midnight'],
       sounds: ['chime'],

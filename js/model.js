@@ -42,6 +42,12 @@ export function createNight(key) {
     // advance can be reversed exactly, and deliberately separate from `done`:
     // starting is not finishing and must never count as it.
     started: {},
+    // The stopwatch for each task you have run one on. Kept on the night rather
+    // than in the card's module scope, because pressing Later or glancing at
+    // the list used to turn four minutes of work into zero minutes of work —
+    // and coming back to a task you are already four minutes into is a
+    // completely different ask from starting it. Cleared at 4am with the rest.
+    clocks: {},
     combo: 1,
     maxCombo: 1,
     lastDoneAt: 0,

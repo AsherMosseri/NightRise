@@ -6,11 +6,11 @@
  */
 
 import { h, icon, iconButton } from '../dom.js';
-import { getState } from '../state.js';
+import { getState, update } from '../state.js';
 import { toggleTask, toggleSkip, startTask } from '../actions.js';
 import { taskXp, comboMultiplier, chainLengthFor } from '../game.js';
 import { computeStats } from '../night.js';
-import { plural, formatMinutesLong } from '../util.js';
+import { plural, formatMinutesLong, formatDuration } from '../util.js';
 import { openSheet } from './sheet.js';
 import { toast } from '../toast.js';
 import { setSkyPaused } from '../sky.js';
@@ -18,7 +18,7 @@ import { still, fx, rectOf, growTo } from './motion.js';
 import { lightsOut } from './goodnight.js';
 import { openAddTask } from './add-task.js';
 import {
-  createTimer, elapsedOf, isRunning, toggleTimer, resetTimer,
+  createTimer, elapsedOf, isRunning, toggleTimer, resetTimer, pauseTimer,
   timerPhase, timerLabel, timerCaption, timerProgress,
 } from '../timer.js';
 
@@ -89,8 +89,38 @@ export function enterCards(invoker = null) {
   renderCards();
 }
 
+/**
+ * Write the running clock back to the night and stop it.
+ *
+ * Always paused on the way out: nothing may keep counting while the app is not
+ * the thing in front of you.
+ */
+function parkTimer({ silent = false } = {}) {
+  if (!timer) return;
+  pauseTimer(timer);
+  const parked = { ...timer };
+  // Nothing to remember about a clock that never ran, and an empty record would
+  // make every card you glanced at claim you were partway into it.
+  if (parked.accumulatedMs < 1000) {
+    update((state) => { delete state.night.clocks[parked.taskId]; }, { silent });
+    return;
+  }
+  // `silent` when this is called from inside a render: update() notifies
+  // synchronously, and a notify in the middle of building a card re-enters
+  // renderCards — the trap this file's header comment is about.
+  update((state) => {
+    if (state.template.tasks[parked.taskId]) state.night.clocks[parked.taskId] = parked;
+  }, { silent });
+}
+
+/** Stop and bank the running clock — the app is going away. */
+export function pauseCardTimer() {
+  if (timer && isRunning(timer)) parkTimer({ silent: true });
+}
+
 export function exitCards() {
   if (!active) return;
+  parkTimer();
   active = false;
   deferred = new Set();
   timer = null;
@@ -268,10 +298,17 @@ export function renderCards() {
 
   const { task, section } = pending[0];
 
-  // A new card gets a new clock. The same card re-rendering — because a task
-  // elsewhere changed, or the sky ticked — keeps the one that is running.
+  // A new card picks up the clock this task already had, if it has one. Press
+  // Later, glance at the list, or background the phone, and four minutes of
+  // work used to become zero minutes of work.
   if (!timer || timer.taskId !== task.id) {
-    timer = createTimer(task.id, task.minutes, Boolean(state.profile.settings.autoTimer));
+    // Whatever was on the previous card goes back on the night before it is
+    // replaced. "Later" is one tap and it used to cost you the whole clock.
+    if (timer) parkTimer({ silent: true });
+    const saved = state.night.clocks[task.id];
+    timer = saved
+      ? { ...saved, taskId: task.id, plannedMs: Math.max(0, (task.minutes || 0) * 60000) }
+      : createTimer(task.id, task.minutes, Boolean(state.profile.settings.autoTimer));
   }
 
   const started = state.night.started[task.id];
@@ -314,6 +351,11 @@ export function renderCards() {
     },
   }, icon('play', { size: 20 }), h('span', {}, 'Start it'));
 
+  // A clock you are coming back to says so. Coming back to a task you are
+  // already four minutes into is a completely different ask from starting one.
+  const carried = elapsedOf(timer);
+  const stale = carried > timer.plannedMs + 10 * 60_000;
+
   const body = h('div', { class: 'onecard__body' },
     h('p', { class: 'onecard__section' }, section.title),
     h('h2', { class: 'onecard__title' }, task.title),
@@ -326,7 +368,23 @@ export function renderCards() {
       started
         ? `+${Math.max(1, worthOf(state, task) - started.xp)} XP left on this one`
         : `+${worthOf(state, task)} XP`),
-    timerFace(state, task, { started: Boolean(started) }));
+    timerFace(state, task, { started: Boolean(started) }),
+    // Not "you are out of time" — the card would greet you red for a clock you
+    // simply walked away from. It says what happened and offers the fix the
+    // timer already has a button for.
+    carried >= 1000 && !isRunning(timer)
+      ? h('p', { class: 'onecard__resume' },
+        stale
+          ? 'You left this running.'
+          : carried < 60_000
+            ? 'Under a minute in already.'
+            : `${formatDuration(Math.round(carried / 60000))} in already.`,
+        h('button', {
+          type: 'button',
+          class: 'onecard__resume-btn',
+          onClick: () => { resetTimer(timer, false); parkTimer({ silent: true }); renderCards(); },
+        }, 'Start the clock over'))
+      : null);
 
   const undoable = lastChecked && state.night.done[lastChecked.id] !== undefined
     ? lastChecked

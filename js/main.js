@@ -12,7 +12,7 @@ import { initModals, openModal, closeModal } from './render/modals.js';
 import { initSheet, openSheet } from './render/sheet.js';
 import { openAddTask, openAddSection } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
-import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown } from './render/cards.js';
+import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown, pauseCardTimer } from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
 import { initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations } from './constellations.js';
@@ -548,9 +548,14 @@ function boot() {
     if (!checkRollover()) renderTonight();
   }, 30000);
   document.addEventListener('visibilitychange', () => {
-    // Commit before the OS can suspend us; a lost check-off is unforgivable.
-    if (document.hidden) flushPersist();
-    else if (!checkRollover()) renderTonight();
+    if (document.hidden) {
+      // A phone in a pocket must not accumulate an hour on a task clock. The
+      // pause is the whole design of that timer, not a nicety — a clock that
+      // keeps running while you are elsewhere is a guilt machine.
+      pauseCardTimer();
+      // Commit before the OS can suspend us; a lost check-off is unforgivable.
+      flushPersist();
+    } else if (!checkRollover()) renderTonight();
   });
   window.addEventListener('pagehide', flushPersist);
 

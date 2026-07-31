@@ -5,6 +5,8 @@ import {
   createTimer, elapsedOf, isRunning, startTimer, pauseTimer, toggleTimer, resetTimer,
   timerPhase, timerLabel, timerCaption, timerProgress, warnThresholdMs,
 } from '../js/timer.js';
+import { createInitialState } from '../js/model.js';
+import { normalizeState } from '../js/storage.js';
 
 const MIN = 60_000;
 
@@ -106,4 +108,25 @@ test('half a minute is a real estimate', () => {
   const t = createTimer('t1', 0.5);
   assert.equal(t.plannedMs, 30_000);
   assert.equal(timerLabel(t.plannedMs, 0), '0:30');
+});
+
+test('a parked clock survives a save and never comes back running', () => {
+  // The timer used to be a module variable, nulled on exit — press Later,
+  // glance at the list, or background the phone, and four minutes of work
+  // became zero minutes of work. It lives on the night now.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  const id = Object.keys(state.template.tasks)[0];
+  state.night.clocks[id] = { taskId: id, plannedMs: 120000, accumulatedMs: 240000, startedAt: Date.now() };
+
+  const loaded = normalizeState(state);
+  assert.equal(loaded.night.clocks[id].accumulatedMs, 240000, 'the minutes are still there');
+  assert.equal(loaded.night.clocks[id].startedAt, null,
+    'but never running: a phone in a pocket must not accumulate an hour');
+  assert.equal(elapsedOf(loaded.night.clocks[id]), 240000);
+});
+
+test('a clock for a task that no longer exists is dropped', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.night.clocks.gone = { taskId: 'gone', plannedMs: 60000, accumulatedMs: 5000, startedAt: null };
+  assert.equal(normalizeState(state).night.clocks.gone, undefined);
 });

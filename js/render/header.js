@@ -408,16 +408,33 @@ function lightsOutButton(state, stats) {
       `Lights out at ${new Date(state.night.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`);
   }
   const done = stats.total > 0 && stats.remaining === 0 && stats.done > 0;
+  // Permission to stop.
+  //
+  // The exit used to be at its most inviting exactly when it mattered least —
+  // after you had cleared a twelve-item list, which is usually the latest
+  // moment of the night. Meanwhile the app already knows when you cannot
+  // finish: `pacingStatus` computes `over` — more work left than time left —
+  // and the only way out it offered was "Rain check something?". On a night
+  // that is not going to happen, the honest suggestion is to stop, and the app
+  // whose whole argument is that you should go to bed should be the one making
+  // it. Never after bedtime, where "call it here" would read as a scolding, and
+  // never while the list is still winnable.
+  const left = minutesUntilBedtime(state.night.key, state.profile.settings?.bedtime);
+  const overrun = !done
+    && stats.remaining > 0
+    && left !== null
+    && left > 0
+    && pacingStatus(stats.minutesRemaining, left) === 'over';
   const button = h('button', {
     type: 'button',
-    class: `lightsout ${done ? 'lightsout--ready' : ''}`.trim(),
+    class: `lightsout ${done || overrun ? 'lightsout--ready' : ''}`.trim(),
     dataset: { focus: 'lightsout' },
     'aria-label': 'Lights out — press and hold to end the night',
   },
   h('span', { class: 'lightsout__fill', 'aria-hidden': 'true' }),
   icon('moon', { size: 15 }),
-  h('span', { class: 'lightsout__label' }, 'Lights out'),
-  h('span', { class: 'lightsout__hint' }, 'hold to end'));
+  h('span', { class: 'lightsout__label' }, overrun ? 'Call it here' : 'Lights out'),
+  h('span', { class: 'lightsout__hint' }, overrun ? 'the rest can wait' : 'hold to end'));
   return holdToEnd(button);
 }
 

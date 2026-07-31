@@ -103,8 +103,24 @@ function normalizeNight(raw, template, now) {
   night.skipped = isObject(night.skipped) ? night.skipped : {};
   night.awards = isObject(night.awards) ? night.awards : {};
   night.started = isObject(night.started) ? night.started : {};
+  night.clocks = isObject(night.clocks) ? night.clocks : {};
   for (const id of Object.keys(night.done)) if (!template.tasks[id]) delete night.done[id];
   for (const id of Object.keys(night.skipped)) if (!template.tasks[id]) delete night.skipped[id];
+  for (const [id, clock] of Object.entries(night.clocks)) {
+    if (!template.tasks[id] || !isObject(clock)) {
+      delete night.clocks[id];
+      continue;
+    }
+    night.clocks[id] = {
+      taskId: id,
+      plannedMs: Math.max(0, Number(clock.plannedMs) || 0),
+      accumulatedMs: Math.max(0, Number(clock.accumulatedMs) || 0),
+      // Never restored running. A phone in a pocket must not accumulate an
+      // hour, and a clock that keeps running while you scroll is a guilt
+      // machine — the pause is the whole design, not a nicety.
+      startedAt: null,
+    };
+  }
   for (const [id, record] of Object.entries(night.started)) {
     if (!template.tasks[id] || !isObject(record)) delete night.started[id];
     else night.started[id] = { at: Number(record.at) || 0, xp: Math.max(0, Number(record.xp) || 0) };

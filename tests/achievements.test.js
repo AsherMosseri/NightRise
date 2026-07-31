@@ -265,3 +265,66 @@ test('a badge the app retired maps to nothing at all', () => {
   assert.deepEqual(migrateBadges(null), {});
   assert.deepEqual(migrateBadges(['not-a-badge', 'perfect']), { cleared: 1 });
 });
+
+/* ---------------------------------------------------- on loan until 4am */
+
+test('a rung tonight is holding up goes back when you un-tick', () => {
+  const state = fresh();
+  const tasks = Object.values(state.template.tasks);
+  for (const task of tasks) state.night.done[task.id] = Date.now();
+  checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'cleared'), 1, 'Nothing Missed, for clearing the list');
+
+  delete state.night.done[tasks[0].id];
+  const lost = dropUnearnedTiers(state, computeStats(state));
+  assert.deepEqual(lost.map((l) => l.name), ['Nothing Missed']);
+  assert.equal(heldTier(state.profile, 'cleared'), 0,
+    'nothing you can un-tick leaves you holding what it paid for');
+});
+
+test('once a night is banked the rung is yours, un-tick what you like', () => {
+  const state = fresh();
+  state.history['2026-07-28'] = { total: 4, done: 4, skipped: 0, pct: 100, xp: 40 };
+  checkAchievements(state, computeStats(state));
+  assert.equal(heldTier(state.profile, 'cleared'), 1);
+
+  // Tonight is untouched and it does not matter: the floor is what was banked.
+  assert.deepEqual(dropUnearnedTiers(state, computeStats(state)), []);
+  assert.equal(heldTier(state.profile, 'cleared'), 1);
+});
+
+test('wiping the history that proved a rung does not take the rung', () => {
+  const state = fresh();
+  state.history['2026-07-28'] = { total: 4, done: 4, skipped: 0, pct: 100, xp: 40 };
+  checkAchievements(state, computeStats(state));
+
+  state.history = {}; // the Night history checkbox, not an un-tick
+  assert.deepEqual(dropUnearnedTiers(state, computeStats(state)), [],
+    'a reset has its own checkbox and must not take a rung through the back door');
+  assert.equal(heldTier(state.profile, 'cleared'), 1);
+});
+
+test('getting a loaned rung back does not pay for it twice', () => {
+  const state = fresh();
+  const tasks = Object.values(state.template.tasks);
+  const clear = () => { for (const t of tasks) state.night.done[t.id] = Date.now(); };
+
+  clear();
+  checkAchievements(state, computeStats(state));
+  const paid = state.profile.stardust;
+  assert.equal(paid, tierDust(1));
+
+  delete state.night.done[tasks[0].id];
+  dropUnearnedTiers(state, computeStats(state));
+  clear();
+  const again = checkAchievements(state, computeStats(state));
+  assert.equal(again.find((e) => e.id === 'cleared').dust, 0, 'earned back, but free');
+  assert.equal(state.profile.stardust, paid);
+});
+
+test('every family says which of the two kinds it is', () => {
+  // The rule the whole design rests on: a rung comes off only if you can undo
+  // the thing that earned it with a tap. Exactly two families can.
+  const undoable = ACHIEVEMENTS.filter((f) => f.floor).map((f) => f.id);
+  assert.deepEqual(undoable, ['cleared', 'level']);
+});

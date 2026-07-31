@@ -94,6 +94,10 @@ export const ACHIEVEMENTS = [
     // the percentage; it does not do the task.
     measure: (state, stats) => nightsFullyCleared(state.history)
       + (stats && stats.total > 0 && stats.done >= stats.total ? 1 : 0),
+    // Tonight counts toward the rung the moment you finish, but it is on loan
+    // until 4am banks it: un-tick something and it goes back. Nights already
+    // banked are the floor and are yours whatever you do to tonight.
+    floor: (state) => nightsFullyCleared(state.history),
     tiers: [
       { at: 1, name: 'Nothing Missed' },
       { at: 5, name: 'Spotless' },
@@ -106,10 +110,10 @@ export const ACHIEVEMENTS = [
     icon: 'star',
     noun: 'levels',
     goal: (at) => `Reach level ${at}`,
-    // The one family you can fall out of. It says where you are, and un-checking
-    // your way back down to level 4 should not leave you holding level 5's badge.
-    volatile: true,
     measure: (state) => state.profile.level,
+    // Nothing here is ever banked. A level says where you are, so un-checking
+    // your way down to level 4 must not leave you holding level 5's rung.
+    floor: () => 0,
     tiers: [
       { at: 5, name: 'Skyward' },
       { at: 10, name: 'Deep Sky' },
@@ -192,6 +196,37 @@ export function heldTier(profile, id) {
   return Math.max(0, Number(profile.tiers?.[id]) || 0);
 }
 
+/**
+ * The rung durable evidence alone justifies — banked nights, records, things
+ * bought. A tier at or below this can never be taken away by an un-tick.
+ */
+export function bankedTier(profile, id) {
+  return Math.max(0, Number(profile.tiersBanked?.[id]) || 0);
+}
+
+/**
+ * A family's measure with tonight left out.
+ *
+ * This is the whole of what makes a rung permanent or provisional, and it is
+ * why `volatile` is gone. Two families can move *down* on a tap: level, whose
+ * floor is nothing at all, and cleared nights, whose floor is the nights
+ * already banked. Everything else is a record or a running total that can only
+ * fall through a deliberate reset — and a reset has its own checkbox, so it
+ * must not be the thing that quietly takes a rung.
+ */
+function floorOf(family, state) {
+  return family.floor ? family.floor(state) : family.measure(state, null);
+}
+
+/**
+ * Where a family stands right now: never below what banked evidence proves,
+ * never above what the live measure reaches.
+ */
+function reachedTier(family, state, stats) {
+  const latch = Math.max(bankedTier(state.profile, family.id), tierAt(family, floorOf(family, state)));
+  return Math.max(latch, tierAt(family, family.measure(state, stats)));
+}
+
 function fmt(family, n) {
   return family.format ? family.format(n) : String(Math.floor(n));
 }
@@ -208,7 +243,7 @@ export function tierState(family, state, stats) {
   // What the profile holds, never what the measure merely qualifies for. The
   // two agree because achievements are settled on load, and a card that ran
   // ahead of the profile would promise a tier nothing had recorded or paid.
-  const held = family.volatile ? tierAt(family, measure) : heldTier(state.profile, family.id);
+  const held = heldTier(state.profile, family.id);
   const current = held > 0 ? family.tiers[held - 1] : null;
   const next = held < family.tiers.length ? family.tiers[held] : null;
   // Where the scale starts. The combo multiplier bottoms out at x1, so without
@@ -258,6 +293,7 @@ export function totalTiers(profile) {
 export function checkAchievements(state, stats) {
   const { profile } = state;
   if (!profile.tiers) profile.tiers = {};
+  if (!profile.tiersBanked) profile.tiersBanked = {};
   if (!profile.tiersPaid) profile.tiersPaid = {};
   // The best chain you ever held has to be remembered somewhere; `night.maxCombo`
   // is gone at 4am.
@@ -265,17 +301,24 @@ export function checkAchievements(state, stats) {
 
   const earned = [];
   for (const family of ACHIEVEMENTS) {
-    const reached = tierAt(family, family.measure(state, stats));
-    const held = heldTier(profile, family.id);
-    const now = family.volatile ? reached : Math.max(held, reached);
-    if (now === held) continue;
-    profile.tiers[family.id] = now;
-    if (now < held) continue; // a fall is not an award; dropUnearnedTiers reports it
+    // Bank the floor first. Once written it stays, so wiping the history that
+    // proved it does not also take the rung — a reset has its own checkbox and
+    // should not be reaching in here through the back door.
+    const latch = Math.max(bankedTier(profile, family.id), tierAt(family, floorOf(family, state)));
+    if (latch > 0) profile.tiersBanked[family.id] = latch;
 
-    for (let tier = held + 1; tier <= now; tier += 1) {
+    const reached = Math.max(latch, tierAt(family, family.measure(state, stats)));
+    const held = heldTier(profile, family.id);
+    if (reached === held) continue;
+    profile.tiers[family.id] = reached;
+    if (reached < held) continue; // a fall is not an award; dropUnearnedTiers reports it
+
+    for (let tier = held + 1; tier <= reached; tier += 1) {
       const step = family.tiers[tier - 1];
       let dust = 0;
-      if (!family.volatile && tier > (Number(profile.tiersPaid[family.id]) || 0)) {
+      // Levels pay their own stardust when you cross them; a rung that paid
+      // again on the way up would have to claw it back on the way down.
+      if (family.id !== 'level' && tier > (Number(profile.tiersPaid[family.id]) || 0)) {
         dust = tierDust(tier);
         profile.stardust += dust;
         profile.tiersPaid[family.id] = tier;
@@ -290,21 +333,24 @@ export function checkAchievements(state, stats) {
 }
 
 /**
- * Tiers you have fallen out of. Only volatile families can, but the call is
- * unconditional so the caller never has to know which those are.
+ * Tiers you have fallen out of, because the thing that earned them was undone.
+ *
+ * Only the two families with a floor below their measure can reach here — the
+ * level you dropped out of, and tonight's clear that you un-ticked — but the
+ * call is unconditional so no caller has to know which those are.
  */
-export function dropUnearnedTiers(state) {
+export function dropUnearnedTiers(state, stats) {
   const { profile } = state;
   if (!profile.tiers) profile.tiers = {};
   const lost = [];
   for (const family of ACHIEVEMENTS) {
-    if (!family.volatile) continue;
-    const reached = tierAt(family, family.measure(state, null));
+    const reached = reachedTier(family, state, stats);
     const held = heldTier(profile, family.id);
+    if (reached >= held) continue;
     for (let tier = held; tier > reached; tier -= 1) {
       lost.push({ id: family.id, tier, name: family.tiers[tier - 1].name, icon: family.icon });
     }
-    if (reached !== held) profile.tiers[family.id] = reached;
+    profile.tiers[family.id] = reached;
   }
   return lost;
 }

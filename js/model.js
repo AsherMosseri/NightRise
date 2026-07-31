@@ -55,6 +55,9 @@ export function createProfile() {
     // has ever been paid for — the same high-water trick as maxLevelRewarded,
     // so falling out of a tier and climbing back is not a stardust faucet.
     tiers: {},
+    // The rung banked evidence alone justifies. Tonight can lift `tiers` above
+    // it and be taken back; nothing drops below it.
+    tiersBanked: {},
     tiersPaid: {},
     bestCombo: 1,
     inventory: {

@@ -13,6 +13,8 @@
 
 import { createProfile, emptyTemplate } from './model.js';
 import { revokeTaskCompletion, revokeGrant } from './game.js';
+import { dropUnearnedTiers } from './achievements.js';
+import { computeStats } from './night.js';
 
 export const RESET_PARTS = [
   {
@@ -112,6 +114,7 @@ const APPLY = {
       // behind would be the polite half of a reset and the stingy half of a
       // fresh start: the shelf empties, and refilling it earns nothing.
       tiers: {},
+      tiersBanked: {},
       tiersPaid: {},
       bestCombo: 1,
     });
@@ -162,5 +165,8 @@ const APPLY = {
 export function applyReset(state, ids) {
   const chosen = RESET_PARTS.filter((part) => ids.includes(part.id));
   for (const part of chosen) APPLY[part.id](state);
+  // Un-ticking tonight through this door has to hand back the same things
+  // un-ticking one box does, and a rung tonight was holding up is one of them.
+  dropUnearnedTiers(state, computeStats(state));
   return chosen.map((part) => part.id);
 }

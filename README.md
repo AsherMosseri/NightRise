@@ -89,7 +89,14 @@ it's the scroll.
   a *number*, and each tier's wording is generated from the very threshold it compares
   against, so a hint cannot come to say seven while the check says three. You see the
   next rung's requirement but never its name — same as the titles. Reaching one pays
-  stardust, once per rung, ever. Nothing in the game rewards being awake late: there was
+  stardust, once per rung, ever.
+- **A rung comes off only if you can undo the thing that earned it with a tap.** Exactly
+  two families can: the level you dropped back out of, and tonight's cleared list you
+  un-ticked. Every other one is a record or a running total that can only fall through a
+  deliberate reset — and a reset must never be what quietly takes a rung, because it has
+  its own checkbox. So tonight's clear is on loan until 4am banks it, and once banked it
+  survives anything you do to tonight, to the history, or to the streak.
+  Nothing in the game rewards being awake late: there was
   a badge for checking something off past 1am, in the app whose whole argument is that
   you should be asleep, and it is gone.
 - Un-checking a task reverses its exact award, and if that drops you below a level it

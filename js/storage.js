@@ -155,14 +155,23 @@ export function normalizeState(raw, now = new Date()) {
   // Read from the raw save, not the merged profile: mergeDefaults has already
   // supplied an empty `tiers: {}`, which would look like a save that simply had
   // no achievements and quietly discard the badges an old one did have.
-  const savedTiers = isObject(raw.profile?.tiers) ? raw.profile.tiers : migrateBadges(profile.badges);
+  const migrated = migrateBadges(profile.badges);
+  const savedTiers = isObject(raw.profile?.tiers) ? raw.profile.tiers : migrated;
+  // A save from before rungs could be on loan held nothing provisionally, so
+  // everything it recorded is banked. Same for a migrated badge list.
+  const savedBanked = isObject(raw.profile?.tiersBanked) ? raw.profile.tiersBanked : savedTiers;
   const savedPaid = isObject(raw.profile?.tiersPaid) ? raw.profile.tiersPaid : {};
   profile.tiers = {};
+  profile.tiersBanked = {};
   profile.tiersPaid = {};
   for (const family of ACHIEVEMENTS) {
     const cap = family.tiers.length;
     const held = clampTier(savedTiers[family.id], cap);
     if (held > 0) profile.tiers[family.id] = held;
+    // A migrated rung is banked, not on loan: an old badge was awarded for
+    // something that had already happened, so tonight cannot take it back.
+    const banked = Math.min(held, clampTier(savedBanked[family.id], cap));
+    if (banked > 0) profile.tiersBanked[family.id] = banked;
     // Never below what is held: a tier you can see must already have been paid,
     // or checkAchievements would pay for it again on the next tick.
     const paid = Math.max(held, clampTier(savedPaid[family.id], cap));

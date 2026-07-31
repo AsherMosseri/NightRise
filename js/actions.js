@@ -241,7 +241,7 @@ function afterProgress(state) {
   // Order matters: drop first, then award. Un-checking a task can push you out
   // of a level tier, and reporting the loss before the gains keeps a single
   // toggle from claiming a tier it just took away.
-  const lost = dropUnearnedTiers(state);
+  const lost = dropUnearnedTiers(state, stats);
   if (lost.length) emit('achievement:lost', lost);
   const earned = checkAchievements(state, stats);
   if (earned.length) emit('achievement', earned);

@@ -138,7 +138,7 @@ function wireEffects() {
       toast(`${step.name} lost`, {
         tone: 'warn',
         iconName: 'undo',
-        detail: 'You dropped back below it. Earn the level again and it comes back.',
+        detail: 'You undid the thing that earned it. Do it again and it comes back.',
       });
     }
   });

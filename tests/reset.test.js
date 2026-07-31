@@ -170,6 +170,7 @@ function loaded() {
   state.profile.bestStreak = 9;
   state.profile.lightsOut = { streak: 3, best: 5, lastKey: '2026-07-29' };
   state.profile.tiers = { nights: 1, streak: 1 };
+  state.profile.tiersBanked = { nights: 1, streak: 1 };
   state.profile.tiersPaid = { nights: 1, streak: 1 };
   state.history['2026-07-28'] = { total: 3, done: 3, pct: 100, xp: 30 };
   state.profile.settings.bedtime = '01:00';
@@ -202,6 +203,7 @@ test('each part only takes its own', () => {
   assert.equal(state.profile.xp, 0);
   assert.equal(state.profile.level, 1);
   assert.deepEqual(state.profile.tiers, {});
+  assert.deepEqual(state.profile.tiersBanked, {});
   assert.deepEqual(state.profile.tiersPaid, {}, 'or refilling the shelf would earn nothing');
   assert.equal(state.profile.streak, 6, 'the streak is its own option now');
   assert.equal(state.profile.settings.bedtime, '01:00', 'settings are still yours');

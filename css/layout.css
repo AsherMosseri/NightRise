@@ -325,6 +325,10 @@
     grid-template-areas: "brand actions" "stats stats";
     gap: var(--sp-2) var(--sp-3);
     padding: var(--sp-3);
+    /* The shorthand above resets padding-top, which is where the notch inset
+       lives — so on the exact device this layout is for, the top bar slid up
+       under the status bar. Longhand after shorthand, deliberately. */
+    padding-top: max(var(--sp-3), env(safe-area-inset-top));
   }
   .topbar__brand { grid-area: brand; }
   .topbar__actions { grid-area: actions; justify-self: end; flex-wrap: wrap; justify-content: flex-end; }

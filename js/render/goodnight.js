@@ -17,6 +17,23 @@ import { formatDuration, plural } from '../util.js';
 
 let host = null;
 
+/**
+ * Take the app out of the tab order behind the ending.
+ *
+ * `pointer-events: none` stopped the mouse and nothing stopped the keyboard, so
+ * Tab walked every button of an app that had faded to black — a screen reader
+ * or a keyboard user got the whole invisible interface read back at them after
+ * saying good night.
+ */
+const BEHIND = ['.topbar', '.app', '.companion-slot', '#cards'];
+
+function setBehindInert(on) {
+  for (const selector of BEHIND) {
+    const node = document.querySelector(selector);
+    if (node) node.inert = on;
+  }
+}
+
 export function initGoodnight(node) {
   host = node;
 }
@@ -42,6 +59,7 @@ export function dismissGoodnight({ reopened = true } = {}) {
   // of a night rendered its panel with the title, the line and the moon already
   // at opacity 0 — an ending that came up blank.
   document.documentElement.classList.remove('is-goodnight', 'is-goodnight-deep');
+  setBehindInert(false);
   if (reopened) {
     update((state) => { state.night.reopenedAfterLightsOut = true; });
   }
@@ -107,6 +125,7 @@ function render({ stats, minutesLeft, onTime, reward }) {
 
   host.replaceChildren(panel);
   document.documentElement.classList.add('is-goodnight');
+  setBehindInert(true);
   requestAnimationFrame(() => panel.classList.add('goodnight__panel--in'));
 
   // The screen goes almost black on its own. Nothing left to look at.

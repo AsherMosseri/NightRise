@@ -16,7 +16,7 @@ import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydow
 import { initToasts, toast, celebrate } from './toast.js';
 import { initSky, setMoonFill, setTrail, setConstellations, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
 import { completedConstellations } from './constellations.js';
-import { initKeys, parseQuickAdd } from './keys.js';
+import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
 import { titleForLevel } from './game.js';
 import { checkAchievements } from './achievements.js';
 import { playEnvelopeOpen } from './render/envelope-open.js';
@@ -230,8 +230,15 @@ function announceRollover(result) {
   }
   const parts = [`${result.stats.pct}% of ${plural(result.stats.total, 'task', 'tasks')}`];
   if (result.frozenUsed) parts.push(`${plural(result.frozenUsed, 'streak freeze', 'streak freezes')} used`);
-  toast(result.met ? 'Night banked — streak safe' : 'Night banked', {
-    tone: result.met ? 'win' : 'info',
+  // "Streak safe" used to be chosen by `met`, which only asks whether *tonight*
+  // hit 60% and knows nothing about the nights you were away. Come back after
+  // four missed nights with no freezes, finish your list, and the app cheerfully
+  // announced your streak was safe on the very rollover that reset it to 1.
+  // The streak growing is the only thing that means the streak survived.
+  const kept = result.streakAfter > result.streakBefore;
+  const broken = result.streakAfter < result.streakBefore;
+  toast(kept ? 'Night banked — streak safe' : broken ? 'Night banked — streak reset' : 'Night banked', {
+    tone: kept ? 'win' : broken ? 'warn' : 'info',
     iconName: 'calendar',
     detail: `${parts.join(' · ')} · streak now ${result.streakAfter}`,
     duration: 6500,
@@ -383,10 +390,14 @@ function boot() {
     syncToggles();
   });
 
-  // One-at-a-time owns the keyboard while it is up.
+  // One-at-a-time owns the keyboard while it is up — but only while it is the
+  // top surface. It bailed for the sheet and nothing else, so opening the shop
+  // from One Card left this handler swallowing Escape in the capture phase: the
+  // card mode exited underneath and the dialog you were trying to close stayed.
   window.addEventListener('keydown', (event) => {
     if (!cardsActive()) return;
-    if (document.querySelector('.sheet')) return;
+    if (document.querySelector('dialog[open], .sheet, .goodnight__panel')) return;
+    if (isTypingTarget(event.target)) return;
     if (cardsKeydown(event)) event.preventDefault();
   }, true);
 

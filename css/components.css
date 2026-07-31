@@ -120,22 +120,21 @@
   box-shadow: 0 0 14px -2px var(--glow);
 }
 .task__title { position: relative; }
-/* Drawn, not `text-decoration`, so it can sweep. It spans the label rather than
-   the whole flex cell, or a short task would get a line across empty space. */
-.task__strike {
+/* The struck copy sits exactly over the plain one and is clipped away, so the
+   sweep reveals a real `text-decoration` — which is the only thing that strikes
+   every line of a wrapped title rather than drawing one bar through the middle
+   of the block. Identical text, identical box, so only the line reads as new. */
+.task__label--struck {
   position: absolute;
-  left: 0;
-  top: 50%;
-  width: 100%;
-  height: 1.5px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--muted) 65%, transparent);
-  transform: scaleX(0);
-  transform-origin: left center;
+  inset: 0;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 70%, transparent);
+  text-decoration-thickness: 1.5px;
+  clip-path: inset(0 100% 0 0);
   pointer-events: none;
 }
 .task--done .task__title { color: var(--muted); }
-.task--done .task__strike { transform: scaleX(1); }
+.task--done .task__label--struck { clip-path: inset(0 0 0 0); }
 .task--skipped { opacity: 0.6; }
 .task--skipped .task__title { text-decoration: line-through dotted; }
 
@@ -1205,9 +1204,13 @@ body.has-sheet { overflow: hidden; }
     max-width: calc(100vw - 96px);
     border-radius: 999px;
     padding: 10px 16px;
-    background: var(--panel-solid);
     box-shadow: var(--shadow-md);
   }
+  /* :not(--ready), because this rule comes later in the file at the same
+     specificity and was quietly replacing the finished state's bright gradient
+     with the dark panel — while `color: #0a0c1c` stayed. The result was 1.1:1,
+     near-black on near-black, at the one moment the button matters most. */
+  .lightsout:not(.lightsout--ready) { background: var(--panel-solid); }
   .lightsout--done { position: static; box-shadow: none; background: none; max-width: none; }
   .lightsout { min-height: 50px; font-size: 14.5px; }
   /* It floats over the list, so while the list is moving it gets out of the

@@ -349,3 +349,17 @@ test('Clockwork needs three nights that really were consecutive', () => {
   checkAchievements(state, computeStats(state));
   assert.equal(heldTier(state.profile, 'ontime'), 2);
 });
+
+test('the streak only counts as safe when it actually grew', () => {
+  // `met` asks whether tonight hit 60% and knows nothing about the nights you
+  // were away, so it cannot be what decides the headline.
+  const state = stateWithProgress(9);
+  state.profile.streak = 12;
+  state.profile.lastBankedKey = '2026-07-25'; // four nights ago
+  state.profile.tokens.freeze = 0;
+  const result = bankNight(state, computeStats(state));
+
+  assert.equal(result.met, true, 'tonight really was a good night');
+  assert.ok(result.streakAfter < result.streakBefore, 'and the streak still reset');
+  assert.equal(result.streakAfter, 1, 'counting again from tonight');
+});

@@ -156,9 +156,14 @@ function taskRow(state, task, index) {
   // A drawn line rather than `text-decoration`, which cannot be animated. The
   // line sweeping across the thing you just finished is the oldest reliable
   // satisfaction in checklists and the app did not have it.
+  // Two copies of the title: the plain one, and a struck one clipped to nothing
+  // and swept open. A single absolutely-positioned rule cannot do this — a title
+  // that wraps to four lines got one line drawn through the gap between lines
+  // two and three, striking no words at all. `text-decoration` handles every
+  // line correctly but cannot be animated, so it is revealed rather than drawn.
   const title = h('span', { class: 'task__title' },
     h('span', { class: 'task__label' }, task.title),
-    h('span', { class: 'task__strike', 'aria-hidden': 'true' }));
+    h('span', { class: 'task__label task__label--struck', 'aria-hidden': 'true' }, task.title));
   const minutesChip = h('button', {
     type: 'button',
     class: 'task__minutes',
@@ -660,10 +665,10 @@ function playToggle() {
       tick.animate([{ transform: 'scale(0.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
         { duration: 220, delay: 60, easing: 'cubic-bezier(0.34, 1.5, 0.5, 1)', fill: 'both' });
     }
-    const strike = row.querySelector('.task__strike');
+    const strike = row.querySelector('.task__label--struck');
     if (strike) {
-      strike.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
-        { duration: 260, delay: 40, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' });
+      strike.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }],
+        { duration: 300, delay: 40, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' });
     }
   }
 }

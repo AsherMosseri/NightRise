@@ -173,14 +173,22 @@
 }
 .is-dim #dim-veil { opacity: 1; }
 
-/* The veil cannot cover the dialog (top layer) or the fixed sheet/toast layers,
-   so those surfaces are warmed directly — otherwise the brightest things on the
-   screen were exactly the ones sleep-safe mode missed. */
+/* The veil cannot cover the dialog (top layer) or anything fixed above z-40, so
+   those surfaces are warmed directly — otherwise the brightest things on the
+   screen were exactly the ones sleep-safe mode missed.
+   ANY new fixed layer above the veil must be added here. One Card mode (z-45),
+   the envelope ceremony (z-62), the effects layer (z-58) and the goodnight
+   screen (z-80) were each escaping it — and One Card is the mode most likely to
+   be open at midnight, which is the whole audience for this setting. */
 .is-dim #modal,
 .is-dim .sheet,
 .is-dim .sheet-scrim,
 .is-dim .toast,
-.is-dim .companion {
+.is-dim .companion,
+.is-dim .onecard,
+.is-dim .env-stage,
+.is-dim .fx-layer,
+.is-dim .goodnight {
   filter: sepia(0.35) brightness(0.62) saturate(0.85);
 }
 .is-dim #modal::backdrop { background: rgba(2, 3, 10, 0.78); }

@@ -14,7 +14,7 @@ import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.j
 import { achievementBoard, totalTiers } from '../achievements.js';
 import { taskInsights, reliableTasks, overallRate, nightsFullyCleared } from '../insights.js';
 import { forceNewNight, computeStats } from '../night.js';
-import { still } from './motion.js';
+import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
 } from '../time.js';
@@ -540,7 +540,7 @@ VIEWS.insights = () => {
       'aria-valuemin': '0',
       'aria-valuemax': '100',
       'aria-label': a.goal,
-    }, h('span', { style: { width: `${a.pct}%` } })),
+    }, growTo(h('span', {}), `ach:${a.id}`, `${a.pct}%`)),
     h('span', { class: 'ach__hint' }, a.complete ? 'Every tier earned' : `${a.progress} · ${a.goal.toLowerCase()}`)),
   h('div', { class: 'ach__pips' }, ...Array.from({ length: a.tiers }, (_, i) => h('span', {
     class: `ach__pip ${i < a.tier ? 'is-lit' : ''}`.trim(), 'aria-hidden': 'true',

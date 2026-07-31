@@ -21,7 +21,7 @@ import { titleForLevel } from './game.js';
 import { checkAchievements } from './achievements.js';
 import { playEnvelopeOpen } from './render/envelope-open.js';
 import { playFinale } from './render/finale.js';
-import { still, rectOf } from './render/motion.js';
+import { still, rectOf, flyBetween } from './render/motion.js';
 
 /** Where the last check-off happened, so the finale can start from your thumb. */
 let lastCheckRect = null;
@@ -117,6 +117,10 @@ function wireEffects() {
     // Nothing competes with the finale's own ribbon on the final check.
     if (remaining > 0) shootingStar();
     floatXp(task.id, `+${award.xp} XP`);
+    // XP floats off the row already; stardust — the currency that buys every
+    // single thing you actually want — arrived with no sign it had happened at
+    // all, which is why the shop felt disconnected from the checklist.
+    if (award.dust > 0) flyBetween(lastCheckRect, rectOf(document.querySelector('.stat--stardust')));
     if (award.multiplier >= 2) {
       const label = `x${award.multiplier.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}`;
       toast(`${label} combo`, { tone: 'win', iconName: 'flame', duration: 2200, detail: `+${award.dust} stardust` });

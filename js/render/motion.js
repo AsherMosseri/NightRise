@@ -167,3 +167,9 @@ export function rectOf(node) {
   const rect = node.getBoundingClientRect();
   return rect.width || rect.height ? rect : null;
 }
+
+/** grow() as an expression, for building a bar inline in a render tree. */
+export function growTo(node, key, width) {
+  grow(node, key, 'width', width);
+  return node;
+}

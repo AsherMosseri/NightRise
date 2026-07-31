@@ -11,7 +11,7 @@ import {
   formatNightLabel, minutesUntilBedtime, pacingStatus, PACING_COPY, formatClockLabel,
 } from '../time.js';
 import { formatDuration, formatNumber, plural } from '../util.js';
-import { grow, countTo, still, forgetGrow } from './motion.js';
+import { grow, countTo, still, forgetGrow, growTo } from './motion.js';
 import { topNudge } from '../insights.js';
 import { claimQuest } from '../actions.js';
 import { openEnvelope, envelopeWaiting, dropById } from '../envelope.js';
@@ -224,7 +224,7 @@ function questCard(state, stats) {
       h('span', { class: 'quest__name' }, quest.name),
       h('span', { class: 'quest__reward' }, `+${quest.def.xp} XP · +${quest.def.dust} dust`)),
     h('p', { class: 'quest__desc' }, quest.description),
-    h('div', { class: 'quest__bar' }, h('span', { style: { width: `${Math.min(100, pct)}%` } })),
+    h('div', { class: 'quest__bar' }, growTo(h('span', {}), 'quest:bar', `${Math.min(100, pct)}%`)),
     h('div', { class: 'quest__foot' },
       h('span', { class: 'quest__progress' }, quest.label),
       quest.claimed
@@ -434,19 +434,33 @@ function pickLine(list, seed) {
   return list[seed % list.length];
 }
 
+/** What the drawn companion depends on. Anything else must not rebuild it. */
+let companionKey = null;
+
 export function renderCompanion() {
   if (!companionHost) return;
   const state = getState();
   const companion = state.profile.companion;
-  clear(companionHost);
   if (!companion?.type || !state.profile.equipped.companion) {
+    clear(companionHost);
     companionHost.hidden = true;
+    companionKey = null;
     return;
   }
   companionHost.hidden = false;
 
   const stats = computeStats(state);
-  const mood = stats.total === 0 ? 'sleepy' : stats.remaining === 0 ? 'happy' : stats.done > 0 ? 'happy' : 'idle';
+  // The only thing in the app that can be company at midnight, and it was
+  // being destroyed and redrawn on every single check-off — which restarted
+  // its 22s ring and its 4s breathing from zero, so on an active night neither
+  // ever completed a cycle. It only gets rebuilt when it actually looks
+  // different.
+  const mood0 = stats.total === 0 ? 'sleepy' : stats.remaining === 0 ? 'happy' : stats.done > 0 ? 'happy' : 'idle';
+  const key = `${companion.type}:${companion.tier || 1}:${mood0}:${companion.name}`;
+  if (key === companionKey && companionHost.firstChild) return;
+  companionKey = key;
+  clear(companionHost);
+  const mood = mood0;
   const tierName = TIER_NAMES[Math.min(TIER_NAMES.length - 1, (companion.tier || 1) - 1)];
   const toNext = feedsToNextTier(companion.fed || 0);
 

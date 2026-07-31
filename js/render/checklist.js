@@ -206,6 +206,9 @@ function taskRow(state, task, index) {
       // declared on .task__check has never once had an old value to run from.
       // Remembering which row moved lets the next render animate it instead.
       justToggled = { id: task.id, done: !done };
+      // With hide-completed on, this row is about to vanish and take 46px of
+      // the list with it. Everything below should slide, not jump.
+      if (getState().profile.settings.hideCompleted) expectShift();
       toggleTask(task.id);
     },
   }, icon('check', { size: 15 })),
@@ -236,6 +239,7 @@ function neighbourFocusKey(id) {
 }
 
 function removeTask(id) {
+  expectShift();
   focusNext(neighbourFocusKey(id)); // otherwise focus falls to <body>
   const result = deleteTask(id);
   if (!result) return;
@@ -269,6 +273,7 @@ function sectionActions(section, addInput) {
 }
 
 function removeSection(id) {
+  expectShift();
   const state = getState();
   const section = state.template.sections[id];
   if (!section) return;
@@ -364,6 +369,7 @@ function sectionNode(state, section, index) {
     // Armed before the mutation: arming it afterwards left a stale key that
     // hijacked focus on the next unrelated re-render.
     focusNext(`section-add:${section.id}`);
+    expectShift();
     addTask(section.id, parsed.title, parsed.minutes ?? 5);
   };
 
@@ -397,7 +403,7 @@ function sectionNode(state, section, index) {
     class: 'section__collapse',
     'aria-expanded': section.collapsed ? 'false' : 'true',
     'aria-label': section.collapsed ? `Expand ${section.title}` : `Collapse ${section.title}`,
-    onClick: () => { focusNext(`section:${section.id}`); toggleSectionCollapsed(section.id); },
+    onClick: () => { focusNext(`section:${section.id}`); expectShift(); toggleSectionCollapsed(section.id); },
   }, icon(section.collapsed ? 'down' : 'up', { size: 14 })),
   title,
   h('span', { class: 'section__count' }, `${stats.done}/${stats.total}`),
@@ -427,6 +433,7 @@ function sectionNode(state, section, index) {
     } else if (key === 'Enter' || key === ' ') {
       event.preventDefault();
       focusNext(`section:${section.id}`);
+      expectShift();
       toggleSectionCollapsed(section.id);
     }
   });
@@ -480,10 +487,21 @@ function parseInlineTask(value) {
 
 let expectMove = false;
 
-/** Called by the reorder paths; nothing else pays for the FLIP measurement. */
-export function expectReorder() {
+/**
+ * Arm the FLIP measurement for the next render.
+ *
+ * This used to be called only by the reorder paths, on the reasoning that
+ * nothing else moves a row. That was wrong: deleting, adding, collapsing a
+ * section and — worst of all — checking a task with hide-completed on all
+ * shift everything below by a row height, instantly. With hide-completed that
+ * fires on every single check-off, and a 46px teleport under your thumb is the
+ * most physically wrong thing the list does.
+ */
+export function expectShift() {
   expectMove = true;
 }
+
+export { expectShift as expectReorder };
 
 function captureRects() {
   const map = new Map();

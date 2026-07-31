@@ -300,7 +300,7 @@ function lightsOutButton(state, stats) {
       icon('moon', { size: 13 }),
       `Lights out at ${new Date(state.night.lightsOutAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`);
   }
-  const done = stats.total > 0 && stats.remaining === 0;
+  const done = stats.total > 0 && stats.remaining === 0 && stats.done > 0;
   const button = h('button', {
     type: 'button',
     class: `lightsout ${done ? 'lightsout--ready' : ''}`.trim(),
@@ -383,7 +383,12 @@ function renderTonightInner() {
           stats.total === 0
             ? 'Nothing on the list yet.'
             : stats.remaining === 0
-              ? 'Everything is done. Go to bed.'
+              ? (stats.done > 0
+                ? 'Everything is done. Go to bed.'
+                // Rain-checking the whole list leaves nothing remaining and
+                // nothing done. Saying "everything is done" beside a dial
+                // reading 0% is the app disagreeing with itself on one screen.
+                : 'Nothing left to count tonight.')
               : `${plural(stats.remaining, 'task', 'tasks')} to go${stats.skipped ? `, ${stats.skipped} rain-checked` : ''}.`),
         stats.remaining > 0
           ? h('button', {

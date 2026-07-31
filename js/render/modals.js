@@ -24,7 +24,7 @@ import { SHORTCUTS } from '../keys.js';
 import { previewPack } from '../audio.js';
 import { setSkyPaused } from '../sky.js';
 import { toast } from '../toast.js';
-import { formatNumber, plural } from '../util.js';
+import { formatNumber, plural, clamp } from '../util.js';
 import { confirmAction, chooseAction } from './confirm.js';
 import { RESET_PARTS, resetPartById, applyReset } from '../reset.js';
 import { refreshApp, runningVersion } from '../updates.js';
@@ -645,10 +645,18 @@ function bedtimePicker(current, onChange) {
     onChange(value);
   };
 
+  // The steppers used to wrap the whole 1440-minute clock, so sixteen taps of
+  // "later" from midnight reached 4am — a time the night cycle reads as this
+  // morning rather than tomorrow's. Measured from noon, an evening is a simple
+  // range: 19:00 is 420 and 03:45 is 945, and there is nothing to wrap through.
+  const EARLIEST = 7 * 60; // 19:00
+  const LATEST = 15 * 60 + 45; // 03:45 — one step short of the 4am rollover
+  const fromNoon = (h, m) => (h * 60 + m - 720 + 1440) % 1440;
+
   const shift = (minutes) => {
     const parsed = parseClock(value) || { hours: 23, minutes: 30 };
-    // Wrap through midnight: a bedtime of 00:15 is a normal answer.
-    const total = (parsed.hours * 60 + parsed.minutes + minutes + 1440) % 1440;
+    const next = clamp(fromNoon(parsed.hours, parsed.minutes) + minutes, EARLIEST, LATEST);
+    const total = (next + 720) % 1440;
     value = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
     sync();
   };

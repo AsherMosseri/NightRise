@@ -103,7 +103,10 @@ test('nothing recorded reads as nothing rather than zero', () => {
   assert.equal(summary.onTimeRate, null);
   assert.equal(summary.delta, null);
   assert.equal(formatFromNoon(summary.average), '—');
-  assert.equal(formatShift(summary.delta), 'no change');
+  // Not "no change" — there is no week before to have changed from, and this
+  // is the one tile that claims to answer "am I getting better".
+  assert.equal(formatShift(summary.delta), '—');
+  assert.equal(formatShift(0), 'no change', 'a real zero still reads as one');
 });
 
 test('banking a night writes down when you stopped and how late that was', () => {

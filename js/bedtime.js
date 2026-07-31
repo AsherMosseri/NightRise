@@ -45,7 +45,13 @@ export function formatFromNoon(minutes, key = '2000-01-02') {
 
 /** "23 min earlier" / "8 min later" / "the same". */
 export function formatShift(delta) {
-  if (delta === null || !Number.isFinite(delta) || Math.abs(delta) < 1) return 'no change';
+  // Nothing to compare against is not "no change". On your first ever Lights
+  // out the only tile the README calls out as answering "am I getting better"
+  // answered with a confident, false zero — while its own tooltip two lines
+  // below said there were not enough nights yet. Its four neighbours all admit
+  // missing data with an em dash; so does this one now.
+  if (delta === null || !Number.isFinite(delta)) return '—';
+  if (Math.abs(delta) < 1) return 'no change';
   const mins = Math.abs(Math.round(delta));
   const label = mins >= 60
     ? `${Math.floor(mins / 60)}h ${pad2(mins % 60)}m`

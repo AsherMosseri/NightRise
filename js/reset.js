@@ -110,12 +110,19 @@ const APPLY = {
       xp: 0,
       level: 1,
       maxLevelRewarded: 1,
-      // Tiers and what they were paid for go together. Leaving `tiersPaid`
-      // behind would be the polite half of a reset and the stingy half of a
-      // fresh start: the shelf empties, and refilling it earns nothing.
+      // The shelf empties. `tiersPaid` does NOT, and the comment that used to
+      // sit here had it exactly backwards: it argued that clearing the ledger
+      // was fair because "refilling the shelf earns nothing". That holds only
+      // for families whose *measure* this reset also clears. Six of the nine
+      // measure permanent records it deliberately keeps — nights banked, best
+      // streak, best on-time streak, best combo, unlocks owned, constellations
+      // finished — so with the ledger wiped the very next tick re-reached every
+      // one of those rungs from records nothing had touched and paid for them
+      // all again. Two taps in Settings, +880 stardust, repeatable forever.
+      //
+      // `tiersPaid` is a payment ledger, not display state. It survives.
       tiers: {},
       tiersBanked: {},
-      tiersPaid: {},
       bestCombo: 1,
       dustDebt: 0,
     });

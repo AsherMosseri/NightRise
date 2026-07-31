@@ -66,7 +66,14 @@ export function bedtimeInstant(key, bedtime) {
   if (!parsed) return null;
   const base = keyToDate(key);
   const target = new Date(base.getFullYear(), base.getMonth(), base.getDate(), parsed.hours, parsed.minutes, 0, 0);
-  if (parsed.hours < NIGHT_BOUNDARY_HOUR) target.setDate(target.getDate() + 1);
+  // Noon, not the 4am night boundary. A bedtime is an evening or small-hours
+  // time, so anything before midday belongs to the morning *after* the night
+  // started. With the boundary at 4, a target of 04:00 resolved to the morning
+  // the night began — eighteen hours in the past — which made the countdown
+  // read "18h over" all evening, held curfew closed from the first second, and
+  // made every lights-out late however early you stopped. Pivoting at noon
+  // means a mistyped or imported time still resolves forward.
+  if (parsed.hours < 12) target.setDate(target.getDate() + 1);
   return target;
 }
 

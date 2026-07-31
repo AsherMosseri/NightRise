@@ -179,7 +179,9 @@ function finishedCard(state, stats) {
     h('h2', {}, stats.total === 0 ? 'Nothing on the list' : 'That’s everything.'),
     h('p', { class: 'muted' }, stats.total === 0
       ? 'Add something to tonight and come back.'
-      : `${plural(stats.done, 'task', 'tasks')} done. Time to stop.`),
+      : stats.done > 0
+        ? `${plural(stats.done, 'task', 'tasks')} done. Time to stop.`
+        : 'Every task was rain-checked. Nothing counted tonight.'),
     h('div', { class: 'onecard__done-actions' },
       state.night.lightsOutAt ? null : h('button', {
         type: 'button',

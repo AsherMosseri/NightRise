@@ -6,6 +6,7 @@ import {
   advanceLightsOutStreak,
 } from '../js/night.js';
 import { createInitialState } from '../js/model.js';
+import { minutesUntilBedtime } from '../js/time.js';
 import { applyTaskCompletion } from '../js/game.js';
 import { ACHIEVEMENTS, checkAchievements, heldTier } from '../js/achievements.js';
 import { normalizeState } from '../js/storage.js';
@@ -362,4 +363,26 @@ test('the streak only counts as safe when it actually grew', () => {
   assert.equal(result.met, true, 'tonight really was a good night');
   assert.ok(result.streakAfter < result.streakBefore, 'and the streak still reset');
   assert.equal(result.streakAfter, 1, 'counting again from tonight');
+});
+
+test('a bedtime after midnight resolves to tomorrow, not to this morning', () => {
+  // The pivot used to be the 4am night boundary, so 04:00 landed on the morning
+  // the night began — eighteen hours in the past — which read as "18h over" all
+  // evening, held curfew closed from the first second, and made every lights-out
+  // late however early you stopped.
+  const key = '2026-07-31';
+  const at = new Date(2026, 6, 31, 22, 0);
+  for (const bedtime of ['23:30', '00:30', '03:59', '04:00', '05:30']) {
+    const left = minutesUntilBedtime(key, bedtime, at);
+    assert.ok(left > 0, `${bedtime} should still be ahead of you at 10pm, got ${left}`);
+  }
+});
+
+test('an all-rain-checked night is not a finished night', () => {
+  const state = stateWithProgress(0);
+  for (const id of Object.keys(state.template.tasks)) state.night.skipped[id] = true;
+  const stats = computeStats(state);
+  assert.equal(stats.remaining, 0, 'nothing is left');
+  assert.equal(stats.done, 0, 'and nothing was done');
+  assert.equal(stats.pct, 0, 'so it scores nothing, and the copy must agree');
 });

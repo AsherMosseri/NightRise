@@ -202,9 +202,14 @@ test('each part only takes its own', () => {
   applyReset(state, ['progress']);
   assert.equal(state.profile.xp, 0);
   assert.equal(state.profile.level, 1);
-  assert.deepEqual(state.profile.tiers, {});
+  assert.deepEqual(state.profile.tiers, {}, 'the shelf empties');
   assert.deepEqual(state.profile.tiersBanked, {});
-  assert.deepEqual(state.profile.tiersPaid, {}, 'or refilling the shelf would earn nothing');
+  // This used to assert the ledger was cleared too, on the reasoning that
+  // refilling the shelf would earn nothing. The opposite was true: most
+  // families measure records this reset keeps, so a cleared ledger re-paid
+  // every one of them on the next tick. The ledger is not display state.
+  assert.deepEqual(state.profile.tiersPaid, { nights: 1, streak: 1 },
+    'but what was already paid for stays paid for');
   assert.equal(state.profile.streak, 6, 'the streak is its own option now');
   assert.equal(state.profile.settings.bedtime, '01:00', 'settings are still yours');
 
@@ -259,5 +264,27 @@ test('an unknown id is ignored rather than throwing', () => {
 test('every part has copy for the picker', () => {
   for (const part of RESET_PARTS) {
     assert.ok(part.id && part.label && part.hint, `${part.id} needs a label and a hint`);
+  }
+});
+
+test('resetting progress is not a stardust faucet', () => {
+  // Six of the nine achievement families measure permanent records — nights
+  // banked, best streak, best on-time streak, best combo, unlocks owned,
+  // constellations finished — and a progress reset deliberately keeps every one
+  // of those. Clearing the payment ledger with the shelf therefore re-paid all
+  // of them on the next tick, for free, as often as you liked.
+  const state = fresh();
+  state.profile.nightsLogged = 140;
+  state.profile.bestStreak = 100;
+  state.profile.lightsOut = { streak: 100, best: 100, lastKey: '2026-07-29' };
+  checkAchievements(state, computeStats(state));
+  const settled = state.profile.stardust;
+  assert.ok(settled > 0, 'those records really are worth several rungs');
+
+  for (let i = 0; i < 3; i += 1) {
+    applyReset(state, ['progress']);
+    assert.deepEqual(state.profile.tiers, {}, 'the shelf still empties');
+    checkAchievements(state, computeStats(state));
+    assert.equal(state.profile.stardust, settled, 'and refilling it earns nothing');
   }
 });

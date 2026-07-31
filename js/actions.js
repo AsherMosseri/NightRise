@@ -33,9 +33,28 @@ function snapshot(state) {
 
 export function pushUndo(label) {
   undoSeq += 1;
-  undoStack.push({ id: undoSeq, label, data: snapshot(getState()) });
+  // Stamped with the night it belongs to. An entry outlives its night
+  // otherwise, and restoring one across a night boundary re-grants every award
+  // in it — those were banked into history by the rollover, not revoked, so the
+  // XP and stardust arrive a second time. "Bank tonight and start fresh", the
+  // 4am rollover and a reset all replace the night object, and all three left a
+  // full stack of entries pointing at a night that no longer exists.
+  undoStack.push({ id: undoSeq, label, key: getState().night.key, data: snapshot(getState()) });
   if (undoStack.length > UNDO_LIMIT) undoStack.shift();
   return undoSeq;
+}
+
+/**
+ * Drop every entry that belongs to a night other than the one running now.
+ *
+ * Done lazily here rather than by having night.js call in, because actions.js
+ * already imports night.js and the reverse would be a cycle — the same trap
+ * documented in js/game.js about the achievements module.
+ */
+function pruneUndo(state) {
+  for (let i = undoStack.length - 1; i >= 0; i -= 1) {
+    if (undoStack[i].key !== state.night.key) undoStack.splice(i, 1);
+  }
 }
 
 /**
@@ -44,15 +63,23 @@ export function pushUndo(label) {
  * Assigning `night.awards` wholesale was silently destructive: a snapshot taken
  * before you ticked something, restored after, dropped that award's record
  * while its XP and stardust stayed banked — so ticking the same task again paid
- * for it a second time. The record and the balance have to move together, so
- * the difference is settled in both directions rather than overwritten.
+ * for it a second time. The record and the balance have to move together.
+ *
+ * By AMOUNT, not by presence. Settling only the ids that appear on one side and
+ * not the other left the middle case unhandled: edit a task's minutes and
+ * re-tick it, and the same id is in both snapshots carrying different figures —
+ * so neither branch fired, the balance kept the larger payout and the record
+ * kept the smaller receipt. Un-ticking then handed back the small one and you
+ * pocketed the difference, on a loop, without limit.
  */
 function restoreAwards(state, target) {
-  for (const [id, award] of Object.entries(state.night.awards)) {
-    if (!target[id]) revokeGrant(state, award.xp, award.dust);
-  }
-  for (const [id, award] of Object.entries(target)) {
-    if (!state.night.awards[id]) grantXp(state, award.xp, award.dust);
+  for (const id of new Set([...Object.keys(state.night.awards), ...Object.keys(target)])) {
+    const now = state.night.awards[id];
+    const then = target[id];
+    const dXp = (then?.xp || 0) - (now?.xp || 0);
+    const dDust = (then?.dust || 0) - (now?.dust || 0);
+    if (dXp > 0 || dDust > 0) grantXp(state, Math.max(0, dXp), Math.max(0, dDust));
+    if (dXp < 0 || dDust < 0) revokeGrant(state, Math.max(0, -dXp), Math.max(0, -dDust));
   }
   state.night.awards = deepClone(target);
 }
@@ -70,11 +97,10 @@ function restoreAwards(state, target) {
  * and the record gone — so starting it again would pay twice.
  */
 function restoreStarted(state, target) {
-  for (const [id, record] of Object.entries(state.night.started)) {
-    if (!target[id]) revokeGrant(state, record.xp, 0);
-  }
-  for (const [id, record] of Object.entries(target)) {
-    if (!state.night.started[id]) grantXp(state, record.xp, 0);
+  for (const id of new Set([...Object.keys(state.night.started), ...Object.keys(target)])) {
+    const delta = (target[id]?.xp || 0) - (state.night.started[id]?.xp || 0);
+    if (delta > 0) grantXp(state, delta, 0);
+    else if (delta < 0) revokeGrant(state, -delta, 0);
   }
   state.night.started = deepClone(target);
 }
@@ -97,6 +123,7 @@ function restoreSkipped(state, target) {
  * deleted something else since — a bare LIFO pop restored the wrong thing.
  */
 export function undo(id = null) {
+  pruneUndo(getState());
   const index = id === null
     ? undoStack.length - 1
     : undoStack.findIndex((entry) => entry.id === id);

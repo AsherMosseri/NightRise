@@ -118,7 +118,6 @@ const APPLY = {
     Object.assign(state.profile, {
       xp: 0,
       level: 1,
-      maxLevelRewarded: 1,
       // The shelf empties. `tiersPaid` does NOT, and the comment that used to
       // sit here had it exactly backwards: it argued that clearing the ledger
       // was fair because "refilling the shelf earns nothing". That holds only
@@ -130,16 +129,32 @@ const APPLY = {
       // all again. Two taps in Settings, +880 stardust, repeatable forever.
       //
       // `tiersPaid` is a payment ledger, not display state. It survives.
+      //
+      // And so do the two that used to sit in this very object being wiped:
+      // `maxLevelRewarded` is the high-water mark that stops a level boundary
+      // paying its stardust twice, and `dustDebt` is what you owe for goods you
+      // are still holding. Zeroing them here was the same faucet the paragraph
+      // above describes, one field over: reset, re-earn, and every level from 1
+      // upward pays its bonus again with the stardust from last time still in
+      // your pocket. Two taps in Settings, repeatable forever.
       tiers: {},
       tiersBanked: {},
       bestCombo: 1,
-      dustDebt: 0,
     });
     // The night's awards recorded XP that no longer exists; un-checking later
-    // must not subtract it a second time. Same for the start advances.
-    state.night.awards = {};
-    state.night.started = {};
-    state.night.bonus = null;
+    // must not subtract it a second time. But the XP is the only part this
+    // reset zeroes — stardust is its own checkbox and keeps its balance — so
+    // DROPPING the records forfeited the dust they owe back. Reset progress,
+    // then reset tonight's checkmarks, and clearTonight found nothing left to
+    // revoke: the stardust stayed, the list came back, and the same night paid
+    // again. Two trips to Settings, ~87 stardust a lap, repeatable forever.
+    //
+    // The receipts stay; their XP goes to zero. A later un-tick then returns
+    // exactly the stardust and none of the XP, which is what each checkbox
+    // actually promised.
+    for (const award of Object.values(state.night.awards)) award.xp = 0;
+    for (const record of Object.values(state.night.started)) record.xp = 0;
+    if (state.night.bonus) state.night.bonus = { ...state.night.bonus, xp: 0 };
   },
 
   /**
@@ -158,9 +173,13 @@ const APPLY = {
 
   stardust(state) {
     state.profile.stardust = 0;
-    // Clearing the balance clears what you owed against it too. Carrying a
-    // debt through a reset would be a punishment nobody asked for.
-    state.profile.dustDebt = 0;
+    // The debt stays. It used to be forgiven here on the grounds that carrying
+    // it through a reset would be "a punishment nobody asked for" — which
+    // forgets what a debt is made of. It exists because you spent stardust and
+    // then handed back the thing that earned it, and the goods you bought are
+    // still on the shelf: clearing a balance that is already zero and writing
+    // off what you owe is a free theme, repeatable. Clearing the *unlocks* is
+    // the checkbox that gives the goods back.
   },
 
   unlocks(state) {
@@ -168,7 +187,12 @@ const APPLY = {
     Object.assign(state.profile, {
       inventory: fresh.inventory,
       equipped: fresh.equipped,
-      tokens: fresh.tokens,
+      // Empty, not the starter gift. `createProfile()` seeds one freeze and two
+      // rain checks because a new player should not begin with nothing — but
+      // handing that gift out again on every press made this button a token
+      // dispenser, and tokens are goods. Clearing what you own means owning
+      // none of them.
+      tokens: { freeze: 0, raincheck: 0 },
       companion: fresh.companion,
       companions: {},
       constellations: {},

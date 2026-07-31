@@ -192,7 +192,10 @@ test('each part only takes its own', () => {
 
   applyReset(state, ['unlocks']);
   assert.deepEqual(state.profile.inventory.themes, ['midnight']);
-  assert.deepEqual(state.profile.tokens, { freeze: 1, raincheck: 2 });
+  // Empty, not the starter gift. Handing out one freeze and two rain checks on
+  // every press made this button a token dispenser — and tokens are goods, so
+  // clearing what you own means owning none of them.
+  assert.deepEqual(state.profile.tokens, { freeze: 0, raincheck: 0 });
   assert.equal(state.profile.stardust, 300, 'the balance is a separate choice');
   assert.equal(state.profile.xp, 900, 'unlocks are not progress either');
   assert.equal(state.profile.streak, 6);
@@ -288,5 +291,60 @@ test('resetting progress is not a stardust faucet', () => {
     assert.deepEqual(state.profile.tiers, {}, 'the shelf still empties');
     checkAchievements(state, computeStats(state));
     assert.equal(state.profile.stardust, settled, 'and refilling it earns nothing');
+  }
+});
+
+test('a payment ledger survives every reset, or the reset is a faucet', () => {
+  // `tiersPaid` already survived, with a comment explaining exactly why. The two
+  // fields sitting in the same object literal did not: `maxLevelRewarded` stops
+  // a level boundary paying its stardust twice, and `dustDebt` is what you owe
+  // for goods still on your shelf. Reset, re-earn, and every level from 1
+  // upward paid its bonus again with last time's stardust still in your pocket.
+  const state = fresh();
+  state.profile.xp = 5000;
+  state.profile.level = levelFromXp(5000).level;
+  state.profile.maxLevelRewarded = state.profile.level;
+  state.profile.stardust = 900;
+  state.profile.dustDebt = 250;
+
+  applyReset(state, ['progress']);
+  assert.equal(state.profile.xp, 0, 'the level goes');
+  assert.equal(state.profile.maxLevelRewarded, levelFromXp(5000).level, 'the receipt does not');
+  assert.equal(state.profile.dustDebt, 250, 'nor does what you owe');
+  assert.equal(state.profile.stardust, 900, 'and the balance is a separate checkbox');
+
+  // So climbing back through the same levels pays nothing a second time.
+  const before = state.profile.stardust;
+  grantXp(state, 5000, 0);
+  assert.equal(state.profile.stardust, before, 'every one of those levels was already paid for');
+});
+
+test('clearing your balance does not write off what you owe for goods you kept', () => {
+  const state = fresh();
+  state.profile.stardust = 0;
+  state.profile.dustDebt = 400;
+  applyReset(state, ['stardust']);
+  assert.equal(state.profile.dustDebt, 400,
+    'the theme you bought with it is still on the shelf; "unlocks" is the checkbox that takes it back');
+});
+
+test('two trips to Settings in either order is not a stardust faucet', () => {
+  // `progress` used to DROP night.awards. That is right for the XP it zeroes,
+  // but stardust is a separate checkbox that keeps its balance — so with the
+  // receipts gone, clearTonight found nothing to revoke and the dust stayed.
+  // Reset progress, reset checkmarks, do the night again: ~87 stardust a lap,
+  // repeatable forever. The receipts stay now; only their XP goes to zero.
+  for (const order of [['progress', 'checks'], ['checks', 'progress']]) {
+    replaceState(fresh());
+    const ids = Object.keys(getState().template.tasks);
+    for (let lap = 0; lap < 25; lap += 1) {
+      for (const id of ids) toggleTask(id);
+      applyReset(getState(), [order[0]]);
+      applyReset(getState(), [order[1]]);
+    }
+    const p = getState().profile;
+    assert.equal(p.xp, 0, order.join(' then '));
+    assert.equal(p.stardust, 0, `${order.join(' then ')} — 25 laps must pay nothing`);
+    assert.equal(p.maxLevelRewarded, 1);
   }
 });

@@ -4,12 +4,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getState, replaceState } from '../js/state.js';
+import { getState, replaceState, update } from '../js/state.js';
 import {
   toggleTask, toggleSkip, deleteTask, deleteSection, undo, claimQuest, addTask, addSection,
+  setTaskMinutes, pushUndo,
 } from '../js/actions.js';
 import { createInitialState } from '../js/model.js';
-import { computeStats } from '../js/night.js';
+import { computeStats, forceNewNight } from '../js/night.js';
 import {
   grantXp, revokeGrant, applyTaskStart, applyTaskCompletion, revokeTaskCompletion,
   nightCompletionBonus, START_ADVANCE_XP,
@@ -385,4 +386,42 @@ test('starting everything and finishing nothing has a small ceiling', () => {
   assert.ok(state.profile.xp < nightCompletionBonus(computeStats(state)).xp,
     'less than finishing the list pays as a bonus, on its own');
   assert.equal(state.profile.stardust, 0);
+});
+
+test('undo settles awards by amount, not by presence', () => {
+  // Edit a task's minutes and re-tick it and the same id sits in both
+  // snapshots carrying different figures — so a presence check fired neither
+  // branch, the balance kept the larger payout and the record kept the smaller
+  // receipt. Un-ticking handed back the small one and you pocketed the
+  // difference, on a loop, without limit: 500 laps was 299,000 XP.
+  const state = reset();
+  const id = Object.keys(state.template.tasks)[0];
+  const before = balance();
+  for (let lap = 0; lap < 50; lap += 1) {
+    setTaskMinutes(id, 600);
+    toggleTask(id);
+    const undoId = pushUndo('lap');
+    toggleTask(id);
+    setTaskMinutes(id, 0);
+    toggleTask(id);
+    undo(undoId);
+    toggleTask(id);
+  }
+  setTaskMinutes(id, 5);
+  const after = balance();
+  assert.equal(after.xp, before.xp, '50 laps of edit-tick-undo pays no XP');
+  assert.ok(after.dust - before.dust < 200, `and no runaway stardust (got +${after.dust - before.dust})`);
+});
+
+test('an undo entry cannot be applied to a night it does not belong to', () => {
+  // The rollover and "bank tonight and start fresh" replace the night object.
+  // Its awards were banked into history, not revoked — so restoring a snapshot
+  // from before the boundary re-granted every one of them a second time.
+  const state = reset();
+  for (const id of Object.keys(state.template.tasks)) toggleTask(id);
+  const earned = getState().profile.xp;
+  const undoId = pushUndo('last night');
+  update((s) => forceNewNight(s, '2026-07-30'));
+  assert.equal(undo(undoId), null, 'the entry describes a night that no longer exists');
+  assert.equal(getState().profile.xp, earned, 'and nothing was paid twice');
 });

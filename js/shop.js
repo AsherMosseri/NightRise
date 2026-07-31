@@ -4,41 +4,12 @@ import { update, emit } from './state.js';
 import { checkAchievements } from './achievements.js';
 import { computeStats } from './night.js';
 import { COMPANIONS, FEED_COST, TIER_FEEDS, tierForFeeds } from './companion.js';
+import {
+  THEMES, SOUND_PACKS, TRAILS, FONTS, HORIZONS, WEATHER, MOONS, MARKS, ENVELOPES,
+} from './skins.js';
 
-export const THEMES = [
-  { id: 'midnight', name: 'Midnight', cost: 0, desc: 'Deep blue, quiet, the default night.' },
-  { id: 'aurora', name: 'Aurora', cost: 400, desc: 'Green and violet curtains over the horizon.' },
-  { id: 'deepspace', name: 'Deep Space', cost: 700, reqLevel: 4, desc: 'Nebula purples, far from any city.' },
-  { id: 'city', name: 'City Skyline', cost: 920, reqLevel: 6, desc: 'Amber windows under a hazy orange sky.' },
-  { id: 'frost', name: 'Frost', cost: 1150, reqLevel: 8, desc: 'Pale ice blue and a very long winter night.' },
-  { id: 'bloodmoon', name: 'Blood Moon', cost: 1550, reqLevel: 10, desc: 'Rust and ember. Rare, and a little ominous.' },
-];
-
-export const SOUND_PACKS = [
-  { id: 'chime', name: 'Chime', cost: 0, desc: 'Soft glass bell on every check.' },
-  { id: 'crickets', name: 'Crickets', cost: 260, desc: 'A short chirp from the garden.' },
-  { id: 'windchime', name: 'Wind Chime', cost: 440, desc: 'Three notes on a breeze.' },
-  { id: 'synth', name: 'Synth', cost: 570, desc: 'Warm analog blip, retro and satisfying.' },
-];
-
-export const TRAILS = [
-  { id: 'none', name: 'No trail', cost: 0, desc: 'Just the cursor.' },
-  { id: 'stardust', name: 'Stardust', cost: 330, desc: 'Fine glittering dust follows the pointer.' },
-  { id: 'comet', name: 'Comet', cost: 530, desc: 'A short bright tail with a slow fade.' },
-  { id: 'fireflies', name: 'Fireflies', cost: 660, desc: 'Little lights that drift after you.' },
-];
-
-export const FONTS = [
-  // `sans`, not `aurora`. The Aurora *sky* is also `aurora`, and ids are global
-  // in `itemById` — so tapping Equip on this card looked up the theme, and the
-  // default typeface could never be equipped again once you left it. Renamed
-  // rather than disambiguated alone, because two things in one market sharing a
-  // name is a trap whatever the lookup does. Saves are migrated in storage.js.
-  { id: 'sans', name: 'Aurora Sans', cost: 0, desc: 'The clean default.' },
-  { id: 'mono', name: 'Terminal', cost: 260, desc: 'Monospaced, for the very online.' },
-  { id: 'serif', name: 'Bedside', cost: 310, desc: 'A quiet book serif.' },
-  { id: 'display', name: 'Neon', cost: 480, reqLevel: 5, desc: 'Wide letterforms with a glow.' },
-];
+/* Re-exported: the catalogs live in skins.js as data, the rules live here. */
+export { THEMES, SOUND_PACKS, TRAILS, FONTS };
 
 export const CONSUMABLES = [
   {
@@ -57,10 +28,16 @@ export const CONSUMABLES = [
   },
 ];
 
+/* bucket (where owning it is recorded) -> kind (which equipped slot it fills). */
 const KIND_BY_LIST = [
   ['themes', 'theme', THEMES],
+  ['horizons', 'horizon', HORIZONS],
+  ['weather', 'weather', WEATHER],
+  ['moons', 'moon', MOONS],
   ['sounds', 'sounds', SOUND_PACKS],
   ['trails', 'trail', TRAILS],
+  ['marks', 'mark', MARKS],
+  ['envelopes', 'envelope', ENVELOPES],
   ['fonts', 'font', FONTS],
 ];
 

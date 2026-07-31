@@ -1,7 +1,7 @@
 /* The checklist itself: sections, tasks, inline editing, and all the
    reordering affordances (drag, buttons, Alt+Arrow). */
 
-import { h, icon, iconButton, clear, $$ } from '../dom.js';
+import { h, icon, iconButton, clear, $$, markIconName } from '../dom.js';
 import { getState } from '../state.js';
 import {
   addTask, deleteSection, deleteTask, moveSection, moveTaskByStep, moveTaskTo,
@@ -285,7 +285,7 @@ function taskRow(state, task, index, total = 0) {
       if (getState().profile.settings.hideCompleted) expectShift();
       toggleTask(task.id);
     },
-  }, icon('check', { size: 15 })),
+  }, icon(markIconName(getState()), { size: 15 })),
   h('div', { class: 'task__body' }, title,
     skipped ? h('span', { class: 'task__flag' }, 'rain check') : null,
     // A row you have started but not finished says so. Not a badge for having

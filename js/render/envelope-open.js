@@ -15,8 +15,10 @@
  * you watch once and one that still works in a month.
  */
 
-import { h, icon } from '../dom.js';
+import { h, icon, svg } from '../dom.js';
 import { DROPS } from '../envelope.js';
+import { envelopeById } from '../skins.js';
+import { getState } from '../state.js';
 import { hashString, seededRandom } from '../util.js';
 import { still, countTo } from './motion.js';
 import * as audio from '../audio.js';
@@ -100,6 +102,18 @@ function after(ms, fn) {
  * caller *before* the state update, because notifying subscribers destroys the
  * button synchronously and there is nothing left to measure afterwards.
  */
+/** The seal's emblem: a stroked path in a 24x24 box, drawn like every icon. */
+function sealEmblem(d) {
+  return svg('svg', { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true' },
+    svg('path', {
+      d,
+      stroke: 'currentColor',
+      'stroke-width': 2,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    }));
+}
+
 export function playEnvelopeOpen({ drop, amount, rect, key }) {
   teardown();
   if (still() || !rect) return false;
@@ -109,12 +123,25 @@ export function playEnvelopeOpen({ drop, amount, rect, key }) {
   const reel = h('div', { class: 'env-reel' },
     ...strip.map((d) => cellFor(d, d === drop ? amount : decoyAmount(d, rand))));
 
-  const card = h('div', { class: 'env-card' },
+  // The equipped skin, as four custom properties the stylesheet already reads.
+  // A skin that says 'theme' for a colour sets nothing, so the CSS fallback —
+  // the sky you have on — wins, and "Plain" stays a true no-op.
+  const skin = envelopeById(getState().profile.equipped.envelope || 'plain');
+  const ink = (value, prop) => (value && value !== 'theme' ? `${prop}:${value};` : '');
+  const style = ink(skin.paper, '--env-paper') + ink(skin.ink, '--env-ink')
+    + ink(skin.flap, '--env-flap') + ink(skin.seal, '--env-seal');
+
+  const card = h('div', { class: 'env-card', style: style || null },
     h('div', { class: 'env-card__flap', 'aria-hidden': 'true' }),
     h('div', { class: 'env-card__note' },
       h('span', { class: 'env-card__eyebrow' }, 'Tonight’s envelope'),
       h('div', { class: 'env-slot' }, reel)),
-    h('div', { class: 'env-card__front', 'aria-hidden': 'true' }));
+    h('div', { class: 'env-card__front', 'aria-hidden': 'true' }),
+    // No seal on the plain envelope, because it has never had one.
+    skin.seal && skin.seal !== 'theme'
+      ? h('div', { class: 'env-card__seal', 'aria-hidden': 'true' },
+        skin.sealPath ? sealEmblem(skin.sealPath) : null)
+      : null);
 
   // pointer-events:none from birth to death. There is no scrim, nothing to
   // dismiss, and the tap that ends this also lands on whatever is underneath.

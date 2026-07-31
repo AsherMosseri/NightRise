@@ -27,6 +27,12 @@ let nightStars = [];
 let moonFill = 0;
 let moonFillTarget = 0;
 let trailKind = 'none';
+/* Equipped skins. Each is a plain spec from js/skins.js or null for "as it was",
+   so nothing here has to know what the market sells. */
+let horizonSpec = null;
+let weatherSpec = null;
+let weatherParticles = [];
+let moonSpec = null;
 let parallax = { x: 0, y: 0, tx: 0, ty: 0 };
 let nextAmbientMeteor = 0;
 
@@ -49,6 +55,7 @@ const colors = {
   moonShadow: '#1b2140',
   trail: '#bcd0ff',
   glow: '#5f79d8',
+  horizon: '#05070f',
 };
 
 function readColors() {
@@ -62,6 +69,9 @@ function readColors() {
   colors.moonShadow = get('--moon-shadow', colors.moonShadow);
   colors.trail = get('--trail', colors.trail);
   colors.glow = get('--glow', colors.glow);
+  // Falls back to the darkest tone of whatever sky is equipped, so a horizon is
+  // a silhouette in every theme without any theme having to know about it.
+  colors.horizon = get('--horizon', get('--sky-1', colors.horizon));
 }
 
 function buildStars() {
@@ -176,6 +186,9 @@ function resize(force = false) {
   buildStars();
   placeConstellations(constellationSource);
   placeNightStars(nightStarKeys);
+  // Weather is seeded across the whole canvas, so a rotate or a keyboard
+  // opening would otherwise leave every particle stranded off the new edge.
+  if (weatherSpec) setWeather(weatherSpec);
   if (reducedMotion || !running) drawFrame(performance.now());
 }
 
@@ -188,9 +201,35 @@ export function moonGeometry() {
   return { x: width - r - clamp(width * 0.08, 28, 90), y, r };
 }
 
+/**
+ * A moon skin. `null` is today's moon exactly.
+ *
+ * Every field may be the string 'theme', meaning defer to the equipped sky's own
+ * custom property — which is what keeps the free default a true no-op rather
+ * than a lookalike that drifts the first time a theme is retuned.
+ */
+export function setMoonSkin(spec) {
+  moonSpec = spec || null;
+}
+
+const DEFAULT_CRATERS = [[0.28, -0.3, 0.18], [-0.1, 0.24, 0.13], [0.42, 0.34, 0.1], [0.05, -0.05, 0.08]];
+
+function moonInk() {
+  const pick = (value, fallback) => (!value || value === 'theme' ? fallback : value);
+  return {
+    disc: pick(moonSpec?.disc, colors.moon),
+    shadow: pick(moonSpec?.shadow, colors.moonShadow),
+    glow: pick(moonSpec?.glow, colors.glow),
+    craterAlpha: moonSpec ? clamp(moonSpec.craterAlpha ?? 0.08, 0, 0.25) : 0.08,
+    craters: moonSpec?.craters || DEFAULT_CRATERS,
+    ring: moonSpec?.ring || null,
+  };
+}
+
 function drawMoon(time) {
   const { x, y, r } = moonGeometry();
   const fill = clamp(moonFill, 0, 1);
+  const ink = moonInk();
 
   // Bloom for free: the glow gradient already runs every frame, so the finale
   // widens and brightens it rather than adding a filter or a shadowBlur —
@@ -198,7 +237,7 @@ function drawMoon(time) {
   const boost = Math.max(moonGlowBoost, moonGlowHold);
   const reach = r * (3.2 + boost * 0.9);
   const glow = ctx.createRadialGradient(x, y, r * 0.5, x, y, reach);
-  glow.addColorStop(0, `${colors.glow}55`);
+  glow.addColorStop(0, `${ink.glow}55`);
   glow.addColorStop(1, 'transparent');
   ctx.fillStyle = glow;
   ctx.globalAlpha = clamp(0.35 + fill * 0.5 + boost * 0.5, 0, 1);
@@ -207,14 +246,14 @@ function drawMoon(time) {
   ctx.fill();
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = colors.moonShadow;
+  ctx.fillStyle = ink.shadow;
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
 
   // Lit lune: right semicircle joined to a terminator ellipse.
   const rx = Math.abs(r * (1 - 2 * fill));
-  ctx.fillStyle = colors.moon;
+  ctx.fillStyle = ink.disc;
   ctx.beginPath();
   ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2, false);
   ctx.ellipse(x, y, rx, r, 0, Math.PI / 2, -Math.PI / 2, fill <= 0.5);
@@ -226,20 +265,151 @@ function drawMoon(time) {
   ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2, false);
   ctx.ellipse(x, y, rx, r, 0, Math.PI / 2, -Math.PI / 2, fill <= 0.5);
   ctx.clip();
-  ctx.fillStyle = 'rgba(0,0,0,0.08)';
-  const craters = [[0.28, -0.3, 0.18], [-0.1, 0.24, 0.13], [0.42, 0.34, 0.1], [0.05, -0.05, 0.08]];
-  for (const [cx, cy, cr] of craters) {
+  ctx.fillStyle = `rgba(0,0,0,${ink.craterAlpha})`;
+  for (const [cx, cy, cr] of ink.craters) {
     ctx.beginPath();
     ctx.arc(x + cx * r, y + cy * r, cr * r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
 
-  ctx.strokeStyle = `${colors.moon}33`;
+  ctx.strokeStyle = `${ink.disc}33`;
   ctx.lineWidth = 1;
+  ctx.setLineDash([]);
   ctx.beginPath();
   ctx.arc(x, y, r + 1.5 + Math.sin(time / 1400) * 0.6, 0, Math.PI * 2);
   ctx.stroke();
+
+  // A skin's own ring, outside the breathing halo the moon has always had.
+  if (ink.ring) {
+    ctx.save();
+    ctx.globalAlpha = clamp(ink.ring.alpha ?? 0.5, 0, 1);
+    ctx.strokeStyle = ink.disc;
+    ctx.lineWidth = 1.4;
+    if (ink.ring.dash) ctx.setLineDash(ink.ring.dash.split(' ').map(Number));
+    ctx.beginPath();
+    ctx.arc(x, y, r * (ink.ring.scale || 1.35), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* ------------------------------------------------------- horizon & weather */
+
+/**
+ * The silhouette along the bottom edge.
+ *
+ * A spec is `{ band, points }`: `band` is how much of the canvas height it
+ * occupies, and `points` are the top edge only, x ascending 0..1 across the
+ * canvas and y 0..1 up the band. The shape is closed down to the two bottom
+ * corners and filled flat — no interior detail, because a silhouette that tries
+ * to be a picture stops reading as a horizon.
+ */
+export function setHorizon(spec) {
+  horizonSpec = spec && spec.points?.length ? spec : null;
+}
+
+function drawHorizon() {
+  if (!horizonSpec) return;
+  const { band, points } = horizonSpec;
+  const top = height - height * band;
+  ctx.fillStyle = colors.horizon;
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  for (const [px, py] of points) ctx.lineTo(px * width, height - (height - top) * py);
+  ctx.lineTo(width, height);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/**
+ * Weather: one particle layer, specified rather than coded.
+ *
+ * Every sky in this app was only a recolour — same starfield, same density, same
+ * everything — so two skies differed in hue and nothing else. Weather is what
+ * makes them differ in motion.
+ *
+ * Seeded eagerly rather than filled in over time, because reduced motion draws
+ * exactly one frame and a layer that fades in over ten seconds would render as
+ * an empty sky forever.
+ */
+export function setWeather(spec) {
+  weatherSpec = spec && spec.count > 0 ? spec : null;
+  weatherParticles = [];
+  if (!weatherSpec || !width) return;
+  for (let i = 0; i < weatherSpec.count; i += 1) weatherParticles.push(spawnWeather(true));
+}
+
+function spawnWeather(seeded = false) {
+  const spec = weatherSpec;
+  const spawn = spec.spawn || 'top';
+  let x = Math.random() * width;
+  let y;
+  if (seeded || spawn === 'sky') y = Math.random() * height;
+  else if (spawn === 'upper') y = Math.random() * height * 0.5;
+  else if (spawn === 'edges') {
+    y = Math.random() * height;
+    x = Math.random() < 0.5 ? -20 : width + 20;
+  } else y = -20 - Math.random() * height * 0.2;
+  return {
+    x,
+    y,
+    size: spec.size + Math.random() * (spec.sizeJitter || 0),
+    phase: Math.random() * Math.PI * 2,
+    speed: 0.75 + Math.random() * 0.5,
+  };
+}
+
+function stepWeather() {
+  if (!weatherSpec || !weatherParticles.length) return;
+  const spec = weatherSpec;
+  for (let i = 0; i < weatherParticles.length; i += 1) {
+    const p = weatherParticles[i];
+    p.x += spec.vx * p.speed;
+    p.y += spec.vy * p.speed;
+    if (spec.wobble) p.x += Math.sin(drift * 900 + p.phase) * spec.wobble * 0.6;
+    const gone = p.y > height + 40 || p.y < -60 || p.x < -80 || p.x > width + 80;
+    if (gone) weatherParticles[i] = spawnWeather();
+  }
+}
+
+function weatherColor(spec) {
+  if (spec.color === 'accent') return colors.accent;
+  if (spec.color === 'star') return colors.star;
+  if (spec.color === 'glow') return colors.glow;
+  return spec.color;
+}
+
+function drawWeather() {
+  if (!weatherSpec || !weatherParticles.length) return;
+  const spec = weatherSpec;
+  ctx.fillStyle = weatherColor(spec);
+  ctx.strokeStyle = weatherColor(spec);
+  ctx.globalAlpha = clamp(spec.opacity, 0, 1);
+  for (const p of weatherParticles) {
+    if (spec.shape === 'streak') {
+      ctx.lineWidth = Math.max(1, p.size * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - spec.vx * p.size, p.y - spec.vy * p.size);
+      ctx.stroke();
+    } else if (spec.shape === 'band') {
+      // A soft horizontal curtain: wide, short, and always fading at both ends
+      // so it never reads as a drawn rectangle.
+      const w = p.size * 6;
+      const gradient = ctx.createLinearGradient(p.x - w / 2, 0, p.x + w / 2, 0);
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.5, weatherColor(spec));
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(p.x - w / 2, p.y, w, p.size);
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 /* ------------------------------------------------------------- meteors */
@@ -676,6 +846,8 @@ function step(time) {
   // literally static dots the entire time you are reading the list.
   drift += 0.00035;
 
+  stepWeather();
+
   parallax.x += (parallax.tx - parallax.x) * 0.05;
   parallax.y += (parallax.ty - parallax.y) * 0.05;
 
@@ -732,9 +904,14 @@ function drawFrame(time) {
   drawConstellations(time);
   drawNightStars(time);
   drawMoon(time);
+  drawMeteors();
+  // The silhouette occludes the sky behind it — stars, meteors and the moon if
+  // it has set — and weather falls in front of it, the way snow falls in front
+  // of a treeline. The finale's own instruments stay on top of everything.
+  drawHorizon();
+  drawWeather();
   drawRibbons();
   drawRings();
-  drawMeteors();
   drawParticles(time);
 }
 

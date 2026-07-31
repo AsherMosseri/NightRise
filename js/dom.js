@@ -1,5 +1,7 @@
 /* Tiny DOM helpers — build elements as trees instead of HTML strings. */
 
+import { markIcons } from './skins.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function applyProps(node, props, svg) {
@@ -192,6 +194,13 @@ const UNSCALED = new Set(['more', 'grip']);
  * centroids are 1.5-2.6 units out. Capping the correction fixes the accidental
  * asymmetries and leaves the deliberate ones alone.
  */
+/* The marks the market sells, drawn by the same machinery as every other glyph
+   so they inherit the optical centring rather than reimplementing it. Keyed
+   `mark:<id>`, so a mark can never shadow an interface icon. */
+const { paths: MARK_PATHS, boxes: MARK_BOXES } = markIcons();
+Object.assign(ICON_PATHS, MARK_PATHS);
+Object.assign(ICON_BOX, MARK_BOXES);
+
 const MAX_OPTICAL_NUDGE = 1;
 
 export function icon(name, { size = 18, className = '' } = {}) {
@@ -235,6 +244,18 @@ export function icon(name, { size = 18, className = '' } = {}) {
 }
 
 /** Icon-only button with an accessible label + tooltip. */
+/**
+ * The mark you leave on a finished task, as an icon name.
+ *
+ * The tick appears on the task row and on One Card's big check target, and both
+ * have to be the same glyph — one of them keeping the default while the other
+ * followed the market would be worse than not selling marks at all.
+ */
+export function markIconName(state) {
+  const id = state?.profile?.equipped?.mark || 'check';
+  return `mark:${id}` in ICON_PATHS ? `mark:${id}` : 'mark:check';
+}
+
 export function iconButton(name, label, onClick, extra = {}) {
   return h('button', {
     type: 'button',

@@ -1104,14 +1104,22 @@ body.has-sheet { overflow: hidden; }
   box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent-2) 60%, transparent);
 }
 
+/* An envelope skin sets these four and nothing else. They default to the theme,
+   so the free "Plain" envelope is a genuine no-op rather than a lookalike that
+   drifts the first time a sky is retuned. */
 .env-card {
+  --env-paper: var(--panel-solid);
+  --env-ink: var(--text);
+  --env-flap: color-mix(in srgb, var(--accent) 46%, var(--panel-solid));
+  --env-seal: var(--accent);
+
   position: relative;
   width: min(300px, calc(100vw - 64px));
   height: 146px;
   margin-bottom: 14vh;
   border-radius: var(--r-lg);
-  background: var(--panel-solid);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: var(--env-paper);
+  border: 1px solid color-mix(in srgb, var(--env-seal) 40%, transparent);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
   /* perspective for the flap only. No preserve-3d anywhere: combined with
      clip-path it is a reliable way to produce artifacts in iOS Safari. */
@@ -1127,8 +1135,8 @@ body.has-sheet { overflow: hidden; }
   backface-visibility: hidden;
   clip-path: polygon(0 0, 100% 0, 50% 100%);
   background: linear-gradient(150deg,
-    color-mix(in srgb, var(--accent) 46%, var(--panel-solid)),
-    color-mix(in srgb, var(--accent-2) 32%, var(--panel-solid)));
+    var(--env-flap),
+    color-mix(in srgb, var(--env-flap) 62%, #000));
 }
 /* The note fills the card, so when the flap swings up it reveals the contents
    rather than an empty pocket with a label parked at the bottom. */
@@ -1161,10 +1169,10 @@ body.has-sheet { overflow: hidden; }
   height: 44px;
   font-size: 15px;
   font-weight: 650;
-  color: var(--text);
+  color: var(--env-ink);
   white-space: nowrap;
 }
-.env-cell > svg { color: var(--accent); flex: none; }
+.env-cell > svg { color: var(--env-seal); flex: none; }
 /* The lower half of the envelope, in front of the note, so the card reads as
    something the note is sitting inside rather than a floating rectangle. */
 .env-card__front {
@@ -1174,9 +1182,32 @@ body.has-sheet { overflow: hidden; }
   z-index: 3;
   clip-path: polygon(0 42%, 50% 0, 100% 42%, 100% 100%, 0 100%);
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--accent) 20%, var(--panel-solid)), var(--panel-solid));
+    color-mix(in srgb, var(--env-flap) 34%, var(--env-paper)), var(--env-paper));
   pointer-events: none;
 }
+
+/* The wax seal, on skins that have one. It sits on the flap's point, which is
+   where a seal actually goes, and it is drawn rather than loaded like
+   everything else here. */
+.env-card__seal {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  z-index: 4;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%,
+    color-mix(in srgb, var(--env-seal) 82%, #fff),
+    var(--env-seal) 62%,
+    color-mix(in srgb, var(--env-seal) 70%, #000));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  color: color-mix(in srgb, var(--env-seal) 45%, #000);
+}
+.env-card__seal > svg { width: 18px; height: 18px; }
 
 .lightsout {
   position: relative;

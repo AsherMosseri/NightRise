@@ -247,3 +247,38 @@
   letter-spacing: 0.01em;
 }
 .swatch--font.swatch--display::after { text-shadow: 0 0 14px var(--glow); }
+
+/* The five newer categories draw their own preview from the very data the
+   renderer reads, so a card cannot show something the app then does not do.
+   These rules only give the drawing a box to sit in. */
+.swatch--drawn {
+  display: block;
+  width: 100%;
+  color: var(--sky-1, #05070f);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  overflow: hidden;
+}
+.swatch--mark { display: grid; place-items: center; color: var(--accent); }
+.swatch--envelope {
+  position: relative;
+  background: var(--env-paper, var(--panel-solid));
+  --env-flap: var(--env-flap, color-mix(in srgb, var(--accent) 46%, var(--panel-solid)));
+}
+.swatch--envelope .swatch__flap {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 66%;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: var(--env-flap);
+}
+.swatch--envelope .swatch__seal {
+  position: absolute;
+  top: 56%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  background: var(--env-seal, var(--accent));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}

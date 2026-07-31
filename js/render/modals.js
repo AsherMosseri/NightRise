@@ -4,7 +4,7 @@
 import { h, svg, icon, replace, withFocus, downloadText, rovingGroup } from '../dom.js';
 import { getState, update, replaceState, emit } from '../state.js';
 import {
-  THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, COMPANION_ITEMS,
+  CONSUMABLES, allItems,
   canBuy, owns, isEquipped, purchase, equipItem, buyConsumable,
   feedCompanion, renameCompanion, unequipCompanion,
 } from '../shop.js';
@@ -115,6 +115,81 @@ function priceTag(cost) {
   return h('span', { class: 'price' }, icon('star', { size: 13 }), formatNumber(cost));
 }
 
+/**
+ * What the card shows you.
+ *
+ * Skies, sounds, trails and type have hand-written CSS swatches. The five newer
+ * categories are drawn from the SAME data the real renderer reads, so a preview
+ * cannot promise something the app then does not do — the rule this project
+ * already applies to what a task says it pays.
+ */
+function skinPreview(item) {
+  if (item.kind === 'horizon') {
+    const pts = item.points.map(([x, y]) => `${(x * 100).toFixed(2)},${(28 - y * 26).toFixed(2)}`).join(' ');
+    return svg('svg', {
+      class: 'swatch swatch--drawn', viewBox: '0 0 100 28',
+      preserveAspectRatio: 'none', 'aria-hidden': 'true',
+    }, svg('polygon', { points: `0,28 ${pts} 100,28`, fill: 'currentColor', opacity: 0.85 }));
+  }
+
+  if (item.kind === 'moon') {
+    const disc = item.disc === 'theme' ? 'var(--moon)' : item.disc;
+    const shadow = item.shadow === 'theme' ? 'var(--moon-shadow)' : item.shadow;
+    const parts = [
+      svg('circle', { cx: 50, cy: 28, r: 17, fill: shadow }),
+      // Drawn at half fill, which is where a moon is most itself.
+      svg('path', { d: 'M50 11a17 17 0 0 1 0 34z', fill: disc }),
+      ...(item.craters || []).map(([cx, cy, r]) => svg('circle', {
+        cx: 50 + cx * 17, cy: 28 + cy * 17, r: Math.max(0.6, r * 17),
+        fill: '#000', opacity: item.craterAlpha ?? 0.08,
+      })),
+    ];
+    if (item.ring) {
+      parts.push(svg('circle', {
+        cx: 50, cy: 28, r: 17 * (item.ring.scale || 1.35), fill: 'none',
+        stroke: disc, 'stroke-width': 1, opacity: item.ring.alpha ?? 0.5,
+        ...(item.ring.dash ? { 'stroke-dasharray': item.ring.dash } : {}),
+      }));
+    }
+    return svg('svg', { class: 'swatch swatch--drawn', viewBox: '0 0 100 56', 'aria-hidden': 'true' }, ...parts);
+  }
+
+  if (item.kind === 'weather') {
+    const tint = ['accent', 'star', 'glow'].includes(item.color) ? `var(--${item.color === 'star' ? 'sky-star' : item.color})` : item.color;
+    if (!item.count) return h('div', { class: 'swatch swatch--drawn', 'aria-hidden': 'true' });
+    // A still frame of the layer: the same shape, size and colour it really has.
+    const seeded = (n) => ((Math.sin(n * 12.9898) * 43758.5453) % 1 + 1) % 1;
+    const marks = Array.from({ length: 22 }, (_, i) => {
+      const x = seeded(i + 1) * 100;
+      const y = seeded(i + 41) * 52 + 2;
+      const r = Math.max(0.7, Math.min(3.4, item.size * 0.35));
+      return item.shape === 'streak'
+        ? svg('line', { x1: x, y1: y, x2: x - item.vx * 5, y2: y - Math.abs(item.vy) * 5, stroke: tint, 'stroke-width': Math.max(0.7, r * 0.5), opacity: item.opacity })
+        : svg(item.shape === 'band' ? 'rect' : 'circle', item.shape === 'band'
+          ? { x: x - 16, y, width: 32, height: Math.max(1.4, r), fill: tint, opacity: item.opacity, rx: 1 }
+          : { cx: x, cy: y, r, fill: tint, opacity: item.opacity });
+    });
+    return svg('svg', { class: 'swatch swatch--drawn', viewBox: '0 0 100 56', 'aria-hidden': 'true' }, ...marks);
+  }
+
+  if (item.kind === 'mark') {
+    return h('div', { class: 'swatch swatch--drawn swatch--mark', 'aria-hidden': 'true' },
+      icon(`mark:${item.id}`, { size: 26 }));
+  }
+
+  if (item.kind === 'envelope') {
+    const ink = (value, prop) => (value && value !== 'theme' ? `${prop}:${value};` : '');
+    return h('div', {
+      class: 'swatch swatch--drawn swatch--envelope',
+      'aria-hidden': 'true',
+      style: ink(item.paper, '--env-paper') + ink(item.flap, '--env-flap') + ink(item.seal, '--env-seal') || null,
+    }, h('span', { class: 'swatch__flap' }),
+    item.seal && item.seal !== 'theme' ? h('span', { class: 'swatch__seal' }) : null);
+  }
+
+  return h('div', { class: `swatch swatch--${item.kind} swatch--${item.id}`, 'aria-hidden': 'true' });
+}
+
 function shopCard(state, item, { onPreview } = {}) {
   const ownedAlready = owns(state, item);
   const equipped = isEquipped(state, item);
@@ -129,7 +204,7 @@ function shopCard(state, item, { onPreview } = {}) {
     ownedAlready ? h('span', { class: 'card__tag' }, equipped ? 'Equipped' : 'Owned') : priceTag(item.cost)),
   item.kind === 'companion'
     ? h('div', { class: 'card__art' }, companionSvg(item.id, 2, 'happy'))
-    : h('div', { class: `swatch swatch--${item.kind} swatch--${item.id}`, 'aria-hidden': 'true' }),
+    : skinPreview(item),
   h('p', { class: 'card__desc' }, item.desc),
   h('div', { class: 'card__foot' },
     locked ? h('span', { class: 'card__lock' }, `Level ${item.reqLevel}`) : null,
@@ -198,12 +273,21 @@ let shopTab = 'themes';
 
 VIEWS.shop = () => {
   const state = getState();
+  // Built from allItems() so a category added to the catalog cannot be left out
+  // of the market it is sold in — the tabs used to hand-map each list, which is
+  // one more place to forget.
+  const shelf = (bucket) => allItems().filter((item) => item.bucket === bucket);
   const tabs = [
-    ['themes', 'Skies', THEMES.map((t) => ({ ...t, kind: 'theme', bucket: 'themes' }))],
-    ['companions', 'Companions', COMPANION_ITEMS.map((c) => ({ ...c, bucket: 'companions' }))],
-    ['sounds', 'Sounds', SOUND_PACKS.map((s) => ({ ...s, kind: 'sounds', bucket: 'sounds' }))],
-    ['trails', 'Trails', TRAILS.map((t) => ({ ...t, kind: 'trail', bucket: 'trails' }))],
-    ['fonts', 'Type', FONTS.map((f) => ({ ...f, kind: 'font', bucket: 'fonts' }))],
+    ['themes', 'Skies', shelf('themes')],
+    ['horizons', 'Horizons', shelf('horizons')],
+    ['weather', 'Weather', shelf('weather')],
+    ['moons', 'Moons', shelf('moons')],
+    ['companions', 'Companions', shelf('companions')],
+    ['marks', 'Marks', shelf('marks')],
+    ['envelopes', 'Envelopes', shelf('envelopes')],
+    ['sounds', 'Sounds', shelf('sounds')],
+    ['trails', 'Trails', shelf('trails')],
+    ['fonts', 'Type', shelf('fonts')],
     ['supplies', 'Supplies', null],
   ];
   const active = tabs.find(([id]) => id === shopTab) || tabs[0];

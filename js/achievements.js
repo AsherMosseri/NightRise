@@ -25,6 +25,12 @@ import { COMBO_MAX } from './game.js';
 import { nightsFullyCleared } from './insights.js';
 import { plural, formatMultiplier } from './util.js';
 import { CONSTELLATIONS } from './constellations.js';
+// The catalogs, not the shop. js/shop.js imports checkAchievements from here,
+// so reaching back into it for allItems() would be an import cycle — and one
+// that throws, because these are `const` and would be read inside their own
+// temporal dead zone. The data lives in skins.js precisely so both can have it.
+import { THEMES, SOUND_PACKS, TRAILS, FONTS, HORIZONS, WEATHER, MOONS, MARKS, ENVELOPES } from './skins.js';
+import { COMPANIONS } from './companion.js';
 
 /** Stardust for reaching a tier, paid once per tier ever. */
 export function tierDust(tier) {
@@ -35,8 +41,23 @@ function inventorySize(profile) {
   return Object.values(profile.inventory).reduce((sum, list) => sum + list.length, 0);
 }
 
-/** Unlocks you actually chose. Four packs are free and were never an achievement. */
-const FREE_UNLOCKS = 4;
+/**
+ * Unlocks you actually chose.
+ *
+ * Derived, not counted by hand. This was the literal 4 — right when the market
+ * had four free defaults, and silently wrong the moment it had nine: a brand new
+ * profile measured five unlocks it had never bought and was handed two
+ * achievement tiers for opening the app. Every free default is one the app gave
+ * you, whatever the market grows to.
+ */
+const CATALOG = [
+  ...THEMES, ...HORIZONS, ...WEATHER, ...MOONS, ...SOUND_PACKS,
+  ...TRAILS, ...MARKS, ...ENVELOPES, ...FONTS, ...COMPANIONS,
+];
+const FREE_UNLOCKS = CATALOG.filter((item) => !item.cost).length;
+
+/** The most anyone can ever own. The top rung has to be reachable by buying. */
+const BUYABLE_UNLOCKS = CATALOG.length - FREE_UNLOCKS;
 
 export const ACHIEVEMENTS = [
   {
@@ -144,14 +165,15 @@ export const ACHIEVEMENTS = [
     goal: (at) => `Buy ${plural(at, 'thing', 'things')} from the shop`,
     measure: (state) => Math.max(0, inventorySize(state.profile) - FREE_UNLOCKS),
     tiers: [
+      // Spread across whatever the catalog actually holds, so the ladder grows
+      // with the market instead of being retyped every time it does. The top
+      // rung was once a literal 25 against 18 buyable things, and someone who
+      // owned everything read "18 / 25 · buy 25 things" forever — the top rung
+      // of a collection has to be reachable by collecting it.
       { at: 1, name: 'Impulse Buy' },
-      { at: 5, name: 'Collector' },
-      { at: 12, name: 'Curator' },
-      // 18, not 25. The catalog is 22 items and four are seeded free, so the
-      // most anyone can ever measure is 18 — someone who owns literally
-      // everything read "18 / 25 · buy 25 things from the shop" forever. The
-      // top rung of a collection has to be reachable by collecting it.
-      { at: 18, name: 'Completionist' },
+      { at: Math.max(2, Math.round(BUYABLE_UNLOCKS * 0.28)), name: 'Collector' },
+      { at: Math.max(3, Math.round(BUYABLE_UNLOCKS * 0.66)), name: 'Curator' },
+      { at: BUYABLE_UNLOCKS, name: 'Completionist' },
     ],
   },
   {

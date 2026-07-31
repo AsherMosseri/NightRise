@@ -5,7 +5,7 @@
  * either. It is a prompt, not a menu — big target, no aiming, one hand.
  */
 
-import { h, icon, iconButton } from '../dom.js';
+import { h, icon, iconButton, markIconName } from '../dom.js';
 import { getState, update } from '../state.js';
 import { toggleTask, toggleSkip, startTask } from '../actions.js';
 import {
@@ -277,7 +277,7 @@ function timerFace(state, task, { started = false } = {}) {
 
 function finishedCard(state, stats) {
   return h('div', { class: 'onecard__done' },
-    icon('check', { size: 40 }),
+    icon(markIconName(state), { size: 40 }),
     h('h2', {}, stats.total === 0 ? 'Nothing on the list' : 'That’s everything.'),
     h('p', { class: 'muted' }, stats.total === 0
       ? 'Add something to tonight and come back.'
@@ -357,7 +357,7 @@ export function renderCards() {
       const result = toggleTask(task.id);
       if (result?.award) flash(rect, `+${result.award.xp} XP`);
     },
-  }, icon('check', { size: 30 }), h('span', {}, 'Done'));
+  }, icon(markIconName(state), { size: 30 }), h('span', {}, 'Done'));
 
   /**
    * The button that asks for three seconds instead of fifteen minutes.

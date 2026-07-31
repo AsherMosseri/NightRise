@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { nightsFullyCleared, overallRate, taskInsights, topNudge, onTimeNights } from '../js/insights.js';
 import { ACHIEVEMENTS } from '../js/achievements.js';
 import { createInitialState, createTask } from '../js/model.js';
+import { CONSTELLATIONS, buyStar, progressFor, completedConstellations } from '../js/constellations.js';
+import { normalizeState } from '../js/storage.js';
 
 /** A banked night. `done` excludes rain checks; `pct` is over what counted. */
 function night({ total, done, skipped = 0 }) {
@@ -122,4 +124,66 @@ test('the sky records the nights you went to bed on time', () => {
   // And banking it must not double it.
   state.history['2026-07-29'] = { total: 3, done: 3, pct: 100, xp: 30, onTime: true };
   assert.deepEqual(onTimeNights(state), ['2026-07-26', '2026-07-28', '2026-07-29']);
+});
+
+test('depth sits beyond completion and never moves what completion means', () => {
+  // `complete` feeds the constellation achievement family and decides which
+  // figures are drawn into the live sky. Letting the second tier move it would
+  // silently retune a ladder and change the sky, so depth is counted apart.
+  const state = createInitialState();
+  const def = CONSTELLATIONS[0];
+  state.profile.stardust = 1e6;
+
+  let bought = 0;
+  for (;;) {
+    const r = buyStar(state, def.id);
+    if (!r) break;
+    bought += 1;
+    if (bought === def.stars.length) {
+      assert.equal(r.complete, true, 'the last star of the figure completes it');
+      assert.equal(progressFor(state, def.id).complete, true);
+    } else if (bought > def.stars.length) {
+      assert.equal(r.complete, false, 'a faint star must never re-report completion');
+      assert.equal(r.deepStar, true);
+    }
+  }
+  const info = progressFor(state, def.id);
+  assert.equal(info.lit, def.stars.length, 'the figure is exactly full');
+  assert.equal(info.deep, def.faint?.length || 0, 'and every faint star is lit');
+  assert.equal(info.nextCost, null, 'with nothing left to sell');
+  assert.equal(completedConstellations(state).length, 1, 'still one completed constellation');
+});
+
+test('the cost ladder does not jump at the join between the tiers', () => {
+  // One ladder, continuing past the figure — the nth star of a constellation
+  // costs the same whether it is drawn or faint, so there is no cliff and no
+  // second rule to explain.
+  const def = CONSTELLATIONS[0];
+  const state = createInitialState();
+  state.profile.stardust = 1e6;
+  const costs = [];
+  for (;;) {
+    const info = progressFor(state, def.id);
+    if (info.nextCost === null) break;
+    costs.push(info.nextCost);
+    buyStar(state, def.id);
+  }
+  for (let i = 1; i < costs.length; i += 1) {
+    assert.ok(costs[i] > costs[i - 1], `star ${i} must cost more than star ${i - 1}`);
+  }
+  assert.equal(costs.length, def.stars.length + (def.faint?.length || 0));
+});
+
+test('a save cannot claim depth it has not earned', () => {
+  // Depth only exists past completion. A hand-edited save claiming it early
+  // would put the app in a state buyStar can never produce.
+  const state = createInitialState();
+  state.profile.constellations[CONSTELLATIONS[0].id] = { lit: 1, complete: false, deep: 99 };
+  const loaded = normalizeState(state);
+  assert.equal(loaded.profile.constellations[CONSTELLATIONS[0].id].deep, undefined);
+  // And an id the catalog has never heard of is dropped rather than counted by
+  // the achievement family that filters on `complete`.
+  const bogus = createInitialState();
+  bogus.profile.constellations.notreal = { lit: 9, complete: true };
+  assert.equal(normalizeState(bogus).profile.constellations.notreal, undefined);
 });

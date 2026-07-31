@@ -87,9 +87,13 @@ function placeConstellations(list) {
     const scale = (0.16 + rand() * 0.1) * Math.max(width, 640);
     const x = 0.04 * width + rand() * (width * 0.62);
     const y = 0.06 * height + rand() * (height * 0.42);
+    const place = ([sx, sy]) => ({ x: x + sx * scale, y: y + sy * scale * 0.8 });
     return {
       id: entry.id,
-      points: entry.stars.map(([sx, sy]) => ({ x: x + sx * scale, y: y + sy * scale * 0.8 })),
+      points: entry.stars.map(place),
+      // The faint stars you have bought past completion, in the same projected
+      // box so they sit inside the figure rather than beside it.
+      faint: (entry.faint || []).map(place),
       lines: entry.lines,
       phase: rand() * Math.PI * 2,
     };
@@ -470,6 +474,19 @@ function drawConstellations(time) {
       ctx.lineTo(p2.x + parallax.x * 8, p2.y + parallax.y * 6);
     }
     ctx.stroke();
+
+    // Faint first, so a drawn star always paints over one of its neighbours
+    // rather than the other way round. Smaller, dimmer, and never joined by a
+    // line — they are the sky filling in around the figure, not part of it.
+    if (c.faint.length) {
+      ctx.globalAlpha = clamp(pulse * 0.55, 0, 1);
+      ctx.fillStyle = colors.star;
+      for (const p of c.faint) {
+        ctx.beginPath();
+        ctx.arc(p.x + parallax.x * 8, p.y + parallax.y * 6, 1.15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     ctx.globalAlpha = clamp(pulse + 0.35, 0, 1);
     ctx.fillStyle = colors.star;

@@ -8,6 +8,7 @@ import {
 } from './model.js';
 import { nightKeyOf, parseClock } from './time.js';
 import { ACHIEVEMENTS, migrateBadges } from './achievements.js';
+import { CONSTELLATIONS } from './constellations.js';
 
 /** A tier index a save claims, kept inside what the family actually has. */
 function clampTier(value, cap) {
@@ -292,6 +293,29 @@ export function normalizeState(raw, now = new Date()) {
     tokens[kind] = Math.max(0, Math.round(Number(value) || 0));
   }
   profile.tokens = tokens;
+
+  // Constellation entries were never normalised at all — only the container was
+  // checked for being an object — so a hand-edited or half-written save could
+  // carry ids the catalog has never heard of, and the `constellation`
+  // achievement family counts `complete` entries without asking whether they
+  // name anything real. Unknown ids go, and the counts are clamped to what each
+  // constellation actually has.
+  const constellations = {};
+  for (const def of CONSTELLATIONS) {
+    const entry = profile.constellations[def.id];
+    if (!isObject(entry)) continue;
+    const bright = def.stars.length;
+    const faint = def.faint?.length || 0;
+    const lit = clamp(Math.round(Number(entry.lit) || 0), 0, bright);
+    const complete = Boolean(entry.complete) || lit >= bright;
+    const kept = { lit: complete ? bright : lit, complete };
+    // Depth only exists past completion, so a save claiming it early loses it
+    // rather than being trusted into a state buyStar can never produce.
+    const deep = complete ? clamp(Math.round(Number(entry.deep) || 0), 0, faint) : 0;
+    if (deep > 0) kept.deep = deep;
+    if (kept.lit > 0 || kept.complete) constellations[def.id] = kept;
+  }
+  profile.constellations = constellations;
 
   const defaultInventory = fresh.inventory;
   for (const [kind, defaults] of Object.entries(defaultInventory)) {

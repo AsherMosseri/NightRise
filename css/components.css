@@ -458,6 +458,8 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .constellation__line.is-lit { stroke: var(--accent); stroke-width: 1.3; }
 .constellation__star { fill: color-mix(in srgb, var(--text) 38%, var(--panel-2)); }
 .constellation__star.is-lit { fill: var(--sky-star); filter: drop-shadow(0 0 5px var(--glow)); }
+/* Bought past completion: real, dimmer, and never joined by a line. */
+.constellation__faint { fill: var(--sky-star); opacity: 0.5; }
 .constellation__body { padding: 12px; display: flex; flex-direction: column; gap: 7px; }
 .constellation__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .constellation__head h3 { font-size: 14.5px; }

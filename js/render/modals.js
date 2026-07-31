@@ -264,18 +264,25 @@ VIEWS.shop = () => {
 
 /* ---------------------------------------------------------------- starmap */
 
-function constellationPreview(def, lit) {
+function constellationPreview(def, lit, deep = 0) {
   const w = 150;
   const hgt = 96;
-  const points = def.stars.map(([x, y]) => ({ x: 10 + x * (w - 20), y: 8 + y * (hgt - 16) }));
+  const place = ([x, y]) => ({ x: 10 + x * (w - 20), y: 8 + y * (hgt - 16) });
+  const points = def.stars.map(place);
+  // The faint stars you have actually bought, so the card shows the figure
+  // filling in rather than the depth tier having no visible payoff outside the
+  // live sky — which sits behind translucent panels most of the time.
+  const faint = (def.faint || []).slice(0, deep).map(place);
   // Named rather than hidden. The shape is what you are deciding whether to
   // spend on, and hiding it left the count carried by one sibling span.
   return svg('svg', {
     viewBox: `0 0 ${w} ${hgt}`,
     class: 'constellation__svg',
     role: 'img',
-    'aria-label': `${def.name}: ${lit} of ${def.stars.length} stars lit`,
+    'aria-label': `${def.name}: ${lit} of ${def.stars.length} stars lit`
+      + (deep ? `, and ${deep} of its ${def.faint.length} fainter stars` : ''),
   },
+    ...faint.map((p) => svg('circle', { cx: p.x, cy: p.y, r: 1.2, class: 'constellation__faint' })),
     ...def.lines.map(([a, b]) => svg('line', {
       x1: points[a].x, y1: points[a].y, x2: points[b].x, y2: points[b].y,
       class: a < lit && b < lit ? 'constellation__line is-lit' : 'constellation__line',
@@ -294,14 +301,26 @@ VIEWS.starmap = () => {
     const info = progressFor(state, def.id);
     const affordable = info.nextCost !== null && state.profile.stardust >= info.nextCost;
     return h('article', { class: `constellation ${info.complete ? 'is-complete' : ''}`.trim() },
-      constellationPreview(def, info.lit),
+      constellationPreview(def, info.lit, info.deep),
       h('div', { class: 'constellation__body' },
         h('div', { class: 'constellation__head' },
           h('h3', {}, def.name),
           h('span', { class: 'constellation__count' }, `${info.lit}/${info.total}`)),
         h('p', { class: 'muted' }, def.lore),
+        // Complete used to be the end of the card. Now it is the start of the
+        // second tier: the figure is in your sky, and what is left are its
+        // fainter real stars — the ones a keen eye would pick up — on the same
+        // escalating ladder, drawn dimmer and unjoined.
         info.complete
-          ? h('p', { class: 'constellation__done' }, icon('check', { size: 13 }), 'Shining in your sky')
+          ? h('p', { class: 'constellation__done' }, icon('check', { size: 13 }),
+            info.deepTotal === 0
+              ? 'Shining in your sky'
+              : info.deepDone
+                ? 'Shining in your sky, every star of it'
+                : `Shining in your sky · ${info.deep}/${info.deepTotal} faint stars`)
+          : null,
+        info.nextCost === null
+          ? null
           : h('div', { class: 'row' },
             h('button', {
               type: 'button',
@@ -321,23 +340,35 @@ VIEWS.starmap = () => {
                   return bought;
                 });
                 if (result?.complete) {
-                  toast(`${def.name} is complete`, { tone: 'win', iconName: 'map', detail: 'It now appears in your night sky.' });
+                  toast(`${def.name} is complete`, {
+                    tone: 'win',
+                    iconName: 'map',
+                    detail: def.faint?.length
+                      ? 'It now appears in your night sky. Its fainter stars are still out there.'
+                      : 'It now appears in your night sky.',
+                  });
                   emit('constellation:complete', { def });
                 } else if (result) {
                   emit('star:lit', { def });
                 }
                 refreshModal();
               },
-            }, `Light a star · ${info.nextCost} stardust`),
-            h('span', { class: 'muted small' }, `${formatNumber(totalRemainingCost(state, def.id))} to finish`))));
+            }, info.complete ? `A fainter star · ${info.nextCost} stardust` : `Light a star · ${info.nextCost} stardust`),
+            // "to finish" means the figure. Past that there is no finish line to
+            // quote, so it says what is actually left instead of inventing one.
+            h('span', { class: 'muted small' }, info.complete
+              ? `${info.deepTotal - info.deep} left`
+              : `${formatNumber(totalRemainingCost(state, def.id))} to finish`))));
   });
 
   return {
     title: 'Star Map',
     body: h('div', {},
       h('p', { class: 'modal__lead' },
-        `Light stars one at a time. Finish a constellation and it is drawn into your sky for good. `,
-        h('strong', {}, `${summary.done}/${summary.total} complete · ${summary.litStars}/${summary.totalStars} stars lit.`)),
+        `Light stars one at a time. Finish a constellation and it is drawn into your sky for good — `
+        + `then keep going into its fainter stars, which are real too. `,
+        h('strong', {}, `${summary.done}/${summary.total} complete · ${summary.litStars}/${summary.totalStars} stars lit`
+          + (summary.deepStars ? ` · ${summary.deepStars} faint` : '') + '.')),
       h('div', { class: 'constellations' }, ...cards)),
   };
 };

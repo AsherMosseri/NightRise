@@ -91,9 +91,26 @@ test('buying stars completes a constellation and only then', () => {
     assert.ok(result, `star ${i} should be purchasable`);
     assert.equal(result.complete, i === def.stars.length - 1);
   }
-  assert.equal(buyStar(state, def.id), null, 'a finished constellation cannot be bought again');
   assert.equal(progressFor(state, def.id).complete, true);
   assert.equal(collectionSummary(state).done, 1);
+
+  // This used to assert that a finished constellation could not be bought
+  // again, which was the whole map's ceiling: 47 stars and then stardust
+  // bought nothing for the rest of your life. Completion is now the join
+  // between two tiers rather than the end — past the drawn figure are its
+  // fainter real stars, on the same ladder. What must NOT change is what
+  // `complete` means, because the achievement family and the live sky both
+  // read it.
+  const faintCount = def.faint?.length || 0;
+  for (let i = 0; i < faintCount; i += 1) {
+    const result = buyStar(state, def.id);
+    assert.ok(result, `faint star ${i} should be purchasable`);
+    assert.equal(result.complete, false, 'and must never re-report completion');
+    assert.equal(result.deepStar, true);
+  }
+  assert.equal(buyStar(state, def.id), null, 'until every one of them is lit');
+  assert.equal(progressFor(state, def.id).complete, true, 'complete still means the figure');
+  assert.equal(collectionSummary(state).done, 1, 'and still counts once');
 });
 
 test('stars you cannot afford are not sold to you', () => {

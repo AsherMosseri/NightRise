@@ -15,7 +15,7 @@ import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodn
 import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown, pauseCardTimer } from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
 import { initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar, celebrateBurst, refreshTheme, setReducedMotion } from './sky.js';
-import { completedConstellations } from './constellations.js';
+import { completedConstellations, progressFor } from './constellations.js';
 import { onTimeNights } from './insights.js';
 import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
 import { titleForLevel } from './game.js';
@@ -66,7 +66,14 @@ function applyCosmetics() {
   refreshTheme();
   setTrail(equipped.trail);
   setReducedMotion(reducedMotionActive(state));
-  setConstellations(completedConstellations(state).map((c) => ({ id: c.id, stars: c.stars, lines: c.lines })));
+  setConstellations(completedConstellations(state).map((c) => ({
+    id: c.id,
+    stars: c.stars,
+    lines: c.lines,
+    // Only the faint stars actually bought — the sky shows what you own, and a
+    // constellation you have only just finished is the bare figure.
+    faint: (c.faint || []).slice(0, progressFor(state, c.id).deep),
+  })));
   // The one thing in this app that grows forever, and the only one you cannot
   // buy: a star for every night you actually went to bed on time.
   setNightStars(onTimeNights(state));

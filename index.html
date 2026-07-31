@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="midnight" data-font="aurora" data-motion="on">
+<html lang="en" data-theme="midnight" data-font="aurora" data-motion="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -7,6 +7,13 @@
   <meta name="description" content="A night-themed checklist game: sections, XP, streaks, stardust and a sky that fills up as you finish your night." />
   <meta name="theme-color" content="#0a0d1f" />
   <meta name="color-scheme" content="dark" />
+  <!-- iOS only honours the manifest's `display` from 15.4; before that the
+       home-screen icon opens in Safari with full browser chrome. The
+       black-translucent status bar is what layout.css's safe-area padding
+       already assumes. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NightCheck" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./assets/icon-192.png" />
@@ -37,8 +44,8 @@
          from one source and stays the same size. -->
     <nav class="topbar__actions" aria-label="Panels">
       <button type="button" class="icon-btn" data-icon="bag" data-open="shop" title="Night Market (B)" aria-label="Open the Night Market"></button>
-      <button type="button" class="icon-btn" data-icon="map" data-open="starmap" title="Star map (G)" aria-label="Open the star map"></button>
-      <button type="button" class="icon-btn" data-icon="calendar" data-open="history" title="Night history (H)" aria-label="Open night history"></button>
+      <button type="button" class="icon-btn" data-icon="map" data-open="starmap" title="Star Map (G)" aria-label="Open the Star Map"></button>
+      <button type="button" class="icon-btn" data-icon="calendar" data-open="history" title="Night History (H)" aria-label="Open Night History"></button>
       <button type="button" class="icon-btn" data-icon="chart" data-open="insights" title="Insights (I)" aria-label="Open insights"></button>
       <span class="topbar__divider" aria-hidden="true"></span>
       <button type="button" class="icon-btn" id="toggle-sound" aria-pressed="false" title="Sounds are off" aria-label="Toggle sound effects"></button>
@@ -61,7 +68,7 @@
       <span>Add a task</span>
     </button>
 
-    <div id="sections" class="sections"></div>
+    <div id="sections" tabindex="-1" class="sections"></div>
     <div id="nightend"></div>
   </main>
 

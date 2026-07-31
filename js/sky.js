@@ -259,8 +259,19 @@ export function burstAt(x, y, {
   }
 }
 
+/** A celebration asked for while the sky was stopped, waiting for it to resume. */
+let owedCelebration = false;
+
 export function celebrateBurst() {
-  if (reducedMotion || !running) return;
+  if (reducedMotion) return;
+  // Completing a constellation happens inside the star map, which pauses the
+  // sky — so the one moment the sky exists to celebrate was the one it was
+  // asleep for, and the three follow-up meteors queued frozen instead. Held
+  // until the panel closes and the sky comes back.
+  if (!running) {
+    owedCelebration = true;
+    return;
+  }
   const { x, y } = moonGeometry();
   burstAt(x, y);
   for (let i = 0; i < 3; i += 1) setTimeout(() => shootingStar(), i * 260);
@@ -674,8 +685,17 @@ export function setMoonFill(pct) {
 /** Nothing to animate while a full-screen panel is covering the sky. */
 export function setSkyPaused(value) {
   paused = Boolean(value);
-  if (paused) stop();
-  else if (!document.hidden) start();
+  if (paused) {
+    stop();
+    return;
+  }
+  if (document.hidden) return;
+  start();
+  if (owedCelebration) {
+    owedCelebration = false;
+    // A frame late, so the loop is genuinely running when the burst is pushed.
+    requestAnimationFrame(() => celebrateBurst());
+  }
 }
 
 export function refreshTheme() {

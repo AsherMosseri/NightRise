@@ -30,8 +30,22 @@
 .section__head:active { cursor: grabbing; }
 .section__grip { color: var(--muted); opacity: 0.5; flex-shrink: 0; }
 .section__head:hover .section__grip { opacity: 1; }
-.section__collapse { color: var(--muted); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; }
-.section__collapse:hover { color: var(--text); background: var(--panel-hover); }
+/* Matches `.icon-btn` beside it: same transition, same press. It was the one
+   hand-rolled button in the row — no transition, no :active, and 22px against
+   its neighbours' 32. */
+.section__collapse {
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  transition: color var(--speed) var(--ease), background var(--speed) var(--ease),
+              border-color var(--speed) var(--ease), transform var(--speed) var(--ease);
+}
+.section__collapse:hover { color: var(--text); background: var(--panel-hover); border-color: var(--border); }
+.section__collapse:active { transform: scale(0.94); }
 .section__title { font-size: 16px; font-weight: 650; letter-spacing: 0.01em; }
 .section__count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .section__bar {
@@ -46,7 +60,7 @@
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 400ms var(--ease);
+  transition: width var(--speed-bar) var(--ease);
 }
 .section__actions { display: flex; gap: 1px; opacity: 0; transition: opacity var(--speed) var(--ease); }
 .section__head:hover .section__actions,
@@ -326,7 +340,7 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 /* ------------------------------------------------------------------ modal */
 
 .modal {
-  width: min(760px, calc(100vw - 28px));
+  width: min(760px, calc(100vw - var(--dialog-gutter)));
   max-height: min(84vh, 900px);
   padding: 0;
   border: 1px solid var(--border);
@@ -336,7 +350,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
-.modal::backdrop { background: rgba(3, 5, 15, 0.62); backdrop-filter: blur(4px); }
+/* One scrim behind all three: the modal, the confirm and the sheet had 0.62 +
+   4px blur, 0.66 + none, and 0.62 + 3px. */
+.modal::backdrop { background: var(--scrim); backdrop-filter: var(--scrim-blur); }
 .modal[open] { animation: modal-in 220ms var(--ease); }
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
@@ -359,7 +375,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   background: var(--panel-2);
 }
 .modal__head h2 { font-size: 17px; font-weight: 700; }
-.modal__body { padding: 18px; overflow-y: auto; max-height: calc(84vh - 62px); }
+.modal__body { padding: 18px; overflow-y: auto; max-height: calc(84vh - 62px);   /* The taller scroller of the two, and the sheet already had this. */
+  overscroll-behavior: contain;
+}
 .modal__lead { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
 .modal__section { font-size: 14px; font-weight: 700; margin: 22px 0 10px; }
 
@@ -494,11 +512,12 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 
 /* insights */
 .insight-list { display: flex; flex-direction: column; gap: 10px; }
+.insight__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .insight { padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--panel-2); }
 .insight__head { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; }
 .insight__rate { font-variant-numeric: tabular-nums; color: var(--muted); }
 .insight__bar { height: 4px; border-radius: 999px; background: var(--panel-solid); overflow: hidden; margin: 6px 0 4px; }
-.insight__bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.insight__bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width var(--speed-bar) var(--ease); }
 
 /* Achievements. A card is a family, not a badge: an icon that never changes,
    a name that does, and a bar. The bar is what makes it worth opening. */
@@ -570,7 +589,7 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width var(--speed-bar) var(--ease);
 }
 .ach.is-maxed .ach__bar > span { background: linear-gradient(90deg, var(--warn), var(--accent-2)); }
 .ach__hint { font-size: 11.5px; color: var(--muted); }
@@ -715,7 +734,7 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 /* ---------------------------------------------------------------- confirm */
 
 .confirm {
-  width: min(400px, calc(100vw - 32px));
+  width: min(400px, calc(100vw - var(--dialog-gutter)));
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
@@ -723,7 +742,7 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   color: var(--text);
   box-shadow: var(--shadow-lg);
 }
-.confirm::backdrop { background: rgba(3, 5, 15, 0.66); }
+.confirm::backdrop { background: var(--scrim); backdrop-filter: var(--scrim-blur); }
 /* Same in, same out. This is the dialog that asks the destructive questions,
    and it grew in over 180ms and then teleported away — the exact asymmetry the
    note above `.modal[open].is-closing` was written about. 220ms to match. */
@@ -736,7 +755,7 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .confirm__body { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
 .confirm__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
 .confirm__actions .btn { min-height: 42px; }
-.confirm--wide { width: min(460px, calc(100vw - 24px)); }
+.confirm--wide { width: min(460px, calc(100vw - var(--dialog-gutter))); }
 
 /* A list you tick, for choosing what a destructive thing applies to. */
 .picker { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 2px; }
@@ -803,8 +822,12 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 
 .shortcuts { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
 .shortcuts li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+/* Wide enough for the widest label, so every description starts at the same x.
+   62px fit nineteen of twenty; "Alt + ↑ / ↓" pushed past it and its row alone
+   began 16px to the right of all the others. Measured: the widest label renders
+   at 97px, so 100 leaves every description on the same x. */
 .shortcuts kbd {
-  min-width: 62px;
+  min-width: 100px;
   text-align: center;
   padding: 4px 8px;
   border-radius: 6px;
@@ -821,9 +844,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .sheet-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(3, 5, 15, 0.62);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: var(--scrim);
+  backdrop-filter: var(--scrim-blur);
+  -webkit-backdrop-filter: var(--scrim-blur);
   opacity: 0;
   transition: opacity 200ms var(--ease);
 }
@@ -1512,7 +1535,7 @@ body.has-sheet { overflow: hidden; }
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 400ms var(--ease);
+  transition: width var(--speed-bar) var(--ease);
 }
 .onecard__exit { width: 40px; height: 40px; }
 
@@ -1543,7 +1566,6 @@ body.has-sheet { overflow: hidden; }
   max-width: 16ch;
   text-wrap: balance;
 }
-.onecard__minutes { font-size: 15px; color: var(--muted); }
 
 /* The clock. It never stops, so it says where you are by colour rather than by
    ending: quiet inside the estimate, amber near the edge of it, warm past it. */

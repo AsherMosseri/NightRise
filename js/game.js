@@ -47,7 +47,10 @@ export function levelFromXp(xp) {
     level += 1;
     need = xpForLevel(level);
   }
-  return { level, into: remaining, need, pct: Math.round((remaining / need) * 100) };
+  // Clamped. At the 999 cap the loop stops while `remaining` keeps the entire
+  // surplus, so pct was computed against one level's requirement: levelFromXp(1e12)
+  // reported 111514506%, which the bar hid with Math.min but aria-valuenow did not.
+  return { level, into: remaining, need, pct: Math.min(100, Math.round((remaining / need) * 100)) };
 }
 
 export function titleForLevel(level) {

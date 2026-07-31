@@ -114,7 +114,7 @@ export function renameSection(id, title) {
   });
 }
 
-/** Same economy rule as deleteTask: the night's awards go, the profile does not. */
+/** Same economy rule as deleteTask: every task it takes hands back what it paid. */
 export function deleteSection(id) {
   const undoId = pushUndo('section');
   return update((state) => {
@@ -409,14 +409,4 @@ export function setSetting(key, value) {
   });
 }
 
-export function clearAllTasks() {
-  const undoId = pushUndo('everything');
-  update((state) => {
-    state.template = { order: [], sections: {}, tasks: {} };
-    state.night.done = {};
-    state.night.skipped = {};
-    state.night.awards = {};
-    afterProgress(state);
-  });
-  return undoId;
-}
+

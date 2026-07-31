@@ -74,7 +74,9 @@ const PACKS = {
     complete: () => { chirp(); chirp(0.1); chirp(0.2); chirp(0.34); },
   },
   windchime: {
-    check: () => [523, 698].forEach((f, i) => tone({ freq: f, dur: 0.9, gain: 0.05, delay: i * 0.07, type: 'sine' })),
+    // Three, because the pack is sold as "Three notes on a breeze" and the
+    // shop's Preview button plays exactly this.
+    check: () => [523, 698, 880].forEach((f, i) => tone({ freq: f, dur: 0.9, gain: 0.05, delay: i * 0.07, type: 'sine' })),
     uncheck: () => tone({ freq: 392, dur: 0.5, gain: 0.04 }),
     level: () => [523, 587, 698, 880, 1046].forEach((f, i) => tone({ freq: f, dur: 1.1, gain: 0.045, delay: i * 0.11 })),
     complete: () => [440, 523, 659, 880, 1174].forEach((f, i) => tone({ freq: f, dur: 1.4, gain: 0.05, delay: i * 0.14 })),

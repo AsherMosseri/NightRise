@@ -4,15 +4,52 @@
 
 let dragged = null; // { kind: 'task' | 'section', id }
 
+/**
+ * The one node currently wearing a drop indicator, and the rect of the row the
+ * pointer is over.
+ *
+ * `dragover` fires at pointer rate, and it used to query the whole checklist for
+ * indicator classes, remove them, then call getBoundingClientRect — a style
+ * invalidation, a forced synchronous layout, and another invalidation, on every
+ * event, over the whole list. Remembering the marked node makes the clear O(1),
+ * and caching the row's rect for as long as the pointer stays on that row takes
+ * the layout out of the loop entirely.
+ */
+let marked = null;
+let hoverRow = null;
+let hoverRect = null;
+
 function clearIndicators(root) {
+  if (marked) {
+    marked.classList.remove('is-drop-before', 'is-drop-after', 'is-drop-into');
+    marked = null;
+    return;
+  }
+  // The slow path, for a render that replaced the node we were holding.
   for (const node of root.querySelectorAll('.is-drop-before, .is-drop-after, .is-drop-into')) {
     node.classList.remove('is-drop-before', 'is-drop-after', 'is-drop-into');
   }
 }
 
+function mark(node, className) {
+  node.classList.add(className);
+  marked = node;
+}
+
 function taskDropTarget(row, clientY) {
-  const rect = row.getBoundingClientRect();
-  return clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+  // Cached per row: the geometry cannot change while a drag is in flight, and
+  // this was the forced layout in the middle of a read-after-write.
+  if (row !== hoverRow) {
+    hoverRow = row;
+    hoverRect = row.getBoundingClientRect();
+  }
+  return clientY < hoverRect.top + hoverRect.height / 2 ? 'before' : 'after';
+}
+
+/** A drag is over; nothing measured is valid any more. */
+function forgetHover() {
+  hoverRow = null;
+  hoverRect = null;
 }
 
 export function initDragAndDrop(root, handlers) {
@@ -33,6 +70,7 @@ export function initDragAndDrop(root, handlers) {
   });
 
   root.addEventListener('dragend', () => {
+    forgetHover();
     dragged = null;
     clearIndicators(root);
     for (const node of root.querySelectorAll('.is-dragging')) node.classList.remove('is-dragging');
@@ -48,18 +86,17 @@ export function initDragAndDrop(root, handlers) {
     if (dragged.kind === 'task') {
       const row = event.target.closest('[data-task-id]');
       if (row && row.dataset.taskId !== dragged.id) {
-        row.classList.add(taskDropTarget(row, event.clientY) === 'before' ? 'is-drop-before' : 'is-drop-after');
+        mark(row, taskDropTarget(row, event.clientY) === 'before' ? 'is-drop-before' : 'is-drop-after');
         return;
       }
       const list = event.target.closest('[data-drop-list]');
-      if (list && !list.querySelector('[data-task-id]')) list.classList.add('is-drop-into');
-      else if (list) list.classList.add('is-drop-into');
+      if (list) mark(list, 'is-drop-into');
       return;
     }
 
     const sectionEl = event.target.closest('[data-section-id]');
     if (sectionEl && sectionEl.dataset.sectionId !== dragged.id) {
-      sectionEl.classList.add(taskDropTarget(sectionEl, event.clientY) === 'before' ? 'is-drop-before' : 'is-drop-after');
+      mark(sectionEl, taskDropTarget(sectionEl, event.clientY) === 'before' ? 'is-drop-before' : 'is-drop-after');
     }
   });
 

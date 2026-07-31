@@ -129,8 +129,9 @@ it's the scroll.
   tonight's percentage).
 
 **The rest**
-- A live canvas sky: parallax twinkling stars that drift on their own, shooting stars on
-  every check-off, and a moon whose phase fills with tonight's completion.
+- A live canvas sky: parallax twinkling stars that drift on their own, a shooting star on
+  every check-off but the last — that one gets the finale instead — and a moon whose phase
+  fills with tonight's completion.
 - Bedtime target with a countdown and an on-pace / cutting-it-close / over-budget read.
 - Night history as a heatmap, plus per-task insight — which tasks you actually do, and
   which have quietly slipped six nights running. Its stats say which thing they count:

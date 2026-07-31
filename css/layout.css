@@ -109,7 +109,7 @@
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 500ms var(--ease);
+  transition: width var(--speed-bar) var(--ease);
 }
 
 .stat {
@@ -193,7 +193,7 @@
   stroke-width: 9;
   stroke-linecap: round;
   filter: drop-shadow(0 0 8px var(--glow));
-  transition: stroke-dasharray 600ms var(--ease);
+  transition: stroke-dasharray var(--speed-bar) var(--ease);
 }
 .dial__inner {
   position: absolute;
@@ -294,7 +294,7 @@
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 400ms var(--ease);
+  transition: width var(--speed-bar) var(--ease);
 }
 .quest__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .quest__progress { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -411,3 +411,8 @@
   .xpbar { min-width: 0; }
   .topbar__divider { display: none; }
 }
+
+/* The skip-link target. `tabindex="-1"` makes the fragment jump land focus
+   reliably (iOS Safari and VoiceOver are inconsistent about the sequential
+   focus starting point), and there is nothing here to draw a ring around. */
+#sections:focus { outline: none; }

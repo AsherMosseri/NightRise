@@ -18,7 +18,7 @@ import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
 } from '../time.js';
-import { serializeState, parseImport, clearStorage } from '../storage.js';
+import { serializeState, parseImport, clearStorage, exportedAtOf } from '../storage.js';
 import { createInitialState } from '../model.js';
 import { SHORTCUTS } from '../keys.js';
 import { previewPack } from '../audio.js';
@@ -186,7 +186,7 @@ function companionPanel(state) {
             if (result?.grew) toast(`${result.companion.name} grew to tier ${result.companion.tier}`, { tone: 'win', iconName: 'star' });
             refreshModal();
           },
-        }, `Feed · ${FEED_COST} dust`),
+        }, `Feed · ${FEED_COST} stardust`),
         h('button', {
           type: 'button',
           class: 'btn btn--ghost btn--sm',
@@ -328,7 +328,7 @@ VIEWS.starmap = () => {
                 }
                 refreshModal();
               },
-            }, `Light a star · ${info.nextCost}`),
+            }, `Light a star · ${info.nextCost} stardust`),
             h('span', { class: 'muted small' }, `${formatNumber(totalRemainingCost(state, def.id))} to finish`))));
   });
 
@@ -616,7 +616,10 @@ VIEWS.insights = () => {
       'aria-valuemax': '100',
       'aria-label': a.goal,
     }, growTo(h('span', {}), `ach:${a.id}`, `${a.pct}%`)),
-    h('span', { class: 'ach__hint' }, a.complete ? 'Every tier earned' : `${a.progress} · ${a.goal.toLowerCase()}`)),
+    // Same slot, same case. The goals are authored sentence case, shown that
+    // way as the bar's own aria-label two lines up and in the toast when a tier
+    // lands — and lowercased only here, beside a capitalised "Every tier earned".
+    h('span', { class: 'ach__hint' }, a.complete ? 'Every tier earned' : `${a.progress} · ${a.goal}`)),
   h('div', { class: 'ach__pips' }, ...Array.from({ length: a.tiers }, (_, i) => h('span', {
     class: `ach__pip ${i < a.tier ? 'is-lit' : ''}`.trim(), 'aria-hidden': 'true',
   }))))));
@@ -822,9 +825,16 @@ VIEWS.settings = () => {
       const warning = nights
         ? `This replaces everything in this browser: ${nights} banked ${nights === 1 ? 'night' : 'nights'}, level ${current.profile.level}, ${current.profile.stardust} stardust and every unlock.`
         : 'This replaces everything currently in this browser.';
+      // Every export has been stamped with the time it was written since the
+      // first version, and nothing ever read it — which is the one fact you
+      // want before you overwrite a year of nights with a file.
+      const written = exportedAtOf(text);
+      const dated = written
+        ? `This backup was written ${written.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}. `
+        : '';
       const go = await confirmAction({
         title: 'Restore this backup?',
-        body: warning,
+        body: dated + warning,
         confirmLabel: 'Restore it',
         cancelLabel: 'Keep what I have',
         iconName: 'upload',
@@ -991,7 +1001,7 @@ function appVersionPanel() {
 /* ------------------------------------------------------------------- help */
 
 VIEWS.help = () => ({
-  title: 'Keyboard',
+  title: 'Keyboard shortcuts',
   body: h('div', {},
     h('p', { class: 'modal__lead' },
       'Adding a task is a text box, a time and a section — no syntax needed. If you '

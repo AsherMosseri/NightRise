@@ -10,8 +10,23 @@ export function minutesFromToken(value, unit) {
   return roundMinutes(/^s/i.test(unit || '') ? n / 60 : n);
 }
 
+/**
+ * A section title reduced to something a `#hint` can match.
+ *
+ * Unicode-aware. Stripping everything outside [a-z0-9] meant a section called
+ * "ערב" or "تنظيف" slugified to the empty string, so no hint could ever reach
+ * it and two such sections were indistinguishable from each other. NFKD first,
+ * so an accented Latin title still matches its unaccented spelling.
+ */
 export function slugify(str) {
-  return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = String(str)
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-|-$/g, '');
+  // A title made entirely of things that are neither letters nor numbers — "🌙"
+  // — has no slug. Fall back to the raw text so it is at least distinct.
+  return slug || String(str).toLowerCase().trim();
 }
 
 /**
@@ -24,7 +39,10 @@ export function parseQuickAdd(text, sections = []) {
   let minutes = null;
   let sectionHint = null;
 
-  rest = rest.replace(/(^|\s)#([\w-]+)/g, (_, space, hint) => {
+  // "Everything up to the next space", not `\w`. `#ערב`, `#تنظيف` and `#🌙` did
+  // not parse as hints at all, so a literal hash was left sitting in the task's
+  // name where a Latin `#wind-down` would have been stripped.
+  rest = rest.replace(/(^|\s)#([^\s#!~]+)/gu, (_, space, hint) => {
     sectionHint = hint;
     return space ? ' ' : '';
   });
@@ -62,21 +80,26 @@ export function parseQuickAdd(text, sections = []) {
 
 export const SHORTCUTS = [
   ['F', 'One task at a time'],
-  ['N', 'Add a task to the first section'],
+  // N and / are the same key press — both land in quick add, which puts the
+  // task in the first section unless the text carries a #hint. Saying "adds a
+  // task to the first section" described a thing N does not do on its own.
+  ['N or /', 'Jump to quick add'],
   ['S', 'Add a section'],
-  ['/', 'Jump to quick add'],
   ['→', 'In one-at-a-time: leave this one for later'],
   ['T', 'In one-at-a-time: start or pause the timer'],
   ['B', 'Open the Night Market'],
-  ['G', 'Open the star map'],
-  ['H', 'Open night history'],
+  ['G', 'Open the Star Map'],
+  ['H', 'Open Night History'],
   ['I', 'Open insights'],
   [',', 'Open settings'],
   ['M', 'Mute or unmute sounds'],
   ['D', 'Toggle sleep-safe dim'],
   ['?', 'Show this list'],
-  ['Space', 'Check off the focused task'],
+  ['Space or ⏎', 'Check off the focused task'],
   ['E', 'Rename the focused task or section'],
+  // Implemented since the first version and advertised by every row's own
+  // aria-keyshortcuts, but never listed here.
+  ['X', 'Rain-check the focused task'],
   ['Delete', 'Delete the focused task or section'],
   ['Alt + ↑ / ↓', 'Move the focused task or section'],
   ['↑ / ↓', 'Move between tasks'],

@@ -406,9 +406,9 @@ export function persist(state) {
 }
 
 export function flushPersist() {
-  if (!pendingState) return;
-  writeNow(pendingState);
-  pendingState = null;
+  // Through the debounce's own flush, so the armed timer is cleared rather than
+  // left to fire into a body that has to re-check `pendingState` to be harmless.
+  scheduleWrite.flush();
 }
 
 /**
@@ -421,10 +421,23 @@ export function flushPersist() {
  */
 export function cancelPersist() {
   pendingState = null;
+  scheduleWrite.cancel();
 }
 
 export function serializeState(state) {
   return JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2);
+}
+
+/** When a backup file says it was written, if it says at all. */
+export function exportedAtOf(text) {
+  try {
+    const value = JSON.parse(text)?.exportedAt;
+    if (typeof value !== 'string') return null;
+    const at = new Date(value);
+    return Number.isNaN(at.getTime()) ? null : at;
+  } catch {
+    return null;
+  }
 }
 
 export function parseImport(text, now = new Date()) {

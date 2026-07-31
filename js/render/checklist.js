@@ -50,13 +50,15 @@ function settleInlineEdit() {
   if (commit) commit(true);
 }
 
-function beginInlineEdit(labelNode, currentValue, onCommit) {
+function beginInlineEdit(labelNode, currentValue, onCommit, { label = 'Rename' } = {}) {
   const input = h('input', {
     class: 'inline-edit',
     type: 'text',
     maxlength: '200',
     value: currentValue,
-    'aria-label': 'Rename',
+    // The label it replaces is gone from the DOM by the time focus lands, so a
+    // flat "Rename" was the only thing announced for both tasks and sections.
+    'aria-label': label,
     spellcheck: 'false',
   });
   let settled = false;
@@ -133,6 +135,7 @@ export function floatXp(taskId, text) {
   if (!rect.width || !rect.height) return;
   const float = h('span', {
     class: 'xp-float',
+    'aria-hidden': 'true', // decoration, like every other transient effect
     style: {
       left: `${Math.round(rect.right - 92)}px`,
       top: `${Math.round(rect.top + 2)}px`,
@@ -148,7 +151,9 @@ export function floatXp(taskId, text) {
 function startRenameTask(taskId) {
   const task = getState().template.tasks[taskId];
   const node = root?.querySelector(`[data-task-id="${CSS.escape(taskId)}"] .task__title`);
-  if (task && node) beginInlineEdit(node, task.title, (value) => renameTask(taskId, value));
+  if (task && node) {
+    beginInlineEdit(node, task.title, (value) => renameTask(taskId, value), { label: `Rename ${task.title}` });
+  }
 }
 
 function rainCheck(taskId) {
@@ -258,7 +263,10 @@ function taskRow(state, task, index, total = 0) {
     class: 'task__check',
     role: 'checkbox',
     'aria-checked': done ? 'true' : 'false',
-    'aria-label': `${done ? 'Uncheck' : 'Check off'} ${task.title}`,
+    // The name is the thing; `aria-checked` beside it is the state. Naming it
+    // with a verb made a checked box announce as "Uncheck Brush teeth,
+    // checkbox, checked" — the name and the state reading as contradictions.
+    'aria-label': task.title,
     onClick: (event) => {
       event.stopPropagation();
       // The row is rebuilt already wearing its new state, so the transition
@@ -321,7 +329,9 @@ function removeTask(id) {
 function startRenameSection(sectionId) {
   const section = getState().template.sections[sectionId];
   const node = root?.querySelector(`[data-section-id="${CSS.escape(sectionId)}"] .section__title`);
-  if (section && node) beginInlineEdit(node, section.title, (value) => renameSection(sectionId, value));
+  if (section && node) {
+    beginInlineEdit(node, section.title, (value) => renameSection(sectionId, value), { label: `Rename section ${section.title}` });
+  }
 }
 
 /** One definition of what you can do to a section, shared by the header and the sheet. */

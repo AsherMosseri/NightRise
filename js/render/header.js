@@ -235,7 +235,7 @@ function questCard(state, stats) {
     h('div', { class: 'quest__head' },
       icon('star', { size: 14 }),
       h('span', { class: 'quest__name' }, quest.name),
-      h('span', { class: 'quest__reward' }, `+${quest.def.xp} XP · +${quest.def.dust} dust`)),
+      h('span', { class: 'quest__reward' }, `+${quest.def.xp} XP · +${quest.def.dust} stardust`)),
     h('p', { class: 'quest__desc' }, quest.description),
     h('div', { class: 'quest__bar' }, growTo(h('span', {}), 'quest:bar', `${Math.min(100, pct)}%`)),
     h('div', { class: 'quest__foot' },
@@ -284,9 +284,16 @@ function envelopeCard(state) {
       h('span', {}, drop.label),
       h('span', { class: 'muted small' }, drop.detail(opened.amount)));
   }
+  // The pulse picks up where the last one left off. `.envelope--sealed` carries
+  // a 2.8s infinite breathe, and this button is rebuilt on every state change —
+  // so the cycle restarted from 0% every time and on an active night it never
+  // once completed. A negative delay against a fixed epoch is the cheap version
+  // of the node-caching the companion does two hundred lines below.
+  const phase = -((Date.now() - ENVELOPE_EPOCH) % 2800);
   return h('button', {
     type: 'button',
     class: 'envelope envelope--sealed',
+    style: { animationDelay: `${phase}ms` },
     onPointerdown: (event) => {
       // Couple the press to the finger, not to the click. Fifty milliseconds of
       // perceived latency for one class.
@@ -467,6 +474,9 @@ const COMPANION_LINES = {
 function pickLine(list, seed) {
   return list[seed % list.length];
 }
+
+/** Fixed reference point for the sealed envelope's breathing phase. */
+const ENVELOPE_EPOCH = Date.now();
 
 /** What the drawn companion depends on. Anything else must not rebuild it. */
 let companionKey = null;

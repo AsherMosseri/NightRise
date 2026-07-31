@@ -101,7 +101,12 @@ export function dropById(id) {
  */
 export function openEnvelope(state) {
   if (!envelopeWaiting(state)) return null;
-  const rand = seededRandom(hashString(`envelope:${state.night.key}:${state.profile.nightsLogged}`));
+  // The night key alone. `nightsLogged` increments in bankNight, so pressing
+  // "Bank tonight and start fresh" — or resetting Night history — changed what
+  // was inside an envelope you had not opened yet, which is exactly what the
+  // docstring above promises cannot happen. `lastEnvelopeKey` is what enforces
+  // one per date; the seed only has to be stable.
+  const rand = seededRandom(hashString(`envelope:${state.night.key}`));
   const drop = pick(rand);
   const amount = drop.apply(state, rand);
   state.night.envelope = { opened: Date.now(), id: drop.id, amount };

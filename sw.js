@@ -4,7 +4,7 @@
    js/updates.js drives this from the page: it asks the registration to check
    on launch and on foreground, and messages SKIP_WAITING to take a new build. */
 
-const CACHE = 'nightcheck-v31';
+const CACHE = 'nightcheck-v32';
 
 const ASSETS = [
   './',
@@ -55,6 +55,7 @@ const ASSETS = [
   './assets/icon.svg',
   './assets/icon-192.png',
   './assets/icon-512.png',
+  './assets/icon-maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {

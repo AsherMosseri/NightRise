@@ -5,8 +5,8 @@ import { svg } from './dom.js';
 export const COMPANIONS = [
   { id: 'owl', name: 'Owl', cost: 220, desc: 'Silent, watchful, mildly judgemental.', palette: ['#c9a26b', '#7b5c34'] },
   { id: 'cat', name: 'Cat', cost: 250, desc: 'Supervises from the edge of the screen.', palette: ['#6f7fbc', '#3c4570'] },
-  { id: 'fox', name: 'Fox', cost: 320, desc: 'Turns up when the list is nearly done.', palette: ['#e08a4a', '#8c4a20'] },
-  { id: 'bat', name: 'Bat', cost: 300, desc: 'Genuinely thrives after midnight.', palette: ['#9b7fd4', '#4b3a78'] },
+  { id: 'fox', name: 'Fox', cost: 320, desc: 'Sharp-eyed, and never far from the last task.', palette: ['#e08a4a', '#8c4a20'] },
+  { id: 'bat', name: 'Bat', cost: 300, desc: 'Awake at this hour on purpose, unlike you.', palette: ['#9b7fd4', '#4b3a78'] },
 ];
 
 /** Stardust to feed from tier N to N+1, and the total feeds needed. */

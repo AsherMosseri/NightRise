@@ -91,7 +91,12 @@ export function minutesUntilBedtime(key, bedtime, now = new Date()) {
 export function pacingStatus(remainingMinutes, minutesLeft) {
   if (remainingMinutes <= 0) return 'clear';
   if (minutesLeft === null) return 'ahead';
-  if (minutesLeft <= 0) return 'past';
+  // `< 0`, not `<= 0`. At exactly the bedtime minute the chip above this read
+  // "0m left" while the label under it read "Past bedtime" — and lightsOut
+  // treats zero as on time, so stopping in that minute was recorded as on time
+  // by an app that was telling you you were late.
+  if (minutesLeft < 0) return 'past';
+  if (minutesLeft === 0) return remainingMinutes > 0 ? 'over' : 'clear';
   const ratio = remainingMinutes / minutesLeft;
   if (ratio <= 0.7) return 'ahead';
   if (ratio <= 1) return 'tight';

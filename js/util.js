@@ -32,6 +32,10 @@ export function debounce(fn, ms) {
       fn(...args);
     }
   };
+  wrapped.cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
   return wrapped;
 }
 

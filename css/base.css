@@ -78,6 +78,17 @@ svg { display: block; }
 
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
   --speed: 180ms;
+  /* One duration and one curve for every bar that fills. There were five
+     durations and two easing curves for the same visual event — the XP bar at
+     500ms, the dial at 600ms, three bars at 400ms and the achievement bar at
+     420ms on a curve used nowhere else in the project. */
+  --speed-bar: 420ms;
+
+  /* One gutter for all three dialog surfaces. They had 28px, 32px and 24px —
+     and the *wide* confirm had the smallest margin of the three. */
+  --dialog-gutter: 28px;
+  --scrim: rgba(3, 5, 15, 0.64);
+  --scrim-blur: blur(4px);
 
   --max-width: 940px;
 }
@@ -96,6 +107,18 @@ svg { display: block; }
 [data-motion="off"] * {
   animation-duration: 0.001ms !important;
   transition-duration: 0.001ms !important;
+}
+
+/* `auto` is the shipped default in index.html, so the OS preference is honoured
+   on the very first paint. It used to ship as `on`, and applyCosmetics only
+   reconciled it once the module graph had loaded — so the breathing envelope
+   and the combo pulse ran at full speed until then, and permanently if a module
+   failed to load. */
+@media (prefers-reduced-motion: reduce) {
+  [data-motion="auto"] * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* A progress indicator is not decoration. The hold-to-end fill is the only

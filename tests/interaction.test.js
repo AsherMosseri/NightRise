@@ -102,3 +102,23 @@ test('stars you cannot afford are not sold to you', () => {
   assert.equal(buyStar(state, CONSTELLATIONS[0].id), null);
   assert.equal(progressFor(state, CONSTELLATIONS[0].id).lit, 0);
 });
+
+test('a section titled in any script can be reached by #hint', () => {
+  // slugify stripped everything outside [a-z0-9], so "ערב" and "تنظيف" both
+  // slugified to the empty string — unreachable, and indistinguishable from
+  // each other. The hint pattern itself was `\w`, so `#ערב` did not even parse
+  // as a hint: a literal hash was left sitting in the task's name.
+  const sections = [
+    { id: 'a', title: 'ערב' },
+    { id: 'b', title: 'تنظيف' },
+    { id: 'c', title: 'Wind Down' },
+  ];
+  assert.equal(parseQuickAdd('water #ערב', sections).sectionId, 'a');
+  assert.equal(parseQuickAdd('sweep #تنظيف', sections).sectionId, 'b');
+  assert.equal(parseQuickAdd('floss #wind-down', sections).sectionId, 'c');
+  // And the hash is stripped from the title in every case.
+  assert.equal(parseQuickAdd('water #ערב', sections).title, 'water');
+  assert.equal(parseQuickAdd('x #🌙', sections).title, 'x');
+  // An accented title still answers to its unaccented spelling.
+  assert.equal(parseQuickAdd('a #cafe', [{ id: 'd', title: 'Café' }]).sectionId, 'd');
+});

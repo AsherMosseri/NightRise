@@ -330,7 +330,19 @@ function reckoningButton(state, reck) {
   const button = h('button', {
     type: 'button',
     class: 'tonight__nudge',
-    onClick: () => openSheet({
+    onClick: () => {
+      // Marked read on the tap, not on the way out of the sheet. openSheet takes
+      // no onClose hook — it destructures a fixed set of keys and drops anything
+      // else silently — so hanging the "said once" guarantee off one meant that
+      // Cancel, Escape, the scrim, a swipe down and the "show me the pattern"
+      // item all left it unread, and the line came back on the next render and
+      // stayed all night, suppressing the task nudge with it.
+      //
+      // `silent`, because update() notifies synchronously: a notify here would
+      // re-render the tonight panel and replace this button mid-click, and
+      // openSheet is about to take it as the element to hand focus back to.
+      update((s) => { s.profile.reckonedKey = s.night.key; }, { silent: true });
+      openSheet({
       title: `Last night ran ${formatDuration(reck.late)} long`,
       // Built from the parts that have something to say. formatShift returns an
       // em dash when there is no earlier week to compare against — honest in a
@@ -360,19 +372,14 @@ function reckoningButton(state, reck) {
           onClick: () => {
             update((s) => { s.profile.settings.bedtime = reck.suggestedValue; });
             emit('setting', { key: 'bedtime', value: reck.suggestedValue });
-            dismissReckoning();
           },
         },
-        { icon: 'check', label: 'Keep the target', hint: 'Tonight, then', onClick: () => dismissReckoning() },
+        { icon: 'check', label: 'Keep the target', hint: 'Tonight, then', onClick: () => {} },
       ],
-      onClose: () => dismissReckoning(),
-    }),
+      });
+    },
   }, icon('moon', { size: 13 }), h('span', {}, `Last night ran ${formatDuration(reck.late)} long`));
   return button;
-}
-
-function dismissReckoning() {
-  update((s) => { s.profile.reckonedKey = s.night.key; });
 }
 
 function nudgeButton(state, nudge) {

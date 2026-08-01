@@ -985,6 +985,9 @@ VIEWS.settings = () => {
   const bedtime = bedtimePicker(settings.bedtime, (value) => {
     update((s) => { s.profile.settings.bedtime = value; });
     emit('setting', { key: 'bedtime', value });
+    // Last call is an offset from this, and its hint names the clock time it
+    // lands on — which is wrong the moment the bedtime under it moves.
+    refreshModal();
   });
 
   const motion = choiceRow('Motion', [
@@ -1005,6 +1008,9 @@ VIEWS.settings = () => {
   ]), settings.lastCall, (value) => {
     update((s) => { s.profile.settings.lastCall = value; });
     emit('setting', { key: 'lastCall', value });
+    // The hint under this row names the resulting clock time, and it is built
+    // once at render — without this it kept saying 10:45 after you picked 120.
+    refreshModal();
   });
 
   const importInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'visually-hidden' });

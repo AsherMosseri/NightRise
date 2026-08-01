@@ -84,7 +84,6 @@ export function lightsOutReward(minutesEarly, stats) {
   // maximum — 128 XP and 38 stardust for opening the app and holding a button.
   // You still stopped, and stopping still counts for the bedtime streak; it
   // just is not worth more than a night you actually worked through.
-  if (!stats || stats.total === 0) return { xp: 15, dust: 3 };
   const capped = Math.min(Math.max(0, minutesEarly), EARLY_CAP_MINUTES);
   // Scaled by how much of the night you actually did, not just by the clock:
   // stopping ninety minutes early with an untouched eleven-task list used to pay
@@ -105,9 +104,16 @@ export function lightsOutReward(minutesEarly, stats) {
   // percentage uses; a task you excused should not count against you here
   // either. Falling back through total and then done keeps a partial stats
   // object (the tests build a few) from producing NaN.
-  const done = Math.max(0, Number(stats.done) || 0);
-  const scope = Math.max(1, Number(stats.counted) || Number(stats.total) || done || 1);
-  const share = 1 / 3 + (2 / 3) * Math.min(1, done / scope);
+  const done = Math.max(0, Number(stats?.done) || 0);
+  const scope = Math.max(1, Number(stats?.counted) || Number(stats?.total) || done || 1);
+  // An empty list gets the unconditional third and no more — it used to get a
+  // flat {xp:15, dust:3}, which stopped being a FLOOR the moment the late branch
+  // could go below it. Past about sixty-six minutes late a night you had worked
+  // through paid less than fifteen, so deleting the list before pressing Lights
+  // out became the higher-paying move: the exact padding-for-reward pressure the
+  // taper exists to remove, reappearing at the one reward outside it.
+  const empty = !stats || Number(stats.total) === 0;
+  const share = empty ? 1 / 3 : 1 / 3 + (2 / 3) * Math.min(1, done / scope);
   // Past bedtime the clock runs the other way: `capped` is pinned at zero by
   // the clamp above, so the early terms vanish and what is left decays from
   // ON_TIME toward FLOOR. `decay` is 1 at exactly on time, which is what joins
@@ -116,9 +122,11 @@ export function lightsOutReward(minutesEarly, stats) {
   const decay = Math.exp(-late / LATE_TAU);
   const xp = FLOOR.xp + (ON_TIME.xp - FLOOR.xp) * decay + capped * 1.5;
   const dust = FLOOR.dust + (ON_TIME.dust - FLOOR.dust) * decay + capped * 0.35;
+  // And still capped where it was. Stopping ninety minutes early with nothing on
+  // the list paid 128 XP once — ten tasks' worth for holding a button.
   return {
-    xp: Math.round(xp * share),
-    dust: Math.round(dust * share),
+    xp: Math.min(empty ? 15 : Infinity, Math.round(xp * share)),
+    dust: Math.min(empty ? 3 : Infinity, Math.round(dust * share)),
   };
 }
 

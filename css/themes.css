@@ -399,6 +399,32 @@
    the envelope ceremony (z-62), the effects layer (z-58) and the goodnight
    screen (z-80) were each escaping it — and One Card is the mode most likely to
    be open at midnight, which is the whole audience for this setting. */
+/* The same escape list, for the same reason. The veil sits at z-40 and cannot
+   reach through a backdrop-filter to anything above it, so without this One Card
+   — the mode most likely to be open at midnight, which is the entire audience
+   for last call — stayed fully saturated while the app behind it went grey. */
+.is-lastcall #modal,
+.is-lastcall .sheet,
+.is-lastcall .sheet-scrim,
+.is-lastcall .toast,
+.is-lastcall .onecard,
+.is-lastcall .env-stage,
+.is-lastcall .fx-layer,
+.is-lastcall .goodnight {
+  filter: brightness(0.90) saturate(0.42);
+}
+/* Both on: one filter, combined, or the two halves of the screen disagree. */
+.is-dim.is-lastcall #modal,
+.is-dim.is-lastcall .sheet,
+.is-dim.is-lastcall .sheet-scrim,
+.is-dim.is-lastcall .toast,
+.is-dim.is-lastcall .onecard,
+.is-dim.is-lastcall .env-stage,
+.is-dim.is-lastcall .fx-layer,
+.is-dim.is-lastcall .goodnight {
+  filter: brightness(0.66) saturate(0.4);
+}
+
 .is-dim #modal,
 .is-dim .sheet,
 .is-dim .sheet-scrim,

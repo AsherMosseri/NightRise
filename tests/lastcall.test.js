@@ -172,9 +172,24 @@ test('the work still scales it, at every hour of the night', () => {
   }
 });
 
-test('a night with nothing on the list is untouched by any of this', () => {
-  assert.deepEqual(lightsOutReward(-300, { total: 0 }), { xp: 15, dust: 3 });
-  assert.deepEqual(lightsOutReward(90, null), { xp: 15, dust: 3 });
+test('an empty list never out-earns a night you worked through', () => {
+  // It used to return a flat {xp:15, dust:3}, which was a floor only while
+  // nothing could go below it. Once the late branch could, deleting your list
+  // before pressing Lights out became the higher-paying move past about
+  // sixty-six minutes late — the padding-for-reward pressure the taper exists
+  // to remove, reappearing at the one reward that sits outside it.
+  const EMPTY = { total: 0 };
+  for (const minutes of [90, 30, 0, -30, -66, -90, -180, -600]) {
+    const worked = lightsOutReward(minutes, FULL).xp;
+    const empty = lightsOutReward(minutes, EMPTY).xp;
+    assert.ok(empty <= worked, `${minutes}: empty paid ${empty} against ${worked}`);
+  }
+  // And still capped where it was: stopping ninety minutes early with nothing
+  // on the list once paid 128 XP, ten tasks' worth for holding a button.
+  assert.deepEqual(lightsOutReward(90, EMPTY), { xp: 15, dust: 3 });
+  assert.deepEqual(lightsOutReward(600, null), { xp: 15, dust: 3 });
+  // Stopping is still always worth something, even with nothing to show.
+  assert.ok(lightsOutReward(-600, EMPTY).xp > 0);
 });
 
 /* -------------------------------------------------- the morning reckoning */
@@ -184,7 +199,10 @@ function withHistory(entry, todayKey = '2026-08-02') {
   state.night.key = todayKey;
   state.profile.settings.bedtime = BED;
   state.profile.settings.lastCall = 60;
-  state.profile.history = { [KEY]: entry };
+  // At the ROOT. A fixture that plants it on the profile tests a shape the app
+  // never produces — which is exactly how the first version of this passed 24
+  // tests while the feature could not fire once.
+  state.history = { [KEY]: entry };
   return state;
 }
 
@@ -264,7 +282,7 @@ test('the setting arrives with a default and cannot be poisoned', () => {
   // lastCallInstant produce an Invalid Date, every comparison against which is
   // false — so the stage would silently never reach 'lastcall' and the feature
   // would be off with nothing anywhere saying so.
-  for (const bad of ['soon', NaN, -30, null, undefined, 47, Infinity, '60x']) {
+  for (const bad of ['soon', NaN, -30, null, undefined, 47, Infinity, '60x', false, '', [], '60', {}]) {
     const state = createInitialState(new Date(2026, 7, 1, 22, 0));
     state.profile.settings.lastCall = bad;
     const loaded = normalizeState(JSON.parse(JSON.stringify(state)));

@@ -123,14 +123,19 @@ export function lastNightReckoning(state, todayKey = state.night.key) {
   if (state.profile.reckonedKey === todayKey) return null;
 
   const key = shiftKey(todayKey, -1);
-  const night = nightBedtime(key, state.profile.history?.[key]);
+  // `state.history`, not `state.profile.history`. There is no history on the
+  // profile and never has been — every other consumer reads the root (night.js,
+  // insights.js, modals.js, achievements.js). Reading the wrong one returned
+  // undefined on every call, so this whole feature was dead code, and the tests
+  // passed because their fixture planted the history in the same wrong place.
+  const night = nightBedtime(key, state.history?.[key]);
   if (!night.recorded || night.late === null) return null;
   // `late` is signed minutes past that night's own target — the one stamped on
   // the entry, not today's setting, so changing your bedtime cannot rewrite
   // history into or out of a telling-off.
   if (night.late < lastCall) return null;
 
-  const summary = bedtimeSummary(state.profile.history || {}, todayKey);
+  const summary = bedtimeSummary(state.history || {}, todayKey);
   return {
     key,
     late: night.late,

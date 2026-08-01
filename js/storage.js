@@ -321,11 +321,16 @@ export function normalizeState(raw, now = new Date()) {
   // the stage would silently never reach 'lastcall' and the feature would be
   // off with nothing anywhere saying so. Snapped to a value the picker offers,
   // because a save carrying 47 would show no chip selected.
-  if (!LAST_CALL_CHOICES.includes(Math.round(Number(profile.settings.lastCall)))) {
-    profile.settings.lastCall = fresh.settings.lastCall;
-  } else {
-    profile.settings.lastCall = Math.round(Number(profile.settings.lastCall));
-  }
+  // `typeof` first, and no Number() coercion. Number(null), Number(false),
+  // Number('') and Number([]) are all 0 — which IS one of the choices, meaning
+  // "off" — so a save with a null in it silently turned the whole feature off
+  // and looked like a deliberate setting rather than a fallback.
+  const call = profile.settings.lastCall;
+  profile.settings.lastCall = typeof call === 'number' && LAST_CALL_CHOICES.includes(Math.round(call))
+    ? Math.round(call)
+    : fresh.settings.lastCall;
+  // Keyed to a night, so anything that is not a string is not a key.
+  if (typeof profile.reckonedKey !== 'string') profile.reckonedKey = null;
 
   const tokens = {};
   for (const [kind, value] of Object.entries({ ...fresh.tokens, ...profile.tokens })) {

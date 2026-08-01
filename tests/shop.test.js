@@ -12,7 +12,8 @@ import { WEATHER, MOONS, MARKS, ENVELOPES } from '../js/skins.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
-import { equipItem } from '../js/shop.js';
+import { equipItem, buyConsumable } from '../js/shop.js';
+import { MOMENTUM_MIN_GAP_MS } from '../js/game.js';
 import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
 
@@ -115,6 +116,68 @@ test('consumables are priced and named', () => {
     assert.ok(item.name && item.desc && item.icon, `${item.id} is missing a field`);
     assert.ok(item.cost > 0, `${item.id} is free, which makes it infinite`);
   }
+});
+
+test('a head start cannot be bought twice in one night', () => {
+  // It acts on tonight rather than becoming a token, so a second one is paying
+  // again for a multiplier you already have and getting nothing to hold.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 5000;
+  replaceState(state);
+  assert.ok(buyConsumable('headstart'), 'the first one lands');
+  const after = getState().profile.stardust;
+  assert.ok(getState().night.combo >= 1.25, 'and it actually starts the momentum');
+  assert.equal(buyConsumable('headstart'), null, 'the second is refused');
+  assert.equal(getState().profile.stardust, after, 'and costs nothing');
+});
+
+test('a head start does not throw itself away on the next tap', () => {
+  // `chainLengthFor` resets the chain when two check-offs land closer together
+  // than MOMENTUM_MIN_GAP_MS. Stamping `lastDoneAt` at "now" would mean the
+  // very next check-off looked instant and the prize evaporated — the same
+  // subtlety the envelope's version of this had to get right.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 5000;
+  replaceState(state);
+  buyConsumable('headstart');
+  assert.ok(Date.now() - getState().night.lastDoneAt >= MOMENTUM_MIN_GAP_MS,
+    'the stamp is a full momentum window back, not now');
+});
+
+test('a second wind changes the quest, once, and never past a claim', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 5000;
+  replaceState(state);
+  const before = getState().night.quest.id;
+  assert.ok(buyConsumable('secondwind'));
+  assert.notEqual(getState().night.quest.id, before, 'a different quest');
+  assert.equal(buyConsumable('secondwind'), null, 'and only one a night');
+
+  // A claimed quest is already paid for. Rerolling past it would either throw
+  // the reward away or hand out a second one.
+  const fresh = createInitialState(new Date(2026, 6, 29, 22, 0));
+  fresh.profile.stardust = 5000;
+  fresh.night.quest.claimed = true;
+  replaceState(fresh);
+  assert.equal(buyConsumable('secondwind'), null);
+  assert.equal(getState().profile.stardust, 5000, 'refused, and not charged');
+});
+
+test('a rerolled quest is still a pure function of the night', () => {
+  // Seeded off the night key plus how many rerolls it has had, so a reload
+  // cannot shop for a quest by re-rolling until a good one comes up.
+  const roll = (n) => {
+    const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+    state.profile.stardust = 5000;
+    replaceState(state);
+    for (let i = 0; i < n; i += 1) {
+      getState().night.rerolledKey = null; // a fresh night each time, same date
+      buyConsumable('secondwind');
+    }
+    return getState().night.quest.id;
+  };
+  assert.equal(roll(1), roll(1), 'the same night and the same reroll give the same quest');
+  assert.equal(roll(2), roll(2));
 });
 
 test('the whole market costs what the README says it costs', () => {

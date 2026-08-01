@@ -4,6 +4,8 @@ import { update, emit } from './state.js';
 import { checkAchievements } from './achievements.js';
 import { computeStats } from './night.js';
 import { COMPANIONS, FEED_COST, TIER_FEEDS, tierForFeeds } from './companion.js';
+import { MOMENTUM_MIN_GAP_MS } from './game.js';
+import { rollQuest } from './quests.js';
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, WEATHER, MOONS, MARKS, ENVELOPES,
 } from './skins.js';
@@ -25,6 +27,25 @@ export const CONSUMABLES = [
     cost: 100,
     desc: 'Excuses one task from tonight’s completion percentage.',
     icon: 'skip',
+  },
+  {
+    id: 'headstart',
+    name: 'Head Start',
+    cost: 180,
+    desc: 'Begin tonight at ×1.5 momentum, without having earned it yet.',
+    icon: 'flame',
+    // Not a token you hold: it acts on tonight the moment you buy it, so it is
+    // spent rather than stockpiled. Buying two on one night would be paying
+    // twice for a multiplier you already have.
+    instant: true,
+  },
+  {
+    id: 'secondwind',
+    name: 'Second Wind',
+    cost: 220,
+    desc: 'Trade tonight’s bonus quest for a different one. Once a night.',
+    icon: 'chart',
+    instant: true,
   },
 ];
 
@@ -161,6 +182,27 @@ export function unequipCompanion() {
   });
 }
 
+/**
+ * Why an instant supply can be refused for reasons other than the price.
+ *
+ * A token you hold is always buyable — you can stockpile freezes. These two act
+ * on tonight, so buying one twice is paying twice for something you already
+ * have, and there is nothing to hold afterwards to show for it.
+ */
+export function supplyBlocker(state, item) {
+  if (item.id === 'headstart') {
+    if (state.night.headStartKey === state.night.key) return 'Already going tonight';
+    if ((state.night.combo || 1) >= 1.5) return 'Already at speed';
+  }
+  if (item.id === 'secondwind') {
+    if (state.night.rerolledKey === state.night.key) return 'Used tonight';
+    // A finished quest is a claim waiting to happen, and rerolling past it
+    // would either throw the reward away or hand out a second one.
+    if (state.night.quest?.claimed) return 'Tonight’s quest is done';
+  }
+  return null;
+}
+
 export function buyConsumable(kind) {
   const item = CONSUMABLES.find((c) => c.id === kind);
   if (!item) return null;
@@ -169,8 +211,32 @@ export function buyConsumable(kind) {
       emit('purchase:failed', { item, reason: `${item.cost - state.profile.stardust} more stardust` });
       return null;
     }
+    const blocked = supplyBlocker(state, item);
+    if (blocked) {
+      emit('purchase:failed', { item, reason: blocked });
+      return null;
+    }
     state.profile.stardust -= item.cost;
-    state.profile.tokens[kind] = (state.profile.tokens[kind] || 0) + 1;
+    if (item.id === 'headstart') {
+      // The envelope's head start, verbatim — including the subtle part. The
+      // chain resets when two check-offs are closer together than
+      // MOMENTUM_MIN_GAP_MS, so stamping "now" would throw the prize away on
+      // the very next tap; and `combo` is 1.25 rather than 1.5 because the
+      // chain the next completion earns is derived from it, and 1.25 yields
+      // exactly the x1.5 the label promises.
+      state.night.combo = Math.max(state.night.combo || 1, 1.25);
+      state.night.lastDoneAt = Date.now() - MOMENTUM_MIN_GAP_MS;
+      state.night.lastMinutes = 10;
+      state.night.headStartKey = state.night.key;
+    } else if (item.id === 'secondwind') {
+      // Seeded off how many rerolls this night has had, so the new quest is
+      // still a pure function of the night and a reload cannot shop for one.
+      state.night.rerolledKey = state.night.key;
+      state.night.questRerolls = (state.night.questRerolls || 0) + 1;
+      state.night.quest = rollQuest(`${state.night.key}#${state.night.questRerolls}`);
+    } else {
+      state.profile.tokens[kind] = (state.profile.tokens[kind] || 0) + 1;
+    }
     emit('purchase', { item });
     settleTiers(state);
     return item;

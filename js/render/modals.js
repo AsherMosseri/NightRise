@@ -4,7 +4,7 @@
 import { h, svg, icon, replace, withFocus, downloadText, rovingGroup } from '../dom.js';
 import { getState, update, replaceState, emit } from '../state.js';
 import {
-  CONSUMABLES, allItems,
+  CONSUMABLES, allItems, supplyBlocker,
   canBuy, owns, isEquipped, purchase, equipItem, buyConsumable,
   feedCompanion, renameCompanion, unequipCompanion,
 } from '../shop.js';
@@ -326,18 +326,29 @@ VIEWS.shop = () => {
 
   let content;
   if (active[0] === 'supplies') {
-    content = h('div', { class: 'cards' }, ...CONSUMABLES.map((item) => h('article', { class: 'card' },
-      h('div', { class: 'card__head' }, h('h3', {}, item.name), priceTag(item.cost)),
-      h('div', { class: 'card__icon' }, icon(item.icon, { size: 26 })),
-      h('p', { class: 'card__desc' }, item.desc),
-      h('div', { class: 'card__foot' },
-        h('span', { class: 'card__tag' }, `${state.profile.tokens[item.id] || 0} held`),
-        h('button', {
-          type: 'button',
-          class: 'btn btn--primary btn--sm',
-          disabled: state.profile.stardust < item.cost,
-          onClick: () => { buyConsumable(item.id); refreshModal(); },
-        }, 'Buy')))));
+    content = h('div', { class: 'cards' }, ...CONSUMABLES.map((item) => {
+      // Two kinds of supply. A freeze or a rain check is a token you hold, and
+      // the card counts them. A head start and a second wind act on tonight the
+      // moment you buy them, so there is nothing to count — the card says what
+      // it will do instead, and why it cannot right now if it cannot.
+      const blocked = item.instant ? supplyBlocker(state, item) : null;
+      const poor = state.profile.stardust < item.cost;
+      return h('article', { class: `card ${blocked ? 'card--locked' : ''}`.trim() },
+        h('div', { class: 'card__head' }, h('h3', {}, item.name), priceTag(item.cost)),
+        h('div', { class: 'card__icon' }, icon(item.icon, { size: 26 })),
+        h('p', { class: 'card__desc' }, item.desc),
+        h('div', { class: 'card__foot' },
+          h('span', { class: 'card__tag' }, item.instant
+            ? (blocked || 'Applies to tonight')
+            : `${state.profile.tokens[item.id] || 0} held`),
+          h('button', {
+            type: 'button',
+            class: 'btn btn--primary btn--sm',
+            disabled: poor || Boolean(blocked),
+            title: blocked || (poor ? `${item.cost - state.profile.stardust} more stardust` : `Buy for ${item.cost} stardust`),
+            onClick: () => { buyConsumable(item.id); refreshModal(); },
+          }, 'Buy')));
+    }));
   } else {
     const onPreview = active[0] === 'sounds' ? (item) => previewPack(item.id) : null;
     content = h('div', { class: 'cards' },

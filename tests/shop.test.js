@@ -169,6 +169,25 @@ test('a save written before the typeface was renamed is carried across', () => {
   assert.ok(after.inventory.themes.includes('aurora'), 'and is still owned');
 });
 
+test('a save written before the envelope shelf was restocked keeps what it bought', () => {
+  const before = {
+    version: 3,
+    profile: {
+      xp: 5000,
+      stardust: 100,
+      equipped: { envelope: 'oxblood' },
+      inventory: { envelopes: ['plain', 'slate', 'oxblood'] },
+    },
+  };
+  const after = normalizeState(before, new Date(2026, 6, 29, 22, 0)).profile;
+  assert.equal(after.equipped.envelope, 'garden', 'the equipped skin came across by rank');
+  assert.deepEqual(after.inventory.envelopes, ['plain', 'kraft', 'garden'],
+    'and so did everything the save had paid for');
+  for (const id of after.inventory.envelopes) {
+    assert.ok(ENVELOPES.some((e) => e.id === id), `${id} is not on the shelf any more`);
+  }
+});
+
 test('every moon keeps its craters on its face and its fill legible', () => {
   // The moon fills with tonight's completion. A skin whose lit and unlit halves
   // sit close together in luminance breaks the one mechanic the moon has.
@@ -231,8 +250,33 @@ test('every envelope is readable and none of them glare at midnight', () => {
     // the surface under it is how dark ink on pale paper came out unreadable.
     assert.ok(contrast(env.ink, env.note) >= 4.5,
       `${env.id} ink is ${contrast(env.ink, env.note).toFixed(1)}:1 on its own note`);
+    // The eyebrow is the same ink at 62% over the same note, at 11px uppercase,
+    // and it is real text somebody reads. It falls away much faster than the
+    // reel line does: an ink/note pair can clear 4.5 and leave the eyebrow at
+    // 2.9, which is how a paper bright enough to wash it out gets in.
+    const eyebrow = '#' + [1, 3, 5].map((i) => {
+      const a = parseInt(env.ink.slice(i, i + 2), 16);
+      const b = parseInt(env.note.slice(i, i + 2), 16);
+      return Math.round(a * 0.62 + b * 0.38).toString(16).padStart(2, '0');
+    }).join('');
+    assert.ok(contrast(eyebrow, env.note) >= 4.5,
+      `${env.id} eyebrow is ${contrast(eyebrow, env.note).toFixed(1)}:1 on its own note`);
     assert.ok(contrast(env.seal, env.paper) >= 1.6, `${env.id} seal vanishes into the paper`);
-    assert.ok(lum(env.paper) < 0.25, `${env.id} is a bright rectangle at bedtime`);
+    // The seal is also the colour of the icon in every reel cell, on the note.
+    assert.ok(contrast(env.seal, env.note) >= 1.9, `${env.id} reel icons vanish into the note`);
+    assert.ok(contrast(env.flap, env.paper) >= 1.15,
+      `${env.id} has no flap to speak of on the shop card, where it is drawn flat`);
+    // 0.25 was written when nothing in the list was above 0.015 and is no kind
+    // of ceiling: this card is 300x146 at z-index 62 and it opens itself the
+    // moment the app does. The panel it floats over is 0.0093.
+    assert.ok(lum(env.paper) < 0.04, `${env.id} is a bright rectangle at bedtime`);
+  }
+  // The seal is stamped with the same stroked-path machinery as a check-off
+  // mark, so an emblem that is byte-identical to one is a glyph sold twice.
+  const emblems = ENVELOPES.map((e) => e.sealPath).filter(Boolean);
+  assert.equal(new Set(emblems).size, emblems.length, 'two envelopes share a seal');
+  for (const path of emblems) {
+    assert.ok(!MARKS.some((m) => m.path === path), `a seal is wearing a mark that is sold separately`);
   }
   const plain = ENVELOPES.find((e) => e.id === 'plain');
   assert.ok(Object.values(plain).every((v) => v !== 'theme' || true));

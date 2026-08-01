@@ -292,6 +292,10 @@ it's the scroll.
   **Second Wind** trades tonight's bonus quest for a different one, once a night and never
   after you have claimed it. Deliberately *not* sold: anything that extends the curfew.
   That would be selling you the right to be on your phone at bedtime.
+- **What is in there:** 53 things to buy across ten shelves — twelve skies, eight
+  companions, seven sound packs, seven trails, six typefaces, six moons, five weather
+  layers, five marks, five envelopes and four supplies. It was 18 across five shelves, and
+  bought out on night 60.
 - **Level gates that actually gate.** Anything over 600 stardust asks for a level as well
   as the price, and the level is *derived from the price* rather than typed on each item —
   because typed numbers drift away from a curve nobody re-measures, which is exactly what
@@ -492,7 +496,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 20,600 lines: 12,600 of application JavaScript, 4,400 of tests, 3,100 of CSS, and
+About 20,600 lines: 12,600 of application JavaScript, 4,500 of tests, 3,100 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

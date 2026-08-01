@@ -6,7 +6,7 @@
   --sky-1: #05070f;
   --sky-2: #0a1030;
   --sky-3: #141c4a;
-  --bg-base: radial-gradient(120% 90% at 78% -10%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%) fixed;
+  --bg-base: radial-gradient(120% 90% at 78% -10%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%);
 
   --text: #e9edff;
   --muted: #98a5d6;
@@ -39,7 +39,7 @@
   --bg-base:
     radial-gradient(90% 60% at 20% 0%, rgba(83, 235, 176, 0.22) 0%, transparent 60%),
     radial-gradient(80% 70% at 80% 10%, rgba(150, 110, 255, 0.22) 0%, transparent 62%),
-    radial-gradient(120% 90% at 50% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 50% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%);
   --text: #e6fff4;
   --muted: #8fc4b8;
   --accent: #56e3b0;
@@ -65,7 +65,7 @@
   --bg-base:
     radial-gradient(70% 50% at 15% 15%, rgba(255, 106, 213, 0.18) 0%, transparent 60%),
     radial-gradient(80% 60% at 85% 25%, rgba(94, 128, 255, 0.22) 0%, transparent 62%),
-    radial-gradient(120% 100% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 40%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 100% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 40%, var(--sky-1) 100%);
   --text: #f1e8ff;
   --muted: #b09ada;
   --accent: #c07bff;
@@ -90,7 +90,7 @@
   --sky-3: #4b2410;
   --bg-base:
     radial-gradient(100% 60% at 50% 110%, rgba(255, 176, 84, 0.28) 0%, transparent 58%),
-    radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 40%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 40%, var(--sky-1) 100%);
   --text: #ffeedd;
   --muted: #cfa98a;
   --accent: #ffab5e;
@@ -115,7 +115,7 @@
   --sky-3: #16374f;
   --bg-base:
     radial-gradient(90% 60% at 70% 0%, rgba(160, 220, 255, 0.2) 0%, transparent 62%),
-    radial-gradient(120% 90% at 30% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 30% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%);
   --text: #e9f6ff;
   --muted: #93b6cf;
   --accent: #7fd4ff;
@@ -140,7 +140,7 @@
   --sky-3: #4a1218;
   --bg-base:
     radial-gradient(70% 50% at 80% 8%, rgba(255, 82, 82, 0.24) 0%, transparent 60%),
-    radial-gradient(120% 95% at 40% 100%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 95% at 40% 100%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%);
   --text: #ffe9e6;
   --muted: #d09a94;
   --accent: #ff6f6f;
@@ -171,7 +171,7 @@
   --sky-3: #0f3a48;
   --bg-base:
     radial-gradient(80% 45% at 50% 100%, rgba(255, 186, 92, 0.16) 0%, transparent 62%),
-    radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%);
   --text: #e7f4fa;
   --muted: #95bccb;
   --accent: #5fc9d8;
@@ -196,7 +196,7 @@
   --sky-3: #3a2338;
   --bg-base:
     radial-gradient(90% 50% at 50% 100%, rgba(226, 160, 116, 0.2) 0%, transparent 60%),
-    radial-gradient(120% 90% at 60% 0%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 60% 0%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%);
   --text: #f7ecdf;
   --muted: #c4a693;
   --accent: #e2a074;
@@ -221,7 +221,7 @@
   --sky-3: #143026;
   --bg-base:
     radial-gradient(70% 45% at 25% 8%, rgba(126, 214, 160, 0.14) 0%, transparent 62%),
-    radial-gradient(120% 90% at 50% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 50% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%);
   --text: #e6f6ec;
   --muted: #93bfa4;
   --accent: #7ed6a0;
@@ -246,7 +246,7 @@
   --sky-3: #262d3f;
   --bg-base:
     radial-gradient(80% 50% at 70% 12%, rgba(180, 196, 230, 0.14) 0%, transparent 60%),
-    radial-gradient(120% 90% at 40% 100%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 40% 100%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%);
   --text: #eef1f8;
   --muted: #a4adc2;
   --accent: #b4c4e6;
@@ -271,7 +271,7 @@
   --sky-3: #3f1d2c;
   --bg-base:
     radial-gradient(60% 40% at 22% 14%, rgba(255, 176, 120, 0.2) 0%, transparent 58%),
-    radial-gradient(120% 90% at 60% 100%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%) fixed;
+    radial-gradient(120% 90% at 60% 100%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%);
   --text: #fdeee9;
   --muted: #cfa4a0;
   --accent: #ffab86;
@@ -294,7 +294,7 @@
   --sky-1: #010204;
   --sky-2: #04080f;
   --sky-3: #0a1120;
-  --bg-base: radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 46%, var(--sky-1) 100%) fixed;
+  --bg-base: radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 46%, var(--sky-1) 100%);
   --text: #e4e9f2;
   --muted: #93a0b8;
   --accent: #7f92b8;

@@ -4,6 +4,17 @@
 
 html, body { height: 100%; }
 
+/* The root gets a flat night colour of its own.
+   With `html` unpainted, CSS hands the BODY's background to the canvas — the
+   whole viewport — and computes its positioning area as if it belonged to the
+   root, whose box is not the body's box. That indirection is where an edge
+   artifact can come from: on iOS the visual and layout viewports drift apart,
+   the areas disagree, and the strip that falls outside had nothing behind it at
+   all, because the `background` shorthand had reset background-color to
+   transparent. Painting the root removes the indirection and gives that strip a
+   night sky to be. */
+html { background-color: var(--sky-1); }
+
 body {
   margin: 0;
   min-height: 100%;
@@ -11,7 +22,28 @@ body {
   font-size: 15px;
   line-height: 1.5;
   color: var(--text);
-  background: var(--bg-base);
+  /* background-IMAGE, not the shorthand: the shorthand resets repeat, size,
+     attachment and colour to their initial values, and the four below are the
+     whole reason this cannot seam.
+
+     A gradient is an image, and an image whose positioning area is narrower
+     than the area being painted TILES — so a mismatch shows the start of the
+     next copy as a hard line of the gradient's first colour down one edge. The
+     mismatch was real: every multi-layer sky wrote `fixed` on its last layer
+     only, so the other layers defaulted to `scroll` and sized to the body's box
+     while the last sized to the viewport. One background, two positioning
+     areas. iOS is where it showed, because that is where the visual and layout
+     viewports disagree.
+
+     Fixed once here applies to every layer. no-repeat means nothing can tile
+     whatever the geometry does. cover means it always fills. And the flat
+     colour underneath is the darkest tone of the sky itself, so anything the
+     gradient somehow fails to reach is still night rather than a seam. */
+  background-image: var(--bg-base);
+  background-color: var(--sky-1);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;

@@ -115,3 +115,40 @@ test('the canvas can read a moon and a star out of every sky', () => {
       `${theme.id}: the moon's lit and unlit halves are too close to tell apart`);
   }
 });
+
+test('no sky can tile, and none carries its attachment per layer', () => {
+  // A gradient is an image, and an image whose positioning area is smaller than
+  // the area being painted TILES — showing the start of the next copy as a hard
+  // line of the gradient's first colour down one edge.
+  //
+  // Every multi-layer sky used to write `fixed` on its last layer only, so the
+  // rest defaulted to `scroll`: one background, two positioning areas, which is
+  // the mismatch that can produce that line. The attachment is declared once in
+  // css/base.css now and applies to every layer, so no sky may carry its own.
+  const blocks = themeBlocks();
+  for (const theme of THEMES) {
+    const value = valuesOf(blocks[theme.id])['--bg-base'] || '';
+    assert.ok(!/\bfixed\b/.test(value),
+      `${theme.id} pins its own background-attachment; base.css owns that for every layer`);
+    assert.ok(!/\brepeat\b/.test(value), `${theme.id} sets its own repeat`);
+  }
+
+  // And the four declarations that make the artifact impossible whatever the
+  // geometry does, on the body plus a flat night colour on the root.
+  const base = readFileSync(new URL('../css/base.css', import.meta.url), 'utf8');
+  for (const decl of [
+    'background-repeat: no-repeat',
+    'background-size: cover',
+    'background-attachment: fixed',
+    'background-color: var(--sky-1)',
+  ]) {
+    assert.ok(base.includes(decl), `css/base.css no longer says "${decl}"`);
+  }
+  assert.match(base, /html \{ background-color: var\(--sky-1\); \}/,
+    'the root needs its own night colour, or the body background is handed to '
+    + 'the canvas and its positioning area is computed against a different box');
+
+  // The shorthand would reset all four back to their initial values.
+  assert.ok(!/^\s*background: var\(--bg-base\)/m.test(base),
+    'the shorthand resets repeat, size, attachment and colour — use background-image');
+});

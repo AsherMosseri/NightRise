@@ -352,7 +352,7 @@ it's the scroll.
   carrying near-black label text, dimmed to 45%. Measured as painted, across all twelve
   skies, that was **1.02–1.43:1** — the label telling you *why* you could not buy the thing
   was the least readable pixel on the card and simultaneously the loudest, on nearly every
-  card at once, because you cannot afford most of a 24,000-stardust market on most nights.
+  card at once, because you cannot afford most of a 38,770-stardust market on most nights.
   One helper builds all four now, and the unaffordable state is its own quiet style:
   **6.4–7.5:1**, sleep-safe mode included. The supplies shelf also said its shortfall only
   in a `title`, which a phone has no way to show — so the button read "Buy" and did nothing.
@@ -507,7 +507,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**240 tests, 14 suites, zero dependencies**, on Node's built-in runner. No install step:
+**319 tests, 17 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

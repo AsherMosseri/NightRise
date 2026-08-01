@@ -5,7 +5,9 @@ import { $, icon, downloadText } from './dom.js';
 import { getState, subscribe, update, on, hydrateState } from './state.js';
 import { addSection, addTask, setSetting } from './actions.js';
 import { computeStats, rolloverIfNeeded } from './night.js';
-import { nightKeyOf, formatNightLabel, inCurfew, CURFEW_LEAD_MINUTES } from './time.js';
+import {
+  nightKeyOf, formatNightLabel, formatClockLabel, lateStage, CURFEW_LEAD_MINUTES,
+} from './time.js';
 import { initChecklist, renderChecklist, floatXp } from './render/checklist.js';
 import { initHeader, renderHeader, renderTonight } from './render/header.js';
 import { initModals, openModal, closeModal } from './render/modals.js';
@@ -280,12 +282,35 @@ function wireEffects() {
 
 /* ---------------------------------------------------------------- render */
 
+/**
+ * Put how late it is on the root element, so CSS can answer it.
+ *
+ * On `<html>` beside `is-dim` and `is-onecard` rather than as a new full-screen
+ * layer. A new fixed layer would have to be added by hand to the list at
+ * css/themes.css that warms everything sleep-safe dim cannot reach through a
+ * backdrop-filter, and that list has been forgotten before — One Card, the
+ * envelope and the finale each escaped it once. A class changes what is already
+ * painted and cannot escape anything.
+ */
+function syncLateStage() {
+  const state = getState();
+  const { bedtime, lastCall } = state.profile.settings;
+  const stage = state.night.lightsOutAt
+    // You have already stopped. The night ran long, and the app saying so over
+    // the good-night screen would be scolding you for the thing it just
+    // thanked you for.
+    ? 'clear'
+    : lateStage(state.night.key, bedtime, lastCall);
+  document.documentElement.classList.toggle('is-lastcall', stage === 'lastcall');
+}
+
 function renderAll() {
   if (isGoodnightOpen() && getState().night.lightsOutAt === null) dismissGoodnight({ reopened: false });
   renderChecklist();
   renderHeader();
   renderCards();
   syncSky();
+  syncLateStage();
 }
 
 /* -------------------------------------------------------------- rollover */
@@ -390,6 +415,11 @@ function boot() {
     tonight: $('#tonight'),
     companion: $('#companion'),
     nightEnd: $('#nightend'),
+    // Through the gate, not straight to openModal. The morning reckoning offers
+    // "show me the pattern", and a second door into the browsing panels that
+    // skips the curfew and last-call checks is how those checks stop meaning
+    // anything — it only takes one caller that forgot.
+    onPanel: (name) => openPanel(name),
   });
   initModals($('#modal'));
   initOptical();
@@ -411,11 +441,26 @@ function boot() {
   const BROWSING = new Set(['shop', 'starmap', 'history', 'insights']);
   const openPanel = (name) => {
     const state = getState();
-    const gated = BROWSING.has(name)
-      && state.profile.settings.curfew
-      && inCurfew(state.night.key, state.profile.settings.bedtime);
+    const { bedtime, lastCall, curfew } = state.profile.settings;
+    const stage = curfew ? lateStage(state.night.key, bedtime, lastCall) : 'clear';
+    const gated = BROWSING.has(name) && (stage === 'curfew' || stage === 'lastcall' || stage === 'past');
     if (!gated) {
       openModal(name);
+      return;
+    }
+    // Past last call the escape hatch goes. Before it, "just this once" is the
+    // right amount of friction — a second deliberate tap, and you are an adult.
+    // After it, an app still offering a way into four browsing surfaces with a
+    // currency attached is not closing, it is asking. The list and One Card are
+    // untouched at every stage: they are how the night ends.
+    if (stage === 'lastcall') {
+      openSheet({
+        title: 'That is closed now',
+        subtitle: `It shut at last call, ${lastCall} minutes past ${formatClockLabel(bedtime)}. It will all still be here in the morning.`,
+        items: [
+          { icon: 'moon', label: 'Back to the list', hint: 'Finish up and stop', onClick: () => {} },
+        ],
+      });
       return;
     }
     openSheet({
@@ -483,6 +528,11 @@ function boot() {
     renderCards();
     syncSky();
     syncToggles();
+    // Here as well as on the ticker: the bedtime and last call are settings, so
+    // changing either has to re-answer "how late is it" now rather than within
+    // thirty seconds — and pressing Lights out has to take the state off again
+    // in the same frame the good-night screen arrives.
+    syncLateStage();
   });
 
   // One-at-a-time owns the keyboard while it is up — but only while it is the
@@ -568,9 +618,13 @@ function boot() {
     });
   }
 
-  // Keep the countdown honest and roll the night over on time.
+  // Keep the countdown honest and roll the night over on time. Last call is a
+  // line the clock crosses while nobody touches the app, so it is read here
+  // rather than only on a render — otherwise the night goes hard whenever you
+  // next happen to tap something, which could be an hour later.
   setInterval(() => {
     if (!checkRollover()) renderTonight();
+    syncLateStage();
   }, 30000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -586,6 +640,7 @@ function boot() {
       // the way back in ever touched the card at all.
       resumeCardTimer();
       if (!checkRollover()) renderTonight();
+      syncLateStage();
     }
   });
   window.addEventListener('pagehide', flushPersist);

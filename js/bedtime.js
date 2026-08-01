@@ -105,3 +105,61 @@ export function bedtimeSummary(history, todayKey, window = 7) {
     averageLate: mean(lateValues),
   };
 }
+
+/**
+ * The morning after a night that ran past last call, as data.
+ *
+ * Here rather than in the renderer because it is arithmetic on the history, and
+ * because the one number in it that is a judgement call — what bedtime to
+ * suggest instead — deserves a test rather than a comment.
+ *
+ * Returns null when there is nothing to say, which is most mornings: no
+ * previous night on record, last call off, the night ended before it, or you
+ * have already been told about this one.
+ */
+export function lastNightReckoning(state, todayKey = state.night.key) {
+  const { bedtime, lastCall } = state.profile.settings;
+  if (!lastCall) return null;
+  if (state.profile.reckonedKey === todayKey) return null;
+
+  const key = shiftKey(todayKey, -1);
+  const night = nightBedtime(key, state.profile.history?.[key]);
+  if (!night.recorded || night.late === null) return null;
+  // `late` is signed minutes past that night's own target — the one stamped on
+  // the entry, not today's setting, so changing your bedtime cannot rewrite
+  // history into or out of a telling-off.
+  if (night.late < lastCall) return null;
+
+  const summary = bedtimeSummary(state.profile.history || {}, todayKey);
+  return {
+    key,
+    late: night.late,
+    at: formatFromNoon(night.minutes, key),
+    target: night.target || bedtime,
+    window: summary.window,
+    average: summary.recorded ? formatFromNoon(summary.average, key) : null,
+    shift: formatShift(summary.delta),
+    ...suggestBedtime(summary.average, key),
+  };
+}
+
+/**
+ * A bedtime you might actually hit, from when you actually stop.
+ *
+ * The average of the last week, rounded UP to the next quarter hour. Up, not
+ * to-nearest: a suggestion that lands earlier than your own average is one you
+ * will miss on the day you accept it, and the first thing this suggestion has
+ * to be is achievable. Rounded at all because "11:52 PM" reads as a
+ * measurement and a target has to read as a decision.
+ */
+export function suggestBedtime(averageFromNoon, key = '2000-01-02') {
+  if (averageFromNoon === null || !Number.isFinite(averageFromNoon)) {
+    return { suggested: '—', suggestedValue: null };
+  }
+  const rounded = Math.ceil(averageFromNoon / 15) * 15;
+  const at = new Date(keyToDate(key).getTime() + rounded * 60000);
+  return {
+    suggested: at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+    suggestedValue: `${pad2(at.getHours())}:${pad2(at.getMinutes())}`,
+  };
+}

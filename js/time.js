@@ -109,6 +109,7 @@ export const PACING_COPY = {
   tight: { label: 'Cutting it close', hint: 'Just enough time — keep moving.' },
   over: { label: 'Over budget', hint: 'More to do than time left. Rain check something?' },
   past: { label: 'Past bedtime', hint: 'You are running late. Bank what you can.' },
+  lastcall: { label: 'Well past', hint: 'Last call has been and gone. Stop where you are.' },
 };
 
 export const CURFEW_LEAD_MINUTES = 30;
@@ -123,4 +124,81 @@ export function inCurfew(key, bedtime, now = new Date()) {
   const minutesLeft = minutesUntilBedtime(key, bedtime, now);
   if (minutesLeft === null) return false;
   return minutesLeft <= CURFEW_LEAD_MINUTES;
+}
+
+/* ------------------------------------------------------------- last call */
+
+/**
+ * Last call: a second line, later than bedtime, where the app stops negotiating.
+ *
+ * Bedtime is an aspiration and the app treats missing it as one event, however
+ * far past you are — the same flat reward, the same red chip, the same broken
+ * streak at one minute over and at three hours. With nothing measuring *how*
+ * late, there is nothing to escalate along, and a target you overshoot by two
+ * hours every night stops meaning anything at all.
+ *
+ * Stored as minutes PAST bedtime rather than as a clock time, so it follows the
+ * bedtime when that moves. 0 turns it off, which puts every consumer back on
+ * exactly today's behaviour.
+ */
+export const LAST_CALL_DEFAULT = 60;
+export const LAST_CALL_CHOICES = [0, 30, 60, 90, 120];
+
+export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
+  const minutes = Math.max(0, Math.round(Number(lastCall) || 0));
+  if (!minutes) return null;
+  const target = bedtimeInstant(key, bedtime);
+  if (!target) return null;
+  // Through the epoch, not `setMinutes`. Adding to a Date's minute field walks
+  // the local calendar, so an offset spanning a DST boundary would land on the
+  // same wall-clock arithmetic rather than the same number of real minutes —
+  // and the whole point of this number is how long you have actually been up.
+  return new Date(target.getTime() + minutes * 60000);
+}
+
+/**
+ * The clock face last call lands on — "10:45 PM" — or '—' when it is off.
+ *
+ * Formatted from the instant rather than by adding to the bedtime string,
+ * because the offset can cross midnight (an 11:30 bedtime and 120 minutes is
+ * 1:30 the next day) and string arithmetic on "23:30" + 120 does not.
+ */
+export function formatLastCall(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
+  const at = lastCallInstant(key, bedtime, lastCall);
+  if (!at) return '—';
+  return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** Signed minutes past last call; negative before it, null when it is off. */
+export function minutesPastLastCall(key, bedtime, lastCall, now = new Date()) {
+  const target = lastCallInstant(key, bedtime, lastCall);
+  if (!target) return null;
+  return (now.getTime() - target.getTime()) / 60000;
+}
+
+/**
+ * How late it is, as one word, for everything that has to change with it.
+ *
+ * 'clear'    before the curfew window — nothing is different
+ * 'curfew'   inside the half hour before bedtime; the browsing panels soft-close
+ * 'past'     bedtime has gone by
+ * 'lastcall' past the second line; the app stops offering a way back in
+ *
+ * One function so the ladder is defined once. `'clear'` whenever there is no
+ * usable bedtime or last call is off, which is what makes the whole feature
+ * switch off from a single place.
+ */
+export function lateStage(key, bedtime, lastCall = LAST_CALL_DEFAULT, now = new Date()) {
+  const minutesLeft = minutesUntilBedtime(key, bedtime, now);
+  if (minutesLeft === null) return 'clear';
+  // `< 0`, matching pacingStatus and lightsOut: the bedtime minute itself
+  // counts as on time, and an app that pays you for stopping in that minute
+  // must not simultaneously be telling you that you are past it.
+  if (minutesLeft < 0) {
+    const past = minutesPastLastCall(key, bedtime, lastCall, now);
+    // `>= 0` here, unlike above: last call is not a target you are rewarded for
+    // meeting, it is a line, and the minute it lands on is over it.
+    return past !== null && past >= 0 ? 'lastcall' : 'past';
+  }
+  return minutesLeft <= CURFEW_LEAD_MINUTES ? 'curfew' : 'clear';
 }

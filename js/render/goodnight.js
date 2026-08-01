@@ -43,7 +43,41 @@ export function initGoodnight(node) {
   host = node;
 }
 
-/** Reward stopping early: the whole point is that you are in bed, not here. */
+/* The shape of the reward, as constants rather than as numbers buried in an
+   expression, because four separate properties are asserted about them.
+
+   ON_TIME is what the early branch is already worth at exactly zero minutes
+   early; the late branch decays from that same value, which is what makes the
+   two halves meet. LATE_TAU is the decay constant in minutes: a night is worth
+   roughly a third of the way from ON_TIME to FLOOR after about 70 minutes.
+
+   FLOOR is the part that matters most and is the easiest to get wrong. It must
+   never be zero. A reward that decays to nothing removes the last reason to
+   stop at all, which inverts the entire feature — at 3am this app still has to
+   be arguing FOR going to bed, and an app that pays nothing for it is arguing
+   for staying up. */
+const ON_TIME = { xp: 26, dust: 6 };
+const FLOOR = { xp: 8, dust: 2 };
+const LATE_TAU = 70;
+const EARLY_CAP_MINUTES = 90;
+
+/**
+ * Reward stopping early: the whole point is that you are in bed, not here.
+ *
+ * One continuous function of `minutesEarly`, positive through negative. It used
+ * to be a cliff — `if (minutesEarly <= 0) return { xp: 15, dust: 3 }` — so one
+ * minute late and three hours late paid exactly the same, and so did every
+ * other consequence in the app. With nothing measuring how late, a bedtime you
+ * overshoot by two hours a night is a line the app notices once and then stops
+ * having an opinion about.
+ *
+ * Four properties, each with a test:
+ *  - continuous at zero (the cliff also meant stopping ON the minute paid 15
+ *    while stopping a minute sooner paid 26 — you were docked for precision);
+ *  - monotonic, so earlier is never worth less;
+ *  - bounded above by the ninety-minute earliness cap;
+ *  - bounded below by FLOOR, and never zero.
+ */
 export function lightsOutReward(minutesEarly, stats) {
   // A night with nothing on the list gets the floor. The formula scales with
   // how early you stopped and how much you did, so an empty night paid its
@@ -51,8 +85,7 @@ export function lightsOutReward(minutesEarly, stats) {
   // You still stopped, and stopping still counts for the bedtime streak; it
   // just is not worth more than a night you actually worked through.
   if (!stats || stats.total === 0) return { xp: 15, dust: 3 };
-  if (minutesEarly <= 0) return { xp: 15, dust: 3 };
-  const capped = Math.min(minutesEarly, 90);
+  const capped = Math.min(Math.max(0, minutesEarly), EARLY_CAP_MINUTES);
   // Scaled by how much of the night you actually did, not just by the clock:
   // stopping ninety minutes early with an untouched eleven-task list used to pay
   // 128 XP and 38 stardust — ten tasks' worth for holding a button — so the best
@@ -75,9 +108,17 @@ export function lightsOutReward(minutesEarly, stats) {
   const done = Math.max(0, Number(stats.done) || 0);
   const scope = Math.max(1, Number(stats.counted) || Number(stats.total) || done || 1);
   const share = 1 / 3 + (2 / 3) * Math.min(1, done / scope);
+  // Past bedtime the clock runs the other way: `capped` is pinned at zero by
+  // the clamp above, so the early terms vanish and what is left decays from
+  // ON_TIME toward FLOOR. `decay` is 1 at exactly on time, which is what joins
+  // the two halves without a step.
+  const late = Math.max(0, -minutesEarly);
+  const decay = Math.exp(-late / LATE_TAU);
+  const xp = FLOOR.xp + (ON_TIME.xp - FLOOR.xp) * decay + capped * 1.5;
+  const dust = FLOOR.dust + (ON_TIME.dust - FLOOR.dust) * decay + capped * 0.35;
   return {
-    xp: Math.round((26 + capped * 1.5) * share),
-    dust: Math.round((6 + capped * 0.35) * share),
+    xp: Math.round(xp * share),
+    dust: Math.round(dust * share),
   };
 }
 

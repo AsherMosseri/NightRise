@@ -335,6 +335,43 @@
 }
 .is-dim #dim-veil { opacity: 1; }
 
+/* Past last call the app goes GREY, not dark.
+   Reusing the veil that already exists rather than adding a layer: a new
+   full-screen layer would have to be hand-added to the list further down that
+   warms everything the veil's backdrop-filter cannot reach, and that list has
+   been forgotten three times already (One Card, the envelope and the finale
+   each escaped it once).
+
+   Draining the colour rather than the light, because dimming ALWAYS costs
+   contrast — the +0.05 flare term in the WCAG ratio does not scale with
+   luminance, so multiplying both the ink and the plate by k < 1 always lowers
+   the ratio. Measured as painted across all twelve skies, sleep-safe dim's own
+   brightness(0.66) already puts the smallest copy at 4.58:1, four hundredths
+   over AA. There is no room underneath it, and taking the combined state to
+   0.54 dropped every sky to 3.7:1 — the app would have answered a night running
+   long by making the list harder to read, which is the one thing you still need
+   it for.
+
+   Saturation is nearly free by the same arithmetic, and it is the better signal
+   anyway: what it drains is the accent gradients, the envelope, the quest card
+   and the level chip — everything that makes this look like a game. The list
+   and the clock stay exactly as legible as they were. The app stops being
+   entertainment without stopping being useful. */
+.is-lastcall #dim-veil {
+  opacity: 1;
+  background: transparent;
+  backdrop-filter: brightness(0.90) saturate(0.42);
+  -webkit-backdrop-filter: brightness(0.90) saturate(0.42);
+}
+/* Both at once: one veil, so the numbers are combined here rather than left to
+   whichever rule happens to win. The brightness is sleep-safe's, unchanged —
+   last call adds its greyness on top and takes no further light. */
+.is-dim.is-lastcall #dim-veil {
+  background: rgba(255, 168, 92, 0.14);
+  backdrop-filter: brightness(0.66) saturate(0.4);
+  -webkit-backdrop-filter: brightness(0.66) saturate(0.4);
+}
+
 /* Dimming costs contrast, and secondary text pays it twice — so it is given a
    lighter tone to start from, and the veil lands on text that can afford it.
 

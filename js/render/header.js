@@ -9,10 +9,12 @@ import { evaluateQuest } from '../quests.js';
 import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
 import {
   formatNightLabel, minutesUntilBedtime, pacingStatus, PACING_COPY, formatClockLabel,
+  lateStage, formatLastCall,
 } from '../time.js';
 import { formatDuration, formatNumber, plural, formatMinutesShort, roundMinutes } from '../util.js';
 import { grow, countTo, still, forgetGrow, growTo } from './motion.js';
 import { topNudge } from '../insights.js';
+import { lastNightReckoning } from '../bedtime.js';
 import { claimQuest, setTaskMinutes, moveTaskTo, deleteTask, undo } from '../actions.js';
 import { openEnvelope, pendingEnvelopes, dropById } from '../envelope.js';
 import { lightsOut } from './goodnight.js';
@@ -27,12 +29,14 @@ let statsHost = null;
 let tonightHost = null;
 let companionHost = null;
 let nightEndHost = null;
+let openPanel = () => {};
 
-export function initHeader({ stats, tonight, companion, nightEnd }) {
+export function initHeader({ stats, tonight, companion, nightEnd, onPanel }) {
   statsHost = stats;
   tonightHost = tonight;
   companionHost = companion;
   nightEndHost = nightEnd;
+  if (onPanel) openPanel = onPanel;
 }
 
 /* ------------------------------------------------------------- stat chips */
@@ -262,10 +266,20 @@ function questCard(state, stats) {
 }
 
 function bedtimeChip(state, stats) {
-  const { bedtime } = state.profile.settings;
+  const { bedtime, lastCall } = state.profile.settings;
   const minutesLeft = minutesUntilBedtime(state.night.key, bedtime, new Date());
-  const status = pacingStatus(stats.minutesRemaining, minutesLeft);
-  const copy = PACING_COPY[status];
+  // `pacingStatus` weighs work against time and tops out at 'past', which it
+  // reaches one minute after bedtime and then says for the next five hours.
+  // Past last call the clock alone decides — how much is left to do stops being
+  // the interesting number once you are this far over.
+  const stage = lateStage(state.night.key, bedtime, lastCall);
+  const status = stage === 'lastcall' ? 'lastcall' : pacingStatus(stats.minutesRemaining, minutesLeft);
+  const copy = status === 'lastcall'
+    ? {
+      label: PACING_COPY.lastcall.label,
+      hint: `Last call was at ${formatLastCall(state.night.key, bedtime, lastCall)}. Stop where you are.`,
+    }
+    : PACING_COPY[status];
   const countdown = minutesLeft === null
     ? '—'
     : minutesLeft >= 0
@@ -297,6 +311,70 @@ function bedtimeChip(state, stats) {
  * Only ever on a deliberate tap. Four options unprompted at 11:40pm is a menu,
  * which is the thing One Card exists to avoid.
  */
+/**
+ * What last night cost you, said once, the morning after.
+ *
+ * Only for a night that ran past last call — the ordinary miss is answered by
+ * the reward shrinking and needs no sentence about it. And only ever as one
+ * quiet line that opens a sheet, in the same slot and shape as the task nudge
+ * above: four options unprompted is a menu, and a modal that greets you with
+ * how badly you slept is the app deciding your morning for you.
+ *
+ * The third option is the honest one and it is not a joke. If you finish at
+ * midnight every night against a 9:45 target, either the target is wrong or the
+ * behaviour is — and an app that only ever offers the second is lying to you
+ * about which. Same reasoning as offering to retire a task missed six nights
+ * running: maintenance, not a verdict.
+ */
+function reckoningButton(state, reck) {
+  const button = h('button', {
+    type: 'button',
+    class: 'tonight__nudge',
+    onClick: () => openSheet({
+      title: `Last night ran ${formatDuration(reck.late)} long`,
+      // Built from the parts that have something to say. formatShift returns an
+      // em dash when there is no earlier week to compare against — honest in a
+      // stat tile with a label above it, but "· —" trailing a sentence just
+      // reads as something failing to load.
+      subtitle: [
+        `Lights out ${reck.at}`,
+        reck.average === null ? `against a target of ${formatClockLabel(reck.target)}` : null,
+        reck.average === null ? null : `${reck.window}-night average ${reck.average}`,
+        reck.shift === '—' ? null : reck.shift,
+      ].filter(Boolean).join(' · '),
+      invoker: button,
+      items: [
+        {
+          icon: 'chart',
+          label: 'Show me the pattern',
+          hint: 'Every night, against its own target',
+          onClick: () => openPanel('insights'),
+        },
+        {
+          icon: 'moon',
+          label: `Move the target to ${reck.suggested}`,
+          // Not "give up". A bedtime you miss by two hours every night is not a
+          // target, it is a number you have stopped reading, and every reading
+          // in the app that depends on it is wrong while it stands.
+          hint: 'A bedtime you never hit is not a bedtime',
+          onClick: () => {
+            update((s) => { s.profile.settings.bedtime = reck.suggestedValue; });
+            emit('setting', { key: 'bedtime', value: reck.suggestedValue });
+            dismissReckoning();
+          },
+        },
+        { icon: 'check', label: 'Keep the target', hint: 'Tonight, then', onClick: () => dismissReckoning() },
+      ],
+      onClose: () => dismissReckoning(),
+    }),
+  }, icon('moon', { size: 13 }), h('span', {}, `Last night ran ${formatDuration(reck.late)} long`));
+  return button;
+}
+
+function dismissReckoning() {
+  update((s) => { s.profile.reckonedKey = s.night.key; });
+}
+
 function nudgeButton(state, nudge) {
   const button = h('button', {
     type: 'button',
@@ -507,6 +585,7 @@ function renderTonightInner() {
   const state = getState();
   const stats = computeStats(state);
   const nudge = topNudge(state);
+  const reckoning = lastNightReckoning(state);
   const combo = state.night.combo > 1;
 
   replace(tonightHost,
@@ -563,7 +642,11 @@ function renderTonightInner() {
             icon('skip', { size: 13 }), `${state.profile.tokens.raincheck} rain ${state.profile.tokens.raincheck === 1 ? 'check' : 'checks'}`),
           h('span', { class: 'chip', title: 'Streak freezes cover a missed night' },
             icon('flame', { size: 13 }), `${state.profile.tokens.freeze} ${state.profile.tokens.freeze === 1 ? 'freeze' : 'freezes'}`)),
-        nudge ? nudgeButton(state, nudge) : null)),
+        // One at a time. Two advisory lines stacked at 11:40pm is the menu this
+        // whole panel is arranged to avoid, and last night outranks a task that
+        // has slipped: it is the thing the app is actually for.
+        reckoning ? reckoningButton(state, reckoning)
+          : (nudge ? nudgeButton(state, nudge) : null))),
     h('div', { class: 'tonight__side' },
       bedtimeChip(state, stats),
       envelopeCard(state),

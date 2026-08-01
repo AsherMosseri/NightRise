@@ -1,7 +1,7 @@
 /* Shapes, factories and the starter night. */
 
 import { uid } from './util.js';
-import { nightKeyOf } from './time.js';
+import { nightKeyOf, LAST_CALL_DEFAULT } from './time.js';
 import { rollQuest } from './quests.js';
 
 /**
@@ -103,6 +103,10 @@ export function createProfile() {
     lastQuestKey: null,
     // And one reward for stopping per date, for the same reason.
     lastLightsOutKey: null,
+    // The night key the morning reckoning has already been shown for. Keyed
+    // rather than a boolean so it survives a reload and cannot re-fire the same
+    // day, and so a run of long nights each get their own one sentence.
+    reckonedKey: null,
     // Achievement tiers held, by family id, and the highest tier each family
     // has ever been paid for — the same high-water trick as maxLevelRewarded,
     // so falling out of a tier and climbing back is not a stardust faucet.
@@ -147,6 +151,9 @@ export function createProfile() {
     taskStats: {},
     settings: {
       bedtime: '23:30',
+      // Minutes past bedtime where the app stops offering a way back in. An
+      // offset rather than a clock time, so it follows the bedtime. 0 is off.
+      lastCall: LAST_CALL_DEFAULT,
       dim: false,
       muted: true,
       curfew: true,

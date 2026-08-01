@@ -17,6 +17,7 @@ import { forceNewNight, computeStats, effectiveStreak, effectiveLightsOutStreak 
 import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
+  LAST_CALL_CHOICES, formatLastCall,
 } from '../time.js';
 import { serializeState, parseImport, clearStorage, exportedAtOf } from '../storage.js';
 import { createInitialState } from '../model.js';
@@ -995,6 +996,17 @@ VIEWS.settings = () => {
     emit('setting', { key: 'motion', value });
   });
 
+  // Numbers, not strings, because it is an offset the clock does arithmetic on.
+  // choiceRow compares with ===, so the stored value has to be the same type
+  // the chips carry — storage.js snaps anything else back to the default.
+  const lastCall = choiceRow('Last call', LAST_CALL_CHOICES.map((minutes) => [
+    minutes,
+    minutes === 0 ? 'Off' : `${minutes} min past`,
+  ]), settings.lastCall, (value) => {
+    update((s) => { s.profile.settings.lastCall = value; });
+    emit('setting', { key: 'lastCall', value });
+  });
+
   const importInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'visually-hidden' });
   importInput.addEventListener('change', async () => {
     const file = importInput.files?.[0];
@@ -1050,6 +1062,9 @@ VIEWS.settings = () => {
     title: 'Settings',
     body: h('div', { class: 'settings' },
       field('Target bedtime', bedtime, 'Drives the countdown and the on-pace reading.'),
+      field('Last call', lastCall, settings.lastCall
+        ? `${formatClockLabel(settings.bedtime)} is the target; last call is ${formatLastCall(state.night.key, settings.bedtime, settings.lastCall)}. Past it the shop, star map, history and insights stop letting you in, and what stopping pays keeps shrinking. Your list and one-at-a-time are never touched.`
+        : 'Off. Bedtime is the only line, and being an hour past it looks the same as being three.'),
       field('Motion', motion, 'The sky, the FLIP animations and the pointer trail.'),
       h('div', { class: 'field' },
         toggle('dim', 'Sleep-safe dim', 'Warms and dims the whole page for late nights.'),

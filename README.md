@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 21,200 lines, and all of it ships as written.
+About 21,800 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -207,6 +207,38 @@ it's the scroll.
   button lights up and reads "Call it here · the rest can wait". The app already knew you
   could not finish and its only suggestion was "rain check something?". Never after
   bedtime, where that would be a scolding, and never while the list is still winnable.
+- **Last call: a second line, later than bedtime.** Every consequence in here used to be a
+  binary switch thrown at bedtime, with no notion of how far past you were. The reward for
+  stopping was the clearest case — `if (minutesEarly <= 0) return { xp: 15, dust: 3 }` —
+  so **one minute late and three hours late paid exactly the same**, and so did the chip,
+  the streak and the copy. A target you overshoot by two hours every night is a line the
+  app notices once and then stops having an opinion about.
+  There are two numbers now. Bedtime stays the aspiration and drives the pacing. **Last
+  call**, an hour past it by default (30 / 60 / 90 / 120, or off), is where the app stops
+  negotiating. Between them the reward for stopping **shrinks by the minute** on one
+  continuous curve — 161 XP ninety minutes early, 26 on the minute, 16 an hour late, 8 at
+  three in the morning. It is asymptotic and **never reaches zero**, which is the property
+  that matters most: a reward that decays to nothing removes the last reason to stop, so at
+  3am the app would be arguing *for* staying up.
+- **Past last call the app goes grey, not dark.** The shop, star map, history and insights
+  lose the "open it anyway" escape they keep during curfew, and the colour drains out of
+  everything — accent gradients, the envelope, the quest card, the level chip. Your list
+  and one-at-a-time are never touched at any stage: they are how the night ends.
+  It drains saturation rather than light because **dimming always costs contrast**. The
+  `+0.05` flare term in the WCAG ratio does not scale with luminance, so multiplying ink
+  and plate alike by anything under 1 lowers the ratio — and sleep-safe dim's own
+  `brightness(0.66)` already puts the smallest copy at 4.58:1, four hundredths over AA.
+  There is no room underneath it; the first attempt at a darker veil took every sky to
+  3.7:1. Measured as painted across all twelve skies: **4.83:1** at last call, **4.66:1**
+  with sleep-safe on top. The app stops being entertainment without stopping being useful.
+- **And it says so in the morning, once.** After a night that ran past last call, one quiet
+  line in the tonight panel: how long it ran, your seven-night average, the trend. It opens
+  a sheet, never a modal, and it is keyed to the night so it cannot fire twice.
+  The third option is the honest one: **move the target**, to your own average rounded up
+  to the quarter hour. If you finish at midnight every night against a 9:45 target, either
+  the target is wrong or the behaviour is, and an app that only ever offers the second is
+  lying to you about which. Same reasoning as offering to retire a task missed six nights
+  running — maintenance, not a verdict.
 - **The nudge is an offer.** "Screens off has slipped 6 nights running" was the one purely
   punitive number here, aimed at exactly the task you dread most, with nothing you could
   do about it. Tap it: do it first tonight, say it takes less, **retire it**, leave it. A
@@ -507,7 +539,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**319 tests, 17 suites, zero dependencies**, on Node's built-in runner. No install step:
+**343 tests, 18 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -545,7 +577,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 21,200 lines: 12,800 of application JavaScript, 4,700 of tests, 3,200 of CSS, and
+About 21,800 lines: 13,100 of application JavaScript, 5,000 of tests, 3,300 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 
@@ -595,7 +627,7 @@ js/render/sheet.js          the phone bottom sheet
 js/render/confirm.js        the app's own confirm and chooser dialogs
 js/render/add-task.js       the three-tap add flow and the number pad
 
-tests/                   17 suites, node --test, no dependencies
+tests/                   18 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
 ```
 

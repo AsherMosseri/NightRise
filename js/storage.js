@@ -6,7 +6,7 @@ import {
   SCHEMA_VERSION, STORAGE_KEY, createInitialState, createNight, createProfile,
   createSection, emptyTemplate, DEFAULT_MINUTES, clampTitle, PRICE_REBASE,
 } from './model.js';
-import { nightKeyOf, parseClock } from './time.js';
+import { nightKeyOf, parseClock, LAST_CALL_CHOICES } from './time.js';
 import { ACHIEVEMENTS, migrateBadges } from './achievements.js';
 import { CONSTELLATIONS } from './constellations.js';
 
@@ -315,6 +315,17 @@ export function normalizeState(raw, now = new Date()) {
   // `bedtimeInstant` returns null, and the value arrives here unvalidated from
   // any imported or hand-edited backup.
   if (!parseClock(profile.settings.bedtime)) profile.settings.bedtime = fresh.settings.bedtime;
+  // Last call is an offset in minutes and every consumer does arithmetic on it.
+  // A string, a NaN or a negative would make `lastCallInstant` produce an
+  // Invalid Date, and every comparison against an Invalid Date is false — so
+  // the stage would silently never reach 'lastcall' and the feature would be
+  // off with nothing anywhere saying so. Snapped to a value the picker offers,
+  // because a save carrying 47 would show no chip selected.
+  if (!LAST_CALL_CHOICES.includes(Math.round(Number(profile.settings.lastCall)))) {
+    profile.settings.lastCall = fresh.settings.lastCall;
+  } else {
+    profile.settings.lastCall = Math.round(Number(profile.settings.lastCall));
+  }
 
   const tokens = {};
   for (const [kind, value] of Object.entries({ ...fresh.tokens, ...profile.tokens })) {

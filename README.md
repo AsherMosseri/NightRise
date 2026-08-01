@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 20,000 lines, and all of it ships as written.
+About 20,600 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -292,12 +292,17 @@ it's the scroll.
   **Second Wind** trades tonight's bonus quest for a different one, once a night and never
   after you have claimed it. Deliberately *not* sold: anything that extends the curfew.
   That would be selling you the right to be on your phone at bedtime.
-- **Price is the only ladder.** Eleven items used to carry a level requirement and nine of
-  them never once bound: level 13 arrives on night 17 and the level-13 sky takes thirteen
-  nights to save for, so the card said "Reach level 13" about a barrier that was never the
-  barrier. The two that did bind, bound by one night and by four. They are gone, and every
-  shelf reads cheapest first — three of them had drifted out of order simply by having new
-  entries appended, so Skies read 400, 700, 920, 1150, 1550, 620, 840.
+- **Level gates that actually gate.** Anything over 600 stardust asks for a level as well
+  as the price, and the level is *derived from the price* rather than typed on each item —
+  because typed numbers drift away from a curve nobody re-measures, which is exactly what
+  had happened. Eleven hand-written gates had become nine that never once bound: level 13
+  arrives on night 17 and the level-13 sky takes thirteen nights to save for, so the card
+  said "Reach level 13" about a barrier that was never the barrier. The bands are set
+  against the measured curve, so every gate now opens **two to nine nights after** you
+  could first have afforded the thing. Nothing under 600 is gated: early on the market
+  should be something you can reach into, not a wall of locks.
+- Every shelf reads cheapest first — three of them had drifted out of order simply by
+  having new entries appended, so Skies read 400, 700, 920, 1150, 1550, 620, 840.
 
 **The rest**
 - A live canvas sky: parallax twinkling stars that drift on their own, a shooting star on
@@ -326,7 +331,14 @@ it's the scroll.
   whenever that is not where today's dashed line sits — so moving your bedtime shows up as
   a moved tick rather than quietly recolouring the past. Averaging clock times is done
   in minutes from noon, so 11:50pm and 12:10am are twenty minutes apart rather than 1420.
-- Sleep-safe dim mode (which reaches the dialogs and sheets too), sound effects (muted by
+- **Sleep-safe dim mode** — warm and dark, not sepia. It used to run `sepia(0.35)` over
+  everything, and sepia does not warm a colour, it *replaces* it: the whole app collapsed
+  onto one brown ramp and a deep blue night came out looking like a muddy tan photograph,
+  with the panels above the veil washing out to grey. What matters at 1am is less blue
+  light and less light, and both of those are brightness and a warm overlay. Hue is left
+  alone now, so a Frost night still reads as Frost.
+- Dim reaches the dialogs and sheets too, with the same numbers as the veil — they have to
+  match exactly or the two halves of the screen dim differently. Sound effects (muted by
   default), full keyboard control, and `prefers-reduced-motion` support throughout.
 - **Reset what you actually mean.** Settings asks which of eight things should go —
   tonight's checkmarks, the task list, history, level and XP, streaks, stardust, unlocks,
@@ -480,7 +492,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 20,500 lines: 12,600 of application JavaScript, 4,400 of tests, 3,100 of CSS, and
+About 20,600 lines: 12,600 of application JavaScript, 4,400 of tests, 3,100 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

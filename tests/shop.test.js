@@ -12,7 +12,7 @@ import { WEATHER, MOONS, MARKS, ENVELOPES } from '../js/skins.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
-import { equipItem, buyConsumable, canBuy } from '../js/shop.js';
+import { equipItem, buyConsumable, canBuy, gateFor } from '../js/shop.js';
 import { MOMENTUM_MIN_GAP_MS } from '../js/game.js';
 import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
@@ -374,16 +374,52 @@ test('there is no price a night could fall into with nothing to buy', () => {
   assert.ok(worst <= 400, `the biggest jump between prices is ${worst} stardust`);
 });
 
-test('price is the only ladder, and the level check still works if it is ever wanted', () => {
-  // Nine of the eleven level gates never bound: level 13 arrives on night 17
-  // and the level-13 sky takes 13 nights to save for, so the gate was a card
-  // that said "Reach level 13" about a barrier that was never the barrier. The
-  // two that did bind, bound by one night and by four. They are gone, and price
-  // paces the market on its own.
-  assert.deepEqual(allItems().filter((i) => i.reqLevel), []);
+/**
+ * When each level first arrives, measured by replaying 120 nights of an
+ * eighteen-task list through the real action layer. The gates are checked
+ * against this rather than against a feeling about what level sounds late.
+ */
+const LEVEL_NIGHT = { 8: 6, 9: 7, 10: 9, 11: 12, 12: 14, 13: 17, 14: 21 };
+/** What a settled night pays, from the same simulation. */
+const DUST_PER_NIGHT = 131;
 
-  // The mechanism stays, because it is the right shape if anything ever does
-  // need holding back. Exercised here so it cannot rot unnoticed.
+test('every level gate actually gates', () => {
+  // This is the whole point of having them. There used to be eleven hand-typed
+  // gates and nine never once bound: level 13 arrives on night 17 and the
+  // level-13 sky takes thirteen nights to save for, so the card said "Reach
+  // level 13" about a barrier that was never the barrier. A gate has to arrive
+  // AFTER you could have afforded the thing, or it is decoration.
+  const gated = allItems().filter((i) => i.reqLevel);
+  assert.ok(gated.length > 0, 'the gates are meant to exist');
+  for (const item of gated) {
+    const saveNight = Math.ceil(item.cost / DUST_PER_NIGHT);
+    const gateNight = LEVEL_NIGHT[item.reqLevel];
+    assert.ok(gateNight, `level ${item.reqLevel} is off the measured curve`);
+    assert.ok(gateNight > saveNight,
+      `${item.bucket}/${item.id}: affordable on night ${saveNight}, gate opens on ${gateNight}`);
+  }
+});
+
+test('the gates are derived from price, not typed one by one', () => {
+  // Typed numbers drift away from a curve nobody re-measures, which is how the
+  // first set stopped binding. Same price, same gate, everywhere.
+  for (const item of allItems()) {
+    assert.equal(item.reqLevel || 0, gateFor(item.cost || 0), `${item.id} does not match its band`);
+  }
+  assert.equal(gateFor(0), 0, 'a free default is never gated');
+  assert.equal(gateFor(599), 0, 'and neither is anything early');
+  assert.ok(gateFor(1680) > gateFor(620), 'and the bands climb');
+});
+
+test('the early market is not a wall of locks', () => {
+  // Under 600 is ungated on purpose: at the start the market should be a thing
+  // you can reach into.
+  const cheap = allItems().filter((i) => i.cost > 0 && i.cost < 600);
+  assert.ok(cheap.length >= 15, 'there should be plenty to buy before any gate');
+  assert.deepEqual(cheap.filter((i) => i.reqLevel), []);
+});
+
+test('the level check refuses and then relents', () => {
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
   state.profile.stardust = 99999;
   state.profile.level = 2;

@@ -64,6 +64,36 @@ const KIND_BY_LIST = [
 export const COMPANION_ITEMS = COMPANIONS.map((c) => ({ ...c, kind: 'companion' }));
 
 /**
+ * The level an item asks for, derived from its price.
+ *
+ * There were eleven hand-typed gates and nine of them never once bound: level
+ * 13 arrives on night 17 and the level-13 sky takes thirteen nights to save
+ * for, so the card said "Reach level 13" about a barrier that was never the
+ * barrier. Typed numbers drift away from a curve nobody re-measures.
+ *
+ * So the bands are chosen against the measured curve instead. Levels arrive at
+ * nights 9, 12, 14, 17 and 21 for 10 through 14; a settled night pays about 131
+ * stardust, so an item costing C takes about C/131 nights to save for alone.
+ * Every band below lands two to nine nights *after* that, which is what makes
+ * the gate a real second condition rather than decoration — and tests/shop
+ * asserts exactly that against the same measured table.
+ *
+ * Nothing under 600 is gated. Early on the market should be a thing you can
+ * reach into, not a wall of locks.
+ */
+export const GATE_BANDS = [
+  { from: 1500, level: 14 },
+  { from: 1300, level: 13 },
+  { from: 1100, level: 12 },
+  { from: 900, level: 11 },
+  { from: 600, level: 10 },
+];
+
+export function gateFor(cost) {
+  return GATE_BANDS.find((band) => cost >= band.from)?.level || 0;
+}
+
+/**
  * Every equippable item, tagged with its inventory bucket, cheapest first.
  *
  * Sorted here rather than in the catalogs, because a shelf is a ladder and the
@@ -79,10 +109,14 @@ function byPrice(a, b) {
 
 export function allItems() {
   const items = [];
+  const tag = (item, kind, bucket) => {
+    const level = gateFor(item.cost || 0);
+    return { ...item, kind, bucket, ...(level ? { reqLevel: level } : {}) };
+  };
   for (const [bucket, kind, list] of KIND_BY_LIST) {
-    for (const item of [...list].sort(byPrice)) items.push({ ...item, kind, bucket });
+    for (const item of [...list].sort(byPrice)) items.push(tag(item, kind, bucket));
   }
-  for (const c of [...COMPANIONS].sort(byPrice)) items.push({ ...c, kind: 'companion', bucket: 'companions' });
+  for (const c of [...COMPANIONS].sort(byPrice)) items.push(tag(c, 'companion', 'companions'));
   return items;
 }
 

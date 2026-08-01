@@ -60,6 +60,13 @@ const VIEWS = {};
 
 export function openModal(name) {
   if (!dialog || !VIEWS[name]) return;
+  // Cancel a close that is still animating. The close fades the dialog out over
+  // 220ms and only clears `is-closing` when that finishes — so re-opening
+  // inside the window (a double tap, or a tap that closes and a second that
+  // opens) rendered the new panel into a dialog sitting at opacity 0, and then
+  // the pending timer closed it underneath. From the outside: the background
+  // vanishes and the modal is a ghost.
+  cancelClose();
   const changed = currentView !== name;
   currentView = name;
   renderModal({ keepScroll: !changed });
@@ -76,6 +83,12 @@ export function openModal(name) {
 
 let closing = null;
 
+function cancelClose() {
+  clearTimeout(closing);
+  closing = null;
+  dialog?.classList.remove('is-closing');
+}
+
 export function closeModal() {
   currentView = null;
   document.body.classList.remove('has-modal');
@@ -91,9 +104,11 @@ export function closeModal() {
   clearTimeout(closing);
   dialog.classList.add('is-closing');
   const done = () => {
-    clearTimeout(closing);
     dialog.removeEventListener('animationend', done);
-    dialog.classList.remove('is-closing');
+    // Only finish the close we started. Re-opening cancels it, and a stale
+    // timer firing afterwards would shut a panel the user had just asked for.
+    if (closing === null) return;
+    cancelClose();
     if (dialog.open) dialog.close();
   };
   dialog.addEventListener('animationend', done);

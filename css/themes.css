@@ -320,9 +320,17 @@
   z-index: 40;
   pointer-events: none;
   opacity: 0;
-  background: rgba(255, 138, 40, 0.2);
-  backdrop-filter: sepia(0.35) brightness(0.62) saturate(0.85);
-  -webkit-backdrop-filter: sepia(0.35) brightness(0.62) saturate(0.85);
+  /* Warm and dim, not sepia.
+     This used to run sepia(0.35) over everything, and sepia does not warm a
+     colour — it *replaces* it, mapping the whole image onto one brown ramp. So
+     sleep-safe mode turned a deep blue night into a muddy tan photograph: the
+     sky, the accents and the level chip all collapsed to the same colour and
+     the app stopped looking like itself. What actually matters at 1am is less
+     blue light and less light, and both of those are brightness and a warm
+     overlay. Hue is left alone, so a Frost night still reads as Frost. */
+  background: rgba(255, 168, 92, 0.14);
+  backdrop-filter: brightness(0.66) saturate(0.88);
+  -webkit-backdrop-filter: brightness(0.66) saturate(0.88);
   transition: opacity 400ms var(--ease);
 }
 .is-dim #dim-veil { opacity: 1; }
@@ -356,7 +364,11 @@
 .is-dim .env-stage,
 .is-dim .fx-layer,
 .is-dim .goodnight {
-  filter: sepia(0.35) brightness(0.62) saturate(0.85);
+  /* The same treatment as the veil, for the layers the veil cannot reach. It
+     has to match it exactly or the two halves of the screen dim differently —
+     which is what made the Night History panel read as washed-out grey while
+     the page behind it went brown. */
+  filter: brightness(0.66) saturate(0.88);
 }
 .is-dim #modal::backdrop { background: rgba(2, 3, 10, 0.78); }
 

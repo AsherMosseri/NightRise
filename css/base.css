@@ -172,6 +172,11 @@ svg { display: block; }
 .btn {
   display: inline-flex;
   align-items: center;
+  /* Horizontally too. It only had align-items, which was invisible while every
+     button was exactly as wide as its label — then the market gave short labels
+     a min-width so "Buy" would stop reading as a square, and the text sat at
+     the left edge of the wider box. */
+  justify-content: center;
   gap: 8px;
   padding: 9px 15px;
   border-radius: var(--r-md);

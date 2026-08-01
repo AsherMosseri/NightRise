@@ -12,7 +12,7 @@ import {
   taskXp, comboMultiplier, chainLengthFor, marginalXp, nightFace, NIGHT_FULL_XP,
 } from '../game.js';
 import { computeStats } from '../night.js';
-import { plural, formatMinutesLong, formatDuration } from '../util.js';
+import { plural, formatMinutesLong } from '../util.js';
 import { openSheet } from './sheet.js';
 import { toast } from '../toast.js';
 import { setSkyPaused } from '../sky.js';
@@ -20,8 +20,8 @@ import { still, fx, rectOf, growTo } from './motion.js';
 import { lightsOut } from './goodnight.js';
 import { openAddTask } from './add-task.js';
 import {
-  createTimer, elapsedOf, isRunning, toggleTimer, resetTimer, pauseTimer,
-  timerPhase, timerLabel, timerCaption, timerProgress,
+  createTimer, elapsedOf, isRunning, toggleTimer, resetTimer, pauseTimer, startTimer,
+  timerPhase, timerLabel, timerCaption, timerProgress, resumeNote,
 } from '../timer.js';
 
 let host = null;
@@ -79,6 +79,7 @@ export function enterCards(invoker = null) {
   timer = null;
   lastChecked = null;
   lastRenderedId = null;
+  appPaused = false;
   document.documentElement.classList.add('is-onecard');
   // The card layer is a near-opaque scrim with a 14px backdrop-filter over the
   // whole screen, so the sky underneath is invisible — and was still being
@@ -87,16 +88,16 @@ export function enterCards(invoker = null) {
   setSkyPaused(true);
   // A quarter second is under the eye's patience for a clock that should tick
   // on the second, and costs nothing: it only repaints two nodes.
-  if (!ticker) ticker = setInterval(paintTimer, 250);
+  //
+  // The detached-tree guard lives here rather than inside paintTimer, because
+  // timerFace paints its own first frame and the card is not on screen yet when
+  // it does. That guard used to reject exactly that call, so every new card
+  // opened with an empty clock face and a caption that said nothing until the
+  // tick landed a quarter of a second later.
+  if (!ticker) ticker = setInterval(() => { if (face?.root.isConnected) paintTimer(); }, 250);
   renderCards();
 }
 
-/**
- * Write the running clock back to the night and stop it.
- *
- * Always paused on the way out: nothing may keep counting while the app is not
- * the thing in front of you.
- */
 /**
  * The task auto-start has already fired for on this card.
  *
@@ -107,6 +108,26 @@ export function enterCards(invoker = null) {
  */
 let autoStartedFor = null;
 
+/**
+ * The clock was stopped by the app going away, not by you.
+ *
+ * They are different events and were treated as one. Glancing at a notification
+ * paused the clock — correctly, a phone in a pocket must not bill you for the
+ * time — but nothing ever started it again: `visibilitychange` re-rendered the
+ * top bar and not the card, so you came back to a stopped clock that still
+ * looked live, and auto-start would not re-arm because it had already fired for
+ * this card. Ten seconds in another app cost you the rest of the timer.
+ *
+ * A pause you asked for still stands. Only the one the app took is given back.
+ */
+let appPaused = false;
+
+/**
+ * Write the running clock back to the night and stop it.
+ *
+ * Always paused on the way out: nothing may keep counting while the app is not
+ * the thing in front of you.
+ */
 function parkTimer({ silent = false } = {}) {
   if (!timer) return;
   pauseTimer(timer);
@@ -127,7 +148,20 @@ function parkTimer({ silent = false } = {}) {
 
 /** Stop and bank the running clock — the app is going away. */
 export function pauseCardTimer() {
-  if (timer && isRunning(timer)) parkTimer({ silent: true });
+  if (!timer || !isRunning(timer)) return;
+  parkTimer({ silent: true });
+  appPaused = true;
+}
+
+/** The app is back. Hand back the clock it took, and redraw either way. */
+export function resumeCardTimer() {
+  if (!active) return;
+  const taken = appPaused;
+  appPaused = false;
+  if (taken && timer && !isRunning(timer)) startTimer(timer);
+  // Unconditional, because the card is otherwise never re-rendered on the way
+  // back in: whatever it says about the clock has been frozen since you left.
+  renderCards();
 }
 
 export function exitCards() {
@@ -138,6 +172,7 @@ export function exitCards() {
   timer = null;
   face = null;
   autoStartedFor = null;
+  appPaused = false;
   if (ticker) {
     clearInterval(ticker);
     ticker = null;
@@ -219,7 +254,7 @@ function worthLine(state, task, started) {
 /** Repaints the clock in place. Re-rendering the card every second would
     destroy the entry animation and the focus on the check button. */
 function paintTimer() {
-  if (!face || !timer || !face.root.isConnected) return;
+  if (!face || !timer) return;
   const elapsed = elapsedOf(timer);
   const running = isRunning(timer);
   const label = timerLabel(timer.plannedMs, elapsed);
@@ -227,11 +262,20 @@ function paintTimer() {
   // would open in amber. The colours describe a clock in motion.
   const started = running || elapsed > 0;
   const phase = started ? timerPhase(timer.plannedMs, elapsed) : 'idle';
+  const note = resumeNote(elapsed, running, timer.plannedMs);
   // This runs four times a second for the whole session, and on a card whose
   // timer was never started every one of those writes was identical to the last
   // — including a fresh <svg> built from scratch, 240 times an hour.
-  if (face.painted === `${label}|${phase}|${running}|${elapsed >= 1000}`) return;
-  face.painted = `${label}|${phase}|${running}|${elapsed >= 1000}`;
+  if (face.painted === `${label}|${phase}|${running}|${note}`) return;
+  face.painted = `${label}|${phase}|${running}|${note}`;
+  // The "you are already partway in" line, which used to be built once at
+  // render time and then left standing whatever the clock did next. Pause and
+  // it stayed away until some unrelated store update happened to redraw the
+  // card, so it turned up minutes late and out of nowhere; resume and it sat
+  // there reading "under a minute in already" over a clock visibly counting.
+  // It describes the clock, so the clock repaints it.
+  face.resume.hidden = !note;
+  if (note) face.note.textContent = note;
   face.value.textContent = label;
   face.caption.textContent = timerCaption(timer.plannedMs, elapsed, face.spoken);
   face.bar.style.width = `${(timerProgress(timer.plannedMs, elapsed) * 100).toFixed(2)}%`;
@@ -281,7 +325,25 @@ function timerFace(state, task, { started = false } = {}) {
     // row would be a second Start beside it. After, it is the pause.
     h('div', { class: 'onecard__timer-actions' }, started ? toggle : null, started ? reset : null));
 
-  face = { root, value, caption, bar, toggle, reset, spoken };
+  const note = h('span', {});
+  const resume = h('p', { class: 'onecard__resume', hidden: true },
+    note,
+    h('button', {
+      type: 'button',
+      class: 'onecard__resume-btn',
+      onClick: () => {
+        // Running again, not merely zeroed. You are mid-task and asking for the
+        // clock back from the top; leaving it stopped meant "start the clock
+        // over" put a fresh 0:00 on screen and then sat there doing nothing.
+        resetTimer(timer, Boolean(getState().night.started[timer.taskId]));
+        // Directly, rather than through parkTimer — which pauses on its way
+        // past and would undo the line above.
+        update((state) => { delete state.night.clocks[timer.taskId]; }, { silent: true });
+        paintTimer();
+      },
+    }, 'Start the clock over'));
+
+  face = { root, value, caption, bar, toggle, reset, resume, note, spoken };
   paintTimer();
   return root;
 }
@@ -321,12 +383,35 @@ export function renderCards() {
 
   // A div for the same reason the sheet's head is one: <header> inside a plain
   // div maps to `banner`, and there is only one page banner.
+  /**
+   * Put the last thing you checked off back.
+   *
+   * In the head, not in the row of three below — which is where it was, and
+   * where it took over the Later button's place for exactly one card. Later and
+   * Undo are the two most-used minor actions in this mode and they were sharing
+   * a pixel on a rotation you cannot predict: check something off, reach for
+   * Later on the next card out of muscle memory, and un-complete the task you
+   * just finished. The row is the same three buttons in the same three places
+   * now, every card, and the one transient action sits away from them.
+   */
+  const undoable = lastChecked && state.night.done[lastChecked.id] !== undefined
+    ? lastChecked
+    : null;
+
   const head = h('div', { class: 'onecard__head' },
     h('span', { class: 'onecard__count' }, pending.length
       ? `${Math.min(position, stats.total)} of ${stats.total}`
       : `${stats.done} of ${stats.total}`),
     h('div', { class: 'onecard__bar', 'aria-hidden': 'true' },
       growTo(h('span', {}), 'onecard:bar', `${stats.pct}%`)),
+    undoable
+      ? h('button', {
+        type: 'button',
+        class: 'onecard__undo',
+        title: `Put “${undoable.title}” back`,
+        onClick: () => { toggleTask(undoable.id); lastChecked = null; renderCards(); },
+      }, icon('undo', { size: 14 }), h('span', {}, 'Undo'))
+      : null,
     iconButton('close', 'Leave one-at-a-time mode', () => exitCards(), { class: 'onecard__exit' }));
 
   if (!pending.length) {
@@ -422,11 +507,6 @@ export function renderCards() {
     },
   }, icon('play', { size: 20 }), h('span', {}, 'Start it'));
 
-  // A clock you are coming back to says so. Coming back to a task you are
-  // already four minutes into is a completely different ask from starting one.
-  const carried = elapsedOf(timer);
-  const stale = carried > timer.plannedMs + 10 * 60_000;
-
   const body = h('div', { class: 'onecard__body' },
     h('p', { class: 'onecard__section' }, section.title),
     h('h2', { class: 'onecard__title' }, task.title),
@@ -436,42 +516,19 @@ export function renderCards() {
     // with wall-clock time, and a number ticking down while you decide is a
     // pressure clock at midnight, which is the wrong instrument entirely.
     worthLine(state, task, started),
+    // A clock you are coming back to says so — but from inside timerFace, which
+    // owns everything that changes as the clock runs. `face` is set by the call
+    // on the line above.
     timerFace(state, task, { started: Boolean(started) }),
-    // Not "you are out of time" — the card would greet you red for a clock you
-    // simply walked away from. It says what happened and offers the fix the
-    // timer already has a button for.
-    carried >= 1000 && !isRunning(timer)
-      ? h('p', { class: 'onecard__resume' },
-        stale
-          ? 'You left this running.'
-          : carried < 60_000
-            ? 'Under a minute in already.'
-            : `${formatDuration(Math.round(carried / 60000))} in already.`,
-        h('button', {
-          type: 'button',
-          class: 'onecard__resume-btn',
-          onClick: () => { resetTimer(timer, false); parkTimer({ silent: true }); renderCards(); },
-        }, 'Start the clock over'))
-      : null);
-
-  const undoable = lastChecked && state.night.done[lastChecked.id] !== undefined
-    ? lastChecked
-    : null;
+    face.resume);
 
   const row = h('div', { class: 'onecard__row' },
-    undoable
-      ? h('button', {
-        type: 'button',
-        class: 'onecard__minor',
-        title: `Put “${undoable.title}” back`,
-        onClick: () => { toggleTask(undoable.id); lastChecked = null; renderCards(); },
-      }, icon('undo', { size: 15 }), 'Undo')
-      : h('button', {
-        type: 'button',
-        class: 'onecard__minor',
-        disabled: pending.length < 2,
-        onClick: () => { deferred.add(task.id); renderCards(); },
-      }, icon('down', { size: 15 }), 'Later'),
+    h('button', {
+      type: 'button',
+      class: 'onecard__minor',
+      disabled: pending.length < 2,
+      onClick: () => { deferred.add(task.id); renderCards(); },
+    }, icon('down', { size: 15 }), 'Later'),
     h('button', {
       type: 'button',
       class: 'onecard__minor',

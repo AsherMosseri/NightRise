@@ -1629,6 +1629,24 @@ body.has-modal { overflow: hidden; }
   transition: width var(--speed-bar) var(--ease);
 }
 .onecard__exit { width: 40px; height: 40px; }
+/* Transient, and deliberately not shaped like the three buttons in the row
+   below: it undoes the previous card, not this one. */
+.onecard__undo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: none;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.onecard__undo:hover { color: var(--text); background: var(--panel-2); }
 
 .onecard__body {
   flex: 1;
@@ -1721,7 +1739,6 @@ body.has-modal { overflow: hidden; }
 }
 .onecard__timer-btn:hover { border-color: var(--accent); color: var(--accent); }
 .onecard__timer-btn--quiet { padding: 8px 12px; color: var(--muted); }
-.onecard__timer-btn[hidden] { display: none; }
 
 /* The target is the bottom half of the screen: no aiming, one hand, dark room. */
 /* The three-second ask, above the fifteen-minute one.

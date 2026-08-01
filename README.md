@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 20,600 lines, and all of it ships as written.
+About 20,900 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -62,8 +62,21 @@ About 20,600 lines, and all of it ships as written.
   wall-clock time, and a number ticking down while you decide is a pressure clock.
 - **The clock survives leaving the card.** Press `Later`, glance at the list, background
   the phone — the minutes are still there when you come back, and the card says "4m in
-  already". It is paused on every exit and never restored running, because a clock that
-  keeps counting while you are elsewhere is a guilt machine.
+  already". A clock that keeps counting while you are elsewhere is a guilt machine, so
+  it stops whenever the app does. But a pause the *app* took is not a pause you asked
+  for: leaving for ten seconds used to stop the clock for good, because coming back
+  redrew the top bar and never the card. The one it took, it gives back; the one you
+  pressed stands.
+- **The line about the clock is the clock's.** "Under a minute in already" was assembled
+  once when the card rendered and then left standing whatever happened next — so it
+  announced itself minutes late, when some unrelated update happened to redraw, and it
+  sat there over a clock you had visibly resumed. It repaints four times a second with
+  everything else the clock owns.
+- **The three buttons under the card never move.** `Later`, `Rain check` and `More`, in
+  that order, on every card. `Undo` used to take the `Later` slot for exactly one card
+  after a check-off — the two most-used minor actions sharing a pixel on a rotation you
+  cannot predict — so reaching for `Later` out of habit un-completed the thing you had
+  just finished. Undo is a chip in the header now, away from the row.
 - **A timer that refuses to end.** Each card counts down from its own estimate (`T`, or
   automatically if you turn that on in Settings). At zero it does not alarm, block or ask
   to be dismissed — it turns over and counts *up* in a warmer colour. Nothing beeps. The
@@ -500,7 +513,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 20,600 lines: 12,600 of application JavaScript, 4,500 of tests, 3,100 of CSS, and
+About 20,900 lines: 12,800 of application JavaScript, 4,600 of tests, 3,100 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

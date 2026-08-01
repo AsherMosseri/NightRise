@@ -152,3 +152,29 @@ test('no sky can tile, and none carries its attachment per layer', () => {
   assert.ok(!/^\s*background: var\(--bg-base\)/m.test(base),
     'the shorthand resets repeat, size, attachment and colour — use background-image');
 });
+
+test('the hidden attribute outranks a component that sets display', () => {
+  /* The browser hides `hidden` elements with `[hidden] { display: none }` in
+     its own stylesheet, which any author rule setting `display` beats. So a
+     component styled `display: flex` and then hidden from JS stayed fully on
+     screen while its own code believed it was gone — One Card's "you are
+     already partway in" line did that over a visibly running clock, and the
+     timer button beside it had needed a one-off patch for the same reason.
+
+     One rule settles it for every component, present and future, and it has to
+     carry !important or it is just another rule of the same specificity. */
+  const base = readFileSync(new URL('../css/base.css', import.meta.url), 'utf8');
+  assert.match(base, /\[hidden\] \{ display: none !important; \}/,
+    'css/base.css needs the global [hidden] rule');
+
+  // And nothing may hand a hidden element a display back. Comments stripped
+  // first: the rule above is explained in prose that quotes the selector.
+  const all = ['base', 'components', 'themes']
+    .map((f) => readFileSync(new URL(`../css/${f}.css`, import.meta.url), 'utf8'))
+    .join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const offenders = [...all.matchAll(/([^{}]*\[hidden\][^{}]*)\{([^}]*)\}/g)]
+    .filter((m) => !/^\s*\[hidden\]\s*$/.test(m[1]) && /display\s*:/.test(m[2]))
+    .map((m) => m[1].trim());
+  assert.deepEqual(offenders, [], `${offenders.join(', ')} re-declares display on a hidden element`);
+});

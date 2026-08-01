@@ -2,6 +2,16 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* The `hidden` attribute has to beat a class.
+   The browser hides it with `[hidden] { display: none }` in the UA stylesheet,
+   and any author rule that sets `display` at all outranks that — so a component
+   styled `display: flex` and then hidden from JS stays fully on screen with its
+   own code convinced it is gone. One-Card's "you are already partway in" line
+   did exactly that, sitting there over a clock visibly counting down; the timer
+   button next to it had needed its own patch for the same reason. It is a trap
+   every new flex component walks into, so it is settled once, here. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 /* The root gets a flat night colour of its own.

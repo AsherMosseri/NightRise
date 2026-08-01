@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   createTimer, elapsedOf, isRunning, startTimer, pauseTimer, toggleTimer, resetTimer,
-  timerPhase, timerLabel, timerCaption, timerProgress, warnThresholdMs,
+  timerPhase, timerLabel, timerCaption, timerProgress, warnThresholdMs, resumeNote,
 } from '../js/timer.js';
 import { createInitialState } from '../js/model.js';
 import { normalizeState } from '../js/storage.js';
@@ -129,4 +129,39 @@ test('a clock for a task that no longer exists is dropped', () => {
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
   state.night.clocks.gone = { taskId: 'gone', plannedMs: 60000, accumulatedMs: 5000, startedAt: null };
   assert.equal(normalizeState(state).night.clocks.gone, undefined);
+});
+
+/* The "you are already partway in" line. It was assembled once when the card
+   rendered and then never touched again, so it described whatever the clock had
+   been doing at that instant for as long as the card stood. Making it a pure
+   function of the clock is what lets the 250ms repaint own it — and lets these
+   four cases be stated without a browser. */
+
+test('a running clock explains nothing — the numbers are doing that', () => {
+  assert.equal(resumeNote(45_000, true, 5 * MIN), '');
+  assert.equal(resumeNote(9 * MIN, true, 5 * MIN), '',
+    'not even in overtime: it is counting up on screen where you can see it');
+});
+
+test('a clock that never ran says nothing either', () => {
+  assert.equal(resumeNote(0, false, 5 * MIN), '');
+  assert.equal(resumeNote(999, false, 5 * MIN), '',
+    'under a second is a mis-tap, not a session — and every card you merely '
+    + 'glanced at would otherwise claim you were partway into it');
+});
+
+test('a stopped clock says how far in you already are', () => {
+  assert.equal(resumeNote(1000, false, 5 * MIN), 'Under a minute in already.');
+  assert.equal(resumeNote(59_999, false, 5 * MIN), 'Under a minute in already.');
+  assert.equal(resumeNote(60_000, false, 5 * MIN), '1m in already.');
+  assert.equal(resumeNote(4 * MIN, false, 5 * MIN), '4m in already.');
+});
+
+test('a clock left running for an hour is not a scolding', () => {
+  // Past the estimate by ten minutes is no longer "you are slow", it is "this
+  // was open in a tab". The card says what happened rather than turning red.
+  assert.equal(resumeNote(5 * MIN + 9 * MIN, false, 5 * MIN), '14m in already.');
+  assert.equal(resumeNote(5 * MIN + 11 * MIN, false, 5 * MIN), 'You left this running.');
+  assert.equal(resumeNote(70 * MIN, false, 0), 'You left this running.',
+    'a task with no estimate is measured from zero');
 });

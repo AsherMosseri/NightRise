@@ -11,7 +11,7 @@
  * an estimate of zero, an hour of overtime — are testable without a clock.
  */
 
-import { pad2 } from './util.js';
+import { pad2, formatDuration } from './util.js';
 
 /** Inside the last fifth, or the last half minute, whichever is longer. */
 export const WARN_FRACTION = 0.2;
@@ -61,6 +61,29 @@ export function timerCaption(plannedMs, elapsedMs, spokenEstimate) {
   return plannedMs - elapsedMs >= 0
     ? `left of ${spokenEstimate}`
     : `over ${spokenEstimate}`;
+}
+
+/**
+ * What the card says about time already on the clock, or '' for nothing to say.
+ *
+ * A running clock says nothing: the numbers are right there and counting. Only a
+ * stopped one has to explain itself, because a stopped clock and a clock that
+ * was never started look identical at a glance.
+ *
+ * It lives with the other pure functions of (planned, elapsed) rather than in
+ * the card, because it was built once at render time there and then left
+ * standing whatever the clock did next — announcing itself minutes late when
+ * some unrelated update happened to redraw, and sitting there reading "under a
+ * minute in already" over a clock the user had visibly resumed.
+ */
+export function resumeNote(elapsedMs, running, plannedMs = 0) {
+  if (running || elapsedMs < 1000) return '';
+  // Not "you are out of time" — the card would greet you red for a clock you
+  // simply walked away from. It says what happened; the button beside it is the
+  // fix.
+  if (elapsedMs > plannedMs + 10 * 60_000) return 'You left this running.';
+  if (elapsedMs < 60_000) return 'Under a minute in already.';
+  return `${formatDuration(Math.round(elapsedMs / 60_000))} in already.`;
 }
 
 /** How full the drain bar is: 0 at the start, 1 at the estimate and beyond. */

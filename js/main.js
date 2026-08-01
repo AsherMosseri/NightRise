@@ -12,7 +12,10 @@ import { initModals, openModal, closeModal } from './render/modals.js';
 import { initSheet, openSheet } from './render/sheet.js';
 import { openAddTask, openAddSection } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
-import { initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown, pauseCardTimer } from './render/cards.js';
+import {
+  initCards, renderCards, enterCards, exitCards, cardsActive, cardsKeydown,
+  pauseCardTimer, resumeCardTimer,
+} from './render/cards.js';
 import { initToasts, toast, celebrate } from './toast.js';
 import {
   initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar,
@@ -577,7 +580,13 @@ function boot() {
       pauseCardTimer();
       // Commit before the OS can suspend us; a lost check-off is unforgivable.
       flushPersist();
-    } else if (!checkRollover()) renderTonight();
+    } else {
+      // Hand the card its clock back before anything else redraws: the pause
+      // above was the app's doing, not yours, and until this existed nothing on
+      // the way back in ever touched the card at all.
+      resumeCardTimer();
+      if (!checkRollover()) renderTonight();
+    }
   });
   window.addEventListener('pagehide', flushPersist);
 

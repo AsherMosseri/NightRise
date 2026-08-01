@@ -9,7 +9,7 @@
 
 import { h, icon } from '../dom.js';
 import { getState, update, emit } from '../state.js';
-import { computeStats, advanceLightsOutStreak } from '../night.js';
+import { computeStats, advanceLightsOutStreak, isCleanNight } from '../night.js';
 import { grantXp } from '../game.js';
 import { checkAchievements } from '../achievements.js';
 import { minutesUntilBedtime, formatClockLabel } from '../time.js';
@@ -127,7 +127,10 @@ export function lightsOut() {
       state.night.lightsOutAt = now;
       state.night.lightsOutOnTime = onTime;
       state.profile.lastLightsOutKey = state.night.key;
-      advanceLightsOutStreak(state.profile.lightsOut, state.night.key, onTime);
+      // Stopping early still pays, whatever you got through — that reward
+      // scales by the fraction and is about ending the night. The streak is
+      // stricter: everything that counted, finished, before the bedtime.
+      advanceLightsOutStreak(state.profile.lightsOut, state.night.key, isCleanNight(stats, onTime));
       grantXp(state, reward.xp, reward.dust);
       // Written down so it can be handed back. Resetting tonight's checkmarks
       // nulls lightsOutAt and promises in its own hint to return the XP and

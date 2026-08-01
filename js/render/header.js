@@ -128,10 +128,12 @@ export function renderStats() {
       return statChip({
         iconName: 'moon',
         value: String(nights),
-        label: 'nights on time',
-        title: `Nights in a row you were done before ${profile.settings.bedtime}.`
-          + ` Pressing Lights out counts, and so does simply finishing before then`
-          + ` and closing the app. Best: ${best}.`,
+        label: 'clean nights',
+        title: `Nights in a row you finished everything that counted and were done`
+          + ` before ${profile.settings.bedtime}. A rain check takes a task out of`
+          + ` "everything", which is what rain checks are for. Pressing Lights out`
+          + ` counts, and so does simply finishing and closing the app.`
+          + ` Best: ${best}.`,
         className: `stat--streak ${nights > 0 ? 'stat--hot' : ''}`.trim(),
       });
     })(),

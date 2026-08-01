@@ -230,6 +230,22 @@ export function normalizeState(raw, now = new Date()) {
       profile.inventory.fonts = profile.inventory.fonts.map((id) => (id === 'aurora' ? 'sans' : id));
     }
   }
+  if (from < 4) {
+    // The envelope shelf was restocked: the four paid skins were redrawn as four
+    // different objects and renamed with them. Nothing prunes inventory and
+    // `envelopeById` falls back to list[0], so without this a save that had
+    // bought `oxblood` would come back wearing Plain, keep a dead id in its
+    // inventory forever, and lose the 760 stardust with no notice. Mapped by
+    // rank, so whatever tier somebody paid for is the tier they still own.
+    const RENAMED = { slate: 'kraft', forest: 'airmail', oxblood: 'garden', brass: 'leadseal' };
+    if (isObject(profile.equipped) && RENAMED[profile.equipped.envelope]) {
+      profile.equipped.envelope = RENAMED[profile.equipped.envelope];
+    }
+    if (isObject(profile.inventory) && Array.isArray(profile.inventory.envelopes)) {
+      profile.inventory.envelopes = Array.from(new Set(
+        profile.inventory.envelopes.map((id) => RENAMED[id] || id)));
+    }
+  }
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
   // Derived, never trusted. A save claiming level 40 against 100 XP showed 40

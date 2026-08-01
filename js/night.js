@@ -228,8 +228,11 @@ export function bankNight(state, stats) {
   // inference from the same night's timestamps.
   if (profile.lightsOut && profile.lightsOut.lastKey !== night.key) {
     const onTime = inferredOnTime(state, night);
+    // `lightsOutOnTime` stays the plain fact — you stopped before your bedtime.
+    // It is what the history heatmap and the permanent night star are for, and
+    // those are earned by sleeping, not by finishing. The streak asks for more.
     if (onTime) night.lightsOutOnTime = true;
-    advanceLightsOutStreak(profile.lightsOut, night.key, onTime);
+    advanceLightsOutStreak(profile.lightsOut, night.key, isCleanNight(stats, onTime));
     result.onTime = onTime;
   } else {
     result.onTime = Boolean(night.lightsOutOnTime);
@@ -336,6 +339,29 @@ export function inferredOnTime(state, night = state.night) {
   if (!lastActivity) return false;
   const bedtime = bedtimeInstant(night.key, state.profile.settings.bedtime);
   return Boolean(bedtime) && lastActivity <= bedtime.getTime();
+}
+
+/**
+ * A clean night: everything that counted, done, and done before your bedtime.
+ *
+ * The headline streak used to ask only about the clock. That let one task
+ * ticked at nine o'clock — or none at all, merely *started* — carry the streak,
+ * which is not a night anybody would call a success. Both halves now have to be
+ * true.
+ *
+ * "Everything that counted" is deliberately not "everything on the list": a
+ * rain check takes a task out of the denominator entirely, and that is exactly
+ * what rain checks are for. Two come free every night and more cost 100
+ * stardust, so an honest bad evening has a way to stay honest without the
+ * streak being a lie about it.
+ *
+ * An empty list is not a clean night. There is nothing to have finished, and a
+ * streak that grows on a list with no tasks on it measures nothing — the same
+ * hole `inferredOnTime` closes for nights nobody opened.
+ */
+export function isCleanNight(stats, onTime) {
+  if (!onTime || !stats) return false;
+  return stats.total > 0 && stats.counted > 0 && stats.pct >= 100;
 }
 
 export function advanceLightsOutStreak(lights, key, onTime) {

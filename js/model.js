@@ -15,7 +15,7 @@ import { rollQuest } from './quests.js';
  * the migration scales the balance by the same factor: what you saved still
  * buys what it always bought, and only what you earn from here is slower.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** How much dearer everything got, and therefore how much a banked balance grows. */
 export const PRICE_REBASE = 2.2;

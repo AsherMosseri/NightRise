@@ -527,26 +527,74 @@ test('the history entry records what the night actually paid', () => {
 /* The bedtime streak is the headline number now, so what feeds it matters more
    than it did as a quiet chip. */
 
-test('going to bed early counts even when you never pressed Lights out', () => {
-  // It used to advance only on an explicit press, so finishing at ten and
-  // simply closing the app read as a miss — the app punishing you for the exact
-  // behaviour it exists to cause, over a button.
+/** Everything ticked, at `hour` o'clock, on the night of the 29th. */
+function cleanNightState(hour = 22, { done = null } = {}) {
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
   state.profile.settings.bedtime = '23:30';
   state.night.key = '2026-07-29';
-  state.night.lastDoneAt = new Date(2026, 6, 29, 22, 0).getTime();
+  const ids = Object.keys(state.template.tasks);
+  const at = new Date(2026, 6, 29, hour, 0).getTime();
+  for (const id of ids.slice(0, done ?? ids.length)) state.night.done[id] = at;
+  state.night.lastDoneAt = at;
+  return state;
+}
+
+test('a finished list ended early counts even without pressing Lights out', () => {
+  // It used to advance only on an explicit press, so finishing at ten and
+  // simply closing the app read as a miss — the app punishing you for the exact
+  // behaviour it exists to cause, over a button.
+  const state = cleanNightState(22);
   bankNight(state, computeStats(state));
   assert.equal(state.profile.lightsOut.streak, 1);
   assert.equal(state.history['2026-07-29'].onTime, true, 'and the history says so too');
 });
 
-test('a night you were still going at 1am does not count', () => {
-  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
-  state.profile.settings.bedtime = '23:30';
-  state.night.key = '2026-07-29';
-  state.night.lastDoneAt = new Date(2026, 6, 30, 1, 0).getTime();
-  state.profile.lightsOut = { streak: 4, best: 4, lastKey: '2026-07-28' };
+test('an unfinished list does not count, however early you stopped', () => {
+  // The streak is the headline number and it used to ask only about the clock,
+  // so seven of eleven at nine o'clock carried it — and so did one of eleven,
+  // and so did a task merely started and never finished. None of those is a
+  // night anybody would call a success.
+  for (const done of [7, 1, 0]) {
+    const state = cleanNightState(21, { done });
+    const stats = computeStats(state);
+    assert.ok(stats.pct < 100, `${done} of ${stats.total} is not a finished list`);
+    bankNight(state, stats);
+    assert.equal(state.profile.lightsOut.streak, 0, `${done} of ${stats.total} must not count`);
+  }
+});
+
+test('a rain check takes a task out of "everything"', () => {
+  // Which is exactly what rain checks are for. Without this the streak would be
+  // brittle enough that one bad evening ends it for good, and an app that
+  // punishes you for a bad night is an app you stop opening after a bad night.
+  const state = cleanNightState(21, { done: 0 });
+  const ids = Object.keys(state.template.tasks);
+  const at = new Date(2026, 6, 29, 21, 0).getTime();
+  for (const id of ids.slice(0, ids.length - 2)) state.night.done[id] = at;
+  for (const id of ids.slice(ids.length - 2)) state.night.skipped[id] = true;
+  const stats = computeStats(state);
+  assert.equal(stats.pct, 100, 'everything that counted was done');
+  bankNight(state, stats);
+  assert.equal(state.profile.lightsOut.streak, 1);
+});
+
+test('an empty list is not a clean night', () => {
+  const state = cleanNightState(21);
+  state.template = { order: [], sections: {}, tasks: {} };
+  state.night.done = {};
   bankNight(state, computeStats(state));
+  assert.equal(state.profile.lightsOut.streak, 0, 'there was nothing to finish');
+});
+
+test('a finished list you were still working on at 1am does not count', () => {
+  const state = cleanNightState(22);
+  const at = new Date(2026, 6, 30, 1, 0).getTime();
+  for (const id of Object.keys(state.night.done)) state.night.done[id] = at;
+  state.night.lastDoneAt = at;
+  state.profile.lightsOut = { streak: 4, best: 4, lastKey: '2026-07-28' };
+  const stats = computeStats(state);
+  assert.equal(stats.pct, 100, 'the list was finished — the clock is what failed');
+  bankNight(state, stats);
   assert.equal(state.profile.lightsOut.streak, 0);
 });
 
@@ -564,21 +612,23 @@ test('a night nobody opened is not an on-time night', () => {
   assert.equal(state.profile.lightsOut.streak, 0, 'and it is not evidence of anything');
 });
 
-test('a night where you started something but finished nothing still counts', () => {
+test('a started-but-unfinished task is evidence of when, not of what', () => {
+  // It is enough to say you were here and you stopped in time — which is what
+  // the history and the permanent night star record. It is not enough for the
+  // streak, which also wants the list.
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
   state.profile.settings.bedtime = '23:30';
   state.night.key = '2026-07-29';
   state.night.started = { t1: { at: new Date(2026, 6, 29, 21, 30).getTime(), face: 3 } };
   bankNight(state, computeStats(state));
-  assert.equal(state.profile.lightsOut.streak, 1, 'you were here, and you stopped in time');
+  assert.equal(state.night.lightsOutOnTime, true, 'you did stop before your bedtime');
+  assert.equal(state.profile.lightsOut.streak, 0, 'but the list was not done');
 });
 
 test('pressing Lights out is not second-guessed by the inference', () => {
   // The press is the strongest evidence there is. A night ended deliberately at
   // 11pm must not be re-judged from a check-off timestamp at 11:29.
-  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
-  state.profile.settings.bedtime = '23:30';
-  state.night.key = '2026-07-29';
+  const state = cleanNightState(22);
   state.night.lastDoneAt = new Date(2026, 6, 30, 2, 0).getTime(); // late, on its own
   state.profile.lightsOut = { streak: 3, best: 3, lastKey: '2026-07-29' }; // already settled
   bankNight(state, computeStats(state));

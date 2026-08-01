@@ -94,9 +94,13 @@ export const ACHIEVEMENTS = [
     id: 'ontime',
     icon: 'calendar',
     noun: 'nights',
+    // Measured off the clean-night streak's high-water mark, so the wording has
+    // to ask for a clean night. It used to say "stop before your bedtime", which
+    // was true when the streak only watched the clock and became a promise the
+    // check no longer kept the moment it also asked for the list.
     goal: (at) => (at === 1
-      ? 'Stop for the night before your bedtime'
-      : `Stop before bedtime ${at} nights running`),
+      ? 'Finish the list and stop before your bedtime'
+      : `Finish and stop before bedtime ${at} nights running`),
     measure: (state) => state.profile.lightsOut?.best || 0,
     tiers: [
       { at: 1, name: 'Turned In' },

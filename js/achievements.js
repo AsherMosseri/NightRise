@@ -29,7 +29,7 @@ import { CONSTELLATIONS } from './constellations.js';
 // so reaching back into it for allItems() would be an import cycle — and one
 // that throws, because these are `const` and would be read inside their own
 // temporal dead zone. The data lives in skins.js precisely so both can have it.
-import { THEMES, SOUND_PACKS, TRAILS, FONTS, HORIZONS, WEATHER, MOONS, MARKS, ENVELOPES } from './skins.js';
+import { THEMES, SOUND_PACKS, TRAILS, FONTS, WEATHER, MOONS, MARKS, ENVELOPES } from './skins.js';
 import { COMPANIONS } from './companion.js';
 
 /** Stardust for reaching a tier, paid once per tier ever. */
@@ -51,7 +51,7 @@ function inventorySize(profile) {
  * you, whatever the market grows to.
  */
 const CATALOG = [
-  ...THEMES, ...HORIZONS, ...WEATHER, ...MOONS, ...SOUND_PACKS,
+  ...THEMES, ...WEATHER, ...MOONS, ...SOUND_PACKS,
   ...TRAILS, ...MARKS, ...ENVELOPES, ...FONTS, ...COMPANIONS,
 ];
 const FREE_UNLOCKS = CATALOG.filter((item) => !item.cost).length;

@@ -124,14 +124,6 @@ function priceTag(cost) {
  * already applies to what a task says it pays.
  */
 function skinPreview(item) {
-  if (item.kind === 'horizon') {
-    const pts = item.points.map(([x, y]) => `${(x * 100).toFixed(2)},${(28 - y * 26).toFixed(2)}`).join(' ');
-    return svg('svg', {
-      class: 'swatch swatch--drawn', viewBox: '0 0 100 28',
-      preserveAspectRatio: 'none', 'aria-hidden': 'true',
-    }, svg('polygon', { points: `0,28 ${pts} 100,28`, fill: 'currentColor', opacity: 0.85 }));
-  }
-
   if (item.kind === 'moon') {
     const disc = item.disc === 'theme' ? 'var(--moon)' : item.disc;
     const shadow = item.shadow === 'theme' ? 'var(--moon-shadow)' : item.shadow;
@@ -279,7 +271,6 @@ VIEWS.shop = () => {
   const shelf = (bucket) => allItems().filter((item) => item.bucket === bucket);
   const tabs = [
     ['themes', 'Skies', shelf('themes')],
-    ['horizons', 'Horizons', shelf('horizons')],
     ['weather', 'Weather', shelf('weather')],
     ['moons', 'Moons', shelf('moons')],
     ['companions', 'Companions', shelf('companions')],

@@ -262,14 +262,16 @@
 .swatch--envelope {
   position: relative;
   background: var(--env-paper, var(--panel-solid));
-  --env-flap: var(--env-flap, color-mix(in srgb, var(--accent) 46%, var(--panel-solid)));
 }
+/* The fallback belongs at the point of use. Declaring --env-flap with itself as
+   its own fallback is a cycle, which CSS throws away entirely — so the default
+   envelope's card came up blank. */
 .swatch--envelope .swatch__flap {
   position: absolute;
   inset: 0 0 auto 0;
   height: 66%;
   clip-path: polygon(0 0, 100% 0, 50% 100%);
-  background: var(--env-flap);
+  background: var(--env-flap, color-mix(in srgb, var(--accent) 46%, var(--panel-solid)));
 }
 .swatch--envelope .swatch__seal {
   position: absolute;

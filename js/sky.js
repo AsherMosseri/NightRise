@@ -29,7 +29,6 @@ let moonFillTarget = 0;
 let trailKind = 'none';
 /* Equipped skins. Each is a plain spec from js/skins.js or null for "as it was",
    so nothing here has to know what the market sells. */
-let horizonSpec = null;
 let weatherSpec = null;
 let weatherParticles = [];
 let moonSpec = null;
@@ -55,7 +54,6 @@ const colors = {
   moonShadow: '#1b2140',
   trail: '#bcd0ff',
   glow: '#5f79d8',
-  horizon: '#05070f',
 };
 
 function readColors() {
@@ -69,9 +67,6 @@ function readColors() {
   colors.moonShadow = get('--moon-shadow', colors.moonShadow);
   colors.trail = get('--trail', colors.trail);
   colors.glow = get('--glow', colors.glow);
-  // Falls back to the darkest tone of whatever sky is equipped, so a horizon is
-  // a silhouette in every theme without any theme having to know about it.
-  colors.horizon = get('--horizon', get('--sky-1', colors.horizon));
 }
 
 function buildStars() {
@@ -294,33 +289,7 @@ function drawMoon(time) {
   }
 }
 
-/* ------------------------------------------------------- horizon & weather */
-
-/**
- * The silhouette along the bottom edge.
- *
- * A spec is `{ band, points }`: `band` is how much of the canvas height it
- * occupies, and `points` are the top edge only, x ascending 0..1 across the
- * canvas and y 0..1 up the band. The shape is closed down to the two bottom
- * corners and filled flat — no interior detail, because a silhouette that tries
- * to be a picture stops reading as a horizon.
- */
-export function setHorizon(spec) {
-  horizonSpec = spec && spec.points?.length ? spec : null;
-}
-
-function drawHorizon() {
-  if (!horizonSpec) return;
-  const { band, points } = horizonSpec;
-  const top = height - height * band;
-  ctx.fillStyle = colors.horizon;
-  ctx.beginPath();
-  ctx.moveTo(0, height);
-  for (const [px, py] of points) ctx.lineTo(px * width, height - (height - top) * py);
-  ctx.lineTo(width, height);
-  ctx.closePath();
-  ctx.fill();
-}
+/* ---------------------------------------------------------------- weather */
 
 /**
  * Weather: one particle layer, specified rather than coded.
@@ -905,10 +874,6 @@ function drawFrame(time) {
   drawNightStars(time);
   drawMoon(time);
   drawMeteors();
-  // The silhouette occludes the sky behind it — stars, meteors and the moon if
-  // it has set — and weather falls in front of it, the way snow falls in front
-  // of a treeline. The finale's own instruments stay on top of everything.
-  drawHorizon();
   drawWeather();
   drawRibbons();
   drawRings();

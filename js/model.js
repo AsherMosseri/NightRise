@@ -117,7 +117,6 @@ export function createProfile() {
     dustDebt: 0,
     inventory: {
       themes: ['midnight'],
-      horizons: ['open'],
       weather: ['clear'],
       moons: ['classic'],
       sounds: ['chime'],
@@ -129,7 +128,6 @@ export function createProfile() {
     },
     equipped: {
       theme: 'midnight',
-      horizon: 'open',
       weather: 'clear',
       moon: 'classic',
       sounds: 'chime',

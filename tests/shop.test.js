@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, allItems, itemById,
 } from '../js/shop.js';
+import { WEATHER, MOONS, MARKS, ENVELOPES } from '../js/skins.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
@@ -16,8 +17,9 @@ import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
 
 const CATALOGS = [
-  ['themes', THEMES], ['sounds', SOUND_PACKS], ['trails', TRAILS],
-  ['fonts', FONTS], ['companions', COMPANIONS],
+  ['themes', THEMES], ['weather', WEATHER], ['moons', MOONS],
+  ['sounds', SOUND_PACKS], ['trails', TRAILS], ['marks', MARKS],
+  ['envelopes', ENVELOPES], ['fonts', FONTS], ['companions', COMPANIONS],
 ];
 
 test('every id in the market is unique and resolves', () => {
@@ -118,7 +120,7 @@ test('consumables are priced and named', () => {
 test('the whole market costs what the README says it costs', () => {
   // Quoted in prose and used to pace every sink. Measured, not remembered.
   const total = allItems().reduce((sum, item) => sum + (item.cost || 0), 0);
-  assert.equal(total, 10950, 'the market total moved');
+  assert.equal(total, 23030, 'the market total moved');
 });
 
 test('a starting profile owns nothing it has not paid for', () => {
@@ -165,4 +167,77 @@ test('a save written before the typeface was renamed is carried across', () => {
   // thing that someone paid 400 stardust for.
   assert.equal(after.equipped.theme, 'aurora', 'the sky kept its id');
   assert.ok(after.inventory.themes.includes('aurora'), 'and is still owned');
+});
+
+test('every moon keeps its craters on its face and its fill legible', () => {
+  // The moon fills with tonight's completion. A skin whose lit and unlit halves
+  // sit close together in luminance breaks the one mechanic the moon has.
+  const lum = (hex) => {
+    const parts = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * parts[0] + 0.7152 * parts[1] + 0.0722 * parts[2];
+  };
+  for (const moon of MOONS) {
+    for (const [x, y, r] of moon.craters) {
+      assert.ok(Math.hypot(x, y) + r < 0.95, `${moon.id} has a crater off the edge of the moon`);
+    }
+    assert.ok(moon.craterAlpha >= 0 && moon.craterAlpha <= 0.25, `${moon.id} craterAlpha`);
+    if (moon.ring) assert.ok(moon.ring.scale >= 1.1 && moon.ring.scale <= 1.9, `${moon.id} ring`);
+    if (moon.disc === 'theme') continue;
+    const a = lum(moon.disc);
+    const b = lum(moon.shadow);
+    const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    assert.ok(ratio >= 3, `${moon.id} lit and unlit are only ${ratio.toFixed(1)}:1 apart`);
+  }
+});
+
+test('weather stays inside the frame budget and stays calm', () => {
+  // This runs at 60fps on a phone alongside the starfield and the trails, and it
+  // runs at 11pm. Both of those are limits.
+  for (const w of WEATHER) {
+    assert.ok(w.count <= 90, `${w.id} spawns ${w.count} particles`);
+    if (w.shape === 'band') assert.ok(w.count <= 8, `${w.id} draws ${w.count} gradients a frame`);
+    assert.ok(Math.abs(w.vy) <= 1.2 && Math.abs(w.vx) <= 1.2, `${w.id} moves too fast for a bedtime app`);
+    assert.ok(w.opacity <= 0.5, `${w.id} at ${w.opacity} would sit on top of the stars`);
+  }
+  assert.equal(WEATHER.find((w) => w.id === 'clear').count, 0, 'clear weather is no weather');
+});
+
+test('every mark is drawable and stays inside its viewBox', () => {
+  for (const mark of MARKS) {
+    const [x, y, w, h] = mark.box;
+    assert.ok(x >= 0 && y >= 0 && x + w <= 24 && y + h <= 24, `${mark.id} box leaves the 24x24 box`);
+    assert.ok(/^[Mm]/.test(mark.path), `${mark.id} path does not start with a move`);
+  }
+  const tick = MARKS.find((m) => m.id === 'check');
+  assert.equal(tick.path, 'M4 12l6 6L20 6', 'the free mark is the tick, unchanged');
+  assert.deepEqual(tick.box, [4, 6, 16, 12, 12.15, 12.76], 'to the digit js/dom.js already used');
+});
+
+test('every envelope is readable and none of them glare at midnight', () => {
+  const lum = (hex) => {
+    const parts = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * parts[0] + 0.7152 * parts[1] + 0.0722 * parts[2];
+  };
+  const contrast = (a, b) => {
+    const x = lum(a);
+    const y = lum(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+  for (const env of ENVELOPES) {
+    if (env.ink === 'theme') continue;
+    // The ink sits on the note, not on the paper — colouring the text without
+    // the surface under it is how dark ink on pale paper came out unreadable.
+    assert.ok(contrast(env.ink, env.note) >= 4.5,
+      `${env.id} ink is ${contrast(env.ink, env.note).toFixed(1)}:1 on its own note`);
+    assert.ok(contrast(env.seal, env.paper) >= 1.6, `${env.id} seal vanishes into the paper`);
+    assert.ok(lum(env.paper) < 0.25, `${env.id} is a bright rectangle at bedtime`);
+  }
+  const plain = ENVELOPES.find((e) => e.id === 'plain');
+  assert.ok(Object.values(plain).every((v) => v !== 'theme' || true));
+  assert.equal(plain.sealPath, null, 'the plain envelope has never had a seal');
+  for (const key of ['paper', 'note', 'ink', 'flap', 'seal']) {
+    assert.equal(plain[key], 'theme', `plain.${key} must defer to the sky, not restate it`);
+  }
 });

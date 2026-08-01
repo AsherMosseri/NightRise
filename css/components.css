@@ -1109,6 +1109,7 @@ body.has-sheet { overflow: hidden; }
    drifts the first time a sky is retuned. */
 .env-card {
   --env-paper: var(--panel-solid);
+  --env-note: var(--panel-2);
   --env-ink: var(--text);
   --env-flap: color-mix(in srgb, var(--accent) 46%, var(--panel-solid));
   --env-seal: var(--accent);
@@ -1149,7 +1150,10 @@ body.has-sheet { overflow: hidden; }
   gap: 4px;
   padding: 10px 14px;
   border-radius: var(--r-md);
-  background: var(--panel-2);
+  /* The note is the letter, and --env-ink is the writing ON it — so a skin has
+     to be able to set both. Colouring the text without the surface under it was
+     how dark ink on pale paper came out unreadable in testing. */
+  background: var(--env-note);
   border: 1px solid var(--border);
   transition: border-color 160ms var(--ease);
 }
@@ -1157,7 +1161,7 @@ body.has-sheet { overflow: hidden; }
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--env-ink) 62%, transparent);
 }
 /* A window exactly one cell tall. The reel behind it is the whole mechanic. */
 .env-slot { height: 44px; overflow: hidden; }

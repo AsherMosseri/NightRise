@@ -47,24 +47,6 @@ export const FONTS = [
 ];
 
 /**
- * The silhouette along the bottom of the sky.
- *
- * `band` is the fraction of canvas height it occupies; `points` are the top edge
- * only, x ascending 0..1 across the canvas and y 0..1 up the band. js/sky.js
- * closes the shape to the bottom corners and fills it flat.
- */
-export const HORIZONS = [
-  {
-    id: 'open',
-    name: 'Open Sky',
-    cost: 0,
-    desc: 'Nothing in the way, all the way down.',
-    band: 0,
-    points: [[0, 0], [1, 0]],
-  },
-];
-
-/**
  * One particle layer over the sky.
  *
  * Colours may be a hex string or 'accent' / 'star' / 'glow' to take the equipped
@@ -86,6 +68,70 @@ export const WEATHER = [
     opacity: 0,
     wobble: 0,
     spawn: 'sky',
+  },
+  {
+    id: 'rain',
+    name: 'Rainfall',
+    cost: 430,
+    desc: 'Steady on the window, the kind you fall asleep to.',
+    count: 64,
+    shape: 'streak',
+    vx: -0.18,
+    vy: 1.15,
+    size: 11,
+    sizeJitter: 7,
+    color: 'glow',
+    opacity: 0.34,
+    wobble: 0,
+    spawn: 'top',
+  },
+  {
+    id: 'snow',
+    name: 'Snowfall',
+    cost: 610,
+    desc: 'Slow flakes that take all night to settle.',
+    count: 70,
+    shape: 'dot',
+    vx: 0.08,
+    vy: 0.35,
+    size: 1.3,
+    sizeJitter: 1.4,
+    color: 'star',
+    opacity: 0.45,
+    wobble: 0.9,
+    spawn: 'top',
+  },
+  {
+    id: 'meteors',
+    name: 'Meteor Shower',
+    cost: 980,
+    desc: 'Faint streaks high up, gone before you can point at them.',
+    count: 6,
+    shape: 'streak',
+    vx: -0.7,
+    vy: 0.95,
+    size: 42,
+    sizeJitter: 26,
+    color: 'star',
+    opacity: 0.5,
+    wobble: 0,
+    spawn: 'upper',
+  },
+  {
+    id: 'northern',
+    name: 'Northern Lights',
+    cost: 1420,
+    desc: 'Slow curtains of light that only move when you look away.',
+    count: 4,
+    shape: 'band',
+    vx: 0.14,
+    vy: 0.015,
+    size: 90,
+    sizeJitter: 55,
+    color: 'accent',
+    opacity: 0.16,
+    wobble: 0.65,
+    spawn: 'upper',
   },
 ];
 
@@ -110,6 +156,66 @@ export const MOONS = [
     craters: [[0.28, -0.3, 0.18], [-0.1, 0.24, 0.13], [0.42, 0.34, 0.1], [0.05, -0.05, 0.08]],
     ring: null,
   },
+  {
+    id: 'porcelain',
+    name: 'Porcelain',
+    cost: 300,
+    desc: 'No craters, the way the moon looks at full when nothing casts a shadow.',
+    disc: '#f7f6f2',
+    shadow: '#171b30',
+    glow: '#93a8e2',
+    craterAlpha: 0,
+    craters: [],
+    ring: null,
+  },
+  {
+    id: 'harvest',
+    name: 'Harvest Moon',
+    cost: 520,
+    desc: 'The full moon nearest the autumn equinox, orange from riding low.',
+    disc: '#f0a44e',
+    shadow: '#2b1707',
+    glow: '#b96a22',
+    craterAlpha: 0.11,
+    craters: [[-0.23, -0.54, 0.26], [0.27, -0.47, 0.2], [0.52, -0.15, 0.22], [-0.27, 0.36, 0.17], [-0.57, 0.41, 0.1], [0.56, 0.26, 0.09]],
+    ring: null,
+  },
+  {
+    id: 'bluemoon',
+    name: 'Blue Moon',
+    cost: 740,
+    desc: 'Actually blue, the way it looked from Europe after the Alberta fires of 1950.',
+    disc: '#a8c6ff',
+    shadow: '#101a38',
+    glow: '#4a6cc8',
+    craterAlpha: 0.06,
+    craters: [[-0.23, -0.54, 0.2], [0.27, -0.47, 0.15], [0.52, -0.15, 0.16], [-0.27, 0.36, 0.12]],
+    ring: null,
+  },
+  {
+    id: 'earthshine',
+    name: 'Earthshine',
+    cost: 1060,
+    desc: 'The dark half is not dark: that is our own daylight, coming back.',
+    disc: '#f2f3fa',
+    shadow: '#3c4a70',
+    glow: '#6d84c6',
+    craterAlpha: 0.09,
+    craters: [[-0.23, -0.54, 0.24], [0.27, -0.47, 0.19], [0.52, -0.15, 0.21], [0.06, -0.23, 0.07], [-0.27, 0.36, 0.16]],
+    ring: null,
+  },
+  {
+    id: 'halo',
+    name: 'Ice Halo',
+    cost: 1290,
+    desc: 'The ring cirrus ice puts around the moon, which is supposed to mean rain by morning.',
+    disc: '#f4e7c8',
+    shadow: '#1b1e36',
+    glow: '#8f9ccb',
+    craterAlpha: 0.07,
+    craters: [[-0.23, -0.54, 0.22], [0.52, -0.15, 0.18], [-0.27, 0.36, 0.14], [0.56, 0.26, 0.09]],
+    ring: { alpha: 0.26, dash: '', scale: 1.8 },
+  },
 ];
 
 /**
@@ -124,7 +230,42 @@ export const MARKS = [
     cost: 0,
     desc: 'A tick. Hard to improve on.',
     path: 'M4 12l6 6L20 6',
+    // The measurement already in js/dom.js, to the digit. A free default that is
+    // merely close to today's is a silent visual change to everyone's app.
     box: [4, 6, 16, 12, 12.15, 12.76],
+  },
+  {
+    id: 'strike',
+    name: 'Struck Through',
+    cost: 240,
+    desc: 'A line through it, the way you would on paper.',
+    path: 'M4 12h16',
+    box: [4, 12, 16, 0, 12, 12],
+  },
+  {
+    id: 'star',
+    name: 'Star',
+    cost: 420,
+    desc: 'A small one of your own, for a small thing done.',
+    path: 'M12 3.5l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.9l6-.8z',
+    box: [3.4, 3.5, 17.2, 16.6, 11.95, 12.64],
+  },
+  {
+    id: 'crescent',
+    name: 'Crescent',
+    cost: 640,
+    desc: 'The same moon that is filling up above the list.',
+    path: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z',
+    box: [3.32, 4, 16.68, 16.68, 9.95, 13.95],
+  },
+  {
+    id: 'ember',
+    name: 'Ember',
+    cost: 880,
+    desc: 'A little flame, for the ones that took some doing.',
+    path: 'M12 3.5c.6 3.2 4.5 4.6 4.5 8.6a4.5 4.5 0 0 1-9 0c0-1.7.8-2.8 1.8-3.8.5 1 1.2 1.6 2 1.9-.4-2.4-.1-4.6.7-6.7z',
+    // Measured with getBBox and a 200-sample path centroid, not estimated.
+    box: [7.5, 3.5, 9, 13.1, 11.95, 10.61],
   },
 ];
 
@@ -140,16 +281,64 @@ export const ENVELOPES = [
     cost: 0,
     desc: 'The envelope this app has always handed you.',
     paper: 'theme',
+    note: 'theme',
     ink: 'theme',
     flap: 'theme',
     seal: 'theme',
     sealPath: null,
   },
+  {
+    id: 'slate',
+    name: 'Slate',
+    cost: 270,
+    desc: 'Grey card, no ceremony, the sort a bill comes in.',
+    paper: '#1c1f24',
+    note: '#22262c',
+    ink: '#e6e9ee',
+    flap: '#2a2f36',
+    seal: '#7f8b99',
+    sealPath: 'M7 12h10M12 7v10',
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    cost: 480,
+    desc: 'Deep green, sealed with a fir that someone drew from memory.',
+    paper: '#12241c',
+    note: '#172c22',
+    ink: '#dceee3',
+    flap: '#1d3a2c',
+    seal: '#3f7d5a',
+    sealPath: 'M12 5l4 6h-2.5l3 5h-9l3-5H8z',
+  },
+  {
+    id: 'oxblood',
+    name: 'Oxblood',
+    cost: 760,
+    desc: 'Dark red and heavier than it needs to be.',
+    paper: '#2a1418',
+    note: '#34191e',
+    ink: '#f0dcd8',
+    flap: '#4a1f26',
+    seal: '#8c2f39',
+    sealPath: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z',
+  },
+  {
+    id: 'brass',
+    name: 'Ink and Brass',
+    cost: 1040,
+    desc: 'Navy paper and a brass seal, from somewhere that still writes letters.',
+    paper: '#131a2b',
+    note: '#182034',
+    ink: '#e4e9f5',
+    flap: '#1e2942',
+    seal: '#b08d4f',
+    sealPath: 'M12 6l1.8 3.9 4.2.6-3 2.9.7 4.1-3.7-2-3.7 2 .7-4.1-3-2.9 4.2-.6z',
+  },
 ];
 
 const BY_ID = (list) => (id) => list.find((entry) => entry.id === id) || list[0];
 
-export const horizonById = BY_ID(HORIZONS);
 export const weatherById = BY_ID(WEATHER);
 export const moonById = BY_ID(MOONS);
 export const markById = BY_ID(MARKS);

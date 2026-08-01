@@ -17,9 +17,9 @@ import { initToasts, toast, celebrate } from './toast.js';
 import {
   initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar,
   emitTrailAt, celebrateBurst, refreshTheme, setReducedMotion,
-  setHorizon, setWeather, setMoonSkin,
+  setWeather, setMoonSkin,
 } from './sky.js';
-import { horizonById, weatherById, moonById } from './skins.js';
+import { weatherById, moonById } from './skins.js';
 import { completedConstellations, progressFor } from './constellations.js';
 import { onTimeNights } from './insights.js';
 import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
@@ -73,7 +73,6 @@ function applyCosmetics() {
   // The three skins the canvas draws. Each resolves through its catalog, so an
   // id from a save the app no longer recognises lands on the free default
   // rather than an empty sky.
-  setHorizon(horizonById(equipped.horizon));
   setWeather(weatherById(equipped.weather));
   setMoonSkin(moonById(equipped.moon));
   setReducedMotion(reducedMotionActive(state));

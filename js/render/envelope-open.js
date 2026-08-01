@@ -128,8 +128,9 @@ export function playEnvelopeOpen({ drop, amount, rect, key }) {
   // the sky you have on — wins, and "Plain" stays a true no-op.
   const skin = envelopeById(getState().profile.equipped.envelope || 'plain');
   const ink = (value, prop) => (value && value !== 'theme' ? `${prop}:${value};` : '');
-  const style = ink(skin.paper, '--env-paper') + ink(skin.ink, '--env-ink')
-    + ink(skin.flap, '--env-flap') + ink(skin.seal, '--env-seal');
+  const style = ink(skin.paper, '--env-paper') + ink(skin.note, '--env-note')
+    + ink(skin.ink, '--env-ink') + ink(skin.flap, '--env-flap')
+    + ink(skin.seal, '--env-seal');
 
   const card = h('div', { class: 'env-card', style: style || null },
     h('div', { class: 'env-card__flap', 'aria-hidden': 'true' }),

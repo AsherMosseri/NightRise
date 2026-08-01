@@ -5,7 +5,7 @@ import { checkAchievements } from './achievements.js';
 import { computeStats } from './night.js';
 import { COMPANIONS, FEED_COST, TIER_FEEDS, tierForFeeds } from './companion.js';
 import {
-  THEMES, SOUND_PACKS, TRAILS, FONTS, HORIZONS, WEATHER, MOONS, MARKS, ENVELOPES,
+  THEMES, SOUND_PACKS, TRAILS, FONTS, WEATHER, MOONS, MARKS, ENVELOPES,
 } from './skins.js';
 
 /* Re-exported: the catalogs live in skins.js as data, the rules live here. */
@@ -31,7 +31,6 @@ export const CONSUMABLES = [
 /* bucket (where owning it is recorded) -> kind (which equipped slot it fills). */
 const KIND_BY_LIST = [
   ['themes', 'theme', THEMES],
-  ['horizons', 'horizon', HORIZONS],
   ['weather', 'weather', WEATHER],
   ['moons', 'moon', MOONS],
   ['sounds', 'sounds', SOUND_PACKS],

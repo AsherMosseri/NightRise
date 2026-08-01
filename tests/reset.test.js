@@ -348,3 +348,35 @@ test('two trips to Settings in either order is not a stardust faucet', () => {
     assert.equal(p.maxLevelRewarded, 1);
   }
 });
+
+test('clearing tonight only re-arms lights out if it handed the money back', () => {
+  // Normally it does both: the reward goes back, so the date is unpaid again.
+  replaceState(fresh());
+  const key = getState().night.key;
+  grantXp(getState(), 26, 6);
+  const paid = getState().profile.xp;
+  assert.ok(paid > 0);
+  getState().profile.lastLightsOutKey = key;
+  getState().night.lightsOutAt = Date.now();
+  getState().night.lightsOutAward = { xp: 26, dust: 6 };
+
+  applyReset(getState(), ['checks']);
+  assert.equal(getState().profile.xp, 0, 'the reward went back');
+  assert.equal(getState().profile.lastLightsOutKey, null, 'so the date is open again');
+
+  // And the case that made it a faucet. "Bank tonight and start fresh" builds a
+  // new night object, so the record of what Lights out paid is gone while the
+  // date is still marked paid. Clearing tonight after that hands back nothing —
+  // and used to clear the key regardless, re-arming a reward it could not
+  // revoke, so pressing Lights out again paid for the same night twice.
+  replaceState(fresh());
+  const key2 = getState().night.key;
+  grantXp(getState(), 26, 6);
+  getState().profile.lastLightsOutKey = key2;
+  getState().night.lightsOutAward = null;
+
+  applyReset(getState(), ['checks']);
+  assert.equal(getState().profile.xp, paid, 'there was nothing to hand back');
+  assert.equal(getState().profile.lastLightsOutKey, key2,
+    'so the date stays paid — the guard goes back only with the money');
+});

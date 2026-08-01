@@ -257,7 +257,11 @@ it's the scroll.
   through the list in ten seconds earns nothing.
 - **Curfew.** The shop, star map, history and insights close 30 minutes before bedtime.
   Four browsing surfaces with a currency attached are the same product NightCheck is
-  supposed to be rescuing you from. A deliberate second tap still gets you in.
+  supposed to be rescuing you from. A deliberate second tap still gets you in. It has its
+  own toggle, and **last call is not underneath it** — two settings, two rungs, two off
+  switches. Turning the curfew off used to switch off last call as well, while the Last
+  call row directly above that toggle went on promising the panels would stop letting you
+  in; the two now meet in one function (`panelGate`) rather than at each call site.
 
 **The game**
 - **The streak in the top bar is about the clock, not the list.** It counts **clean
@@ -416,6 +420,23 @@ it's the scroll.
   whenever that is not where today's dashed line sits — so moving your bedtime shows up as
   a moved tick rather than quietly recolouring the past. Averaging clock times is done
   in minutes from noon, so 11:50pm and 12:10am are twenty minutes apart rather than 1420.
+  Noon because it is the one hour nobody goes to bed at, and both of the other candidates
+  wrap somewhere real: **midnight** is the middle of an ordinary night, and the app's own
+  **4am** rollover is where the worst nights land. Stopping at 3:50am and stopping at
+  4:10am are twenty minutes apart, but the roll stamps the later one on the next night's
+  key — read naively that is a 1440-minute cliff, and one such night dragged the seven-day
+  average nearly three hours earlier. The app then answered a run of midnights by offering
+  to move an 11:30 target to **9:15 PM**: a suggestion earlier than every night it was
+  computed from, presented as the remedy for going to bed too late. The record now lifts
+  that case by a day, which puts 4:10am twenty minutes after 3:50am where it belongs, and
+  a suggestion is clamped to the range the picker itself offers.
+  The same arithmetic is counted along the calendar rather than the epoch, because
+  everything it is compared against is a clock time — a target line, a picker range, a
+  setting written back. On the night the clocks go back, epoch minutes made a 3:30am
+  lights-out read an hour later than a 3:30am lights-out any other night of the year, and
+  plotted it an hour below its own target line on the same chart. Last call is the one
+  place that deliberately does the opposite and adds *real* minutes: "an hour past
+  bedtime" is a question about how long you have actually been up.
 - **Sleep-safe dim mode** — warm and dark, not sepia. It used to run `sepia(0.35)` over
   everything, and sepia does not warm a colour, it *replaces* it: the whole app collapsed
   onto one brown ramp and a deep blue night came out looking like a muddy tan photograph,
@@ -539,7 +560,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**343 tests, 18 suites, zero dependencies**, on Node's built-in runner. No install step:
+**351 tests, 18 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -553,6 +574,7 @@ They cover the pure modules — everything that can be reasoned about without a 
 | `game` `economy` | the XP curve, levels, momentum, and every way a reward could be paid twice |
 | `achievements` | tiers, what a rung is worth, and what can take one back |
 | `quests` `bedtime` `bedtimestats` | quest predicates, the envelope, the bedtime record and its averages |
+| `lastcall` | the four stages, the decaying reward, and the two boundaries the record wraps at |
 | `reset` `storage` | what each reset part clears, migration, and old saves |
 | `duration` `timer` `insights` `interaction` | half-minute estimates, the card clock, the history stats, quick-add parsing |
 
@@ -577,7 +599,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 21,800 lines: 13,100 of application JavaScript, 5,000 of tests, 3,300 of CSS, and
+About 21,800 lines: 13,300 of application JavaScript, 5,200 of tests, 3,300 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

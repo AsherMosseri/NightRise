@@ -6,7 +6,7 @@ import { getState, subscribe, update, on, hydrateState } from './state.js';
 import { addSection, addTask, setSetting } from './actions.js';
 import { computeStats, rolloverIfNeeded } from './night.js';
 import {
-  nightKeyOf, formatNightLabel, formatClockLabel, lateStage, CURFEW_LEAD_MINUTES,
+  nightKeyOf, formatNightLabel, formatClockLabel, lateStage, panelGate, CURFEW_LEAD_MINUTES,
 } from './time.js';
 import { initChecklist, renderChecklist, floatXp } from './render/checklist.js';
 import { initHeader, renderHeader, renderTonight } from './render/header.js';
@@ -442,9 +442,9 @@ function boot() {
   const openPanel = (name) => {
     const state = getState();
     const { bedtime, lastCall, curfew } = state.profile.settings;
-    const stage = curfew ? lateStage(state.night.key, bedtime, lastCall) : 'clear';
-    const gated = BROWSING.has(name) && (stage === 'curfew' || stage === 'lastcall' || stage === 'past');
-    if (!gated) {
+    const stage = lateStage(state.night.key, bedtime, lastCall);
+    const gate = BROWSING.has(name) ? panelGate(stage, curfew) : 'open';
+    if (gate === 'open') {
       openModal(name);
       return;
     }
@@ -453,7 +453,7 @@ function boot() {
     // After it, an app still offering a way into four browsing surfaces with a
     // currency attached is not closing, it is asking. The list and One Card are
     // untouched at every stage: they are how the night ends.
-    if (stage === 'lastcall') {
+    if (gate === 'shut') {
       openSheet({
         title: 'That is closed now',
         subtitle: `It shut at last call, ${lastCall} minutes past ${formatClockLabel(bedtime)}. It will all still be here in the morning.`,

@@ -15,7 +15,7 @@ import { openAddTask, openFirstTask, openAddSection } from './add-task.js';
 import { minutesFromToken } from '../keys.js';
 import { formatMinutesLong, formatMinutesShort, plural } from '../util.js';
 import { still, growTo } from './motion.js';
-import { inCurfew } from '../time.js';
+import { lateStage, panelGate } from '../time.js';
 
 /** Whether this device has a pointer that can hover — the same test the CSS makes. */
 function hasPointer() {
@@ -165,8 +165,12 @@ function rainCheck(taskId) {
   // sheet, so the toast said "buy more" and offered a four-step detour. Outside
   // it, the toast takes you there in one tap instead of describing the route.
   const live = getState();
-  const closed = live.profile.settings.curfew
-    && inCurfew(live.night.key, live.profile.settings.bedtime, new Date());
+  const { bedtime, lastCall, curfew } = live.profile.settings;
+  // The same gate the market button goes through. Asking only about the curfew
+  // put a "Night Market" action on this toast that opened a sheet saying no —
+  // and missed the case the toast most needs to get right, since past last call
+  // there is no way through at all.
+  const closed = panelGate(lateStage(live.night.key, bedtime, lastCall, new Date()), curfew) !== 'open';
   toast('No rain checks left', {
     tone: 'warn',
     iconName: 'skip',

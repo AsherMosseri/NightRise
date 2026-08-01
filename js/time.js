@@ -144,6 +144,12 @@ export function inCurfew(key, bedtime, now = new Date()) {
 export const LAST_CALL_DEFAULT = 60;
 export const LAST_CALL_CHOICES = [0, 30, 60, 90, 120];
 
+/** The instant a night key stops being the current night: 4am the morning after. */
+export function nightEndInstant(key) {
+  const base = keyToDate(key);
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1, NIGHT_BOUNDARY_HOUR, 0, 0, 0);
+}
+
 export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
   const minutes = Math.max(0, Math.round(Number(lastCall) || 0));
   if (!minutes) return null;
@@ -153,7 +159,16 @@ export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
   // the local calendar, so an offset spanning a DST boundary would land on the
   // same wall-clock arithmetic rather than the same number of real minutes —
   // and the whole point of this number is how long you have actually been up.
-  return new Date(target.getTime() + minutes * 60000);
+  const raw = new Date(target.getTime() + minutes * 60000);
+  // Never past the end of the night it belongs to. A 3:45 bedtime with two hours
+  // put last call at 5:45am — a moment this key never sees, because the night
+  // rolls at 4 and every consumer asks about the *current* key. So the stage
+  // could not fire, while Settings named 5:45 AM as the time it would. 4am is
+  // the real answer there: the night ends, the list resets, and nothing later
+  // than that belongs to it. Clamped forward only — if the bedtime itself is
+  // already past the boundary, last call stays after the bedtime it follows.
+  const end = nightEndInstant(key);
+  return raw > end && end > target ? end : raw;
 }
 
 /**
@@ -167,6 +182,12 @@ export function formatLastCall(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
   const at = lastCallInstant(key, bedtime, lastCall);
   if (!at) return '—';
   return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** True when the 4am rollover, rather than your offset, is what sets last call. */
+export function lastCallCapped(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
+  const at = lastCallInstant(key, bedtime, lastCall);
+  return at !== null && at.getTime() === nightEndInstant(key).getTime();
 }
 
 /** Signed minutes past last call; negative before it, null when it is off. */
@@ -188,6 +209,26 @@ export function minutesPastLastCall(key, bedtime, lastCall, now = new Date()) {
  * usable bedtime or last call is off, which is what makes the whole feature
  * switch off from a single place.
  */
+/**
+ * What the four browsing panels do at a stage — the one place the two settings
+ * that can close them are combined.
+ *
+ * 'open' nothing in the way · 'soft' the curfew sheet, with a way through ·
+ * 'shut' past last call, and there is no way through.
+ *
+ * Here rather than at each call site because there were two call sites and they
+ * disagreed. Both asked "is the curfew toggle on?" first, which made last call a
+ * sub-clause of a different setting: turn off "close the market before bed" and
+ * last call quietly stopped closing anything, while the Last call row directly
+ * above that toggle went on saying it would. Two settings, two rungs, two off
+ * switches; this function is where that is written down.
+ */
+export function panelGate(stage, curfewEnabled = true) {
+  if (stage === 'lastcall') return 'shut';
+  if (!curfewEnabled) return 'open';
+  return stage === 'curfew' || stage === 'past' ? 'soft' : 'open';
+}
+
 export function lateStage(key, bedtime, lastCall = LAST_CALL_DEFAULT, now = new Date()) {
   const minutesLeft = minutesUntilBedtime(key, bedtime, now);
   if (minutesLeft === null) return 'clear';

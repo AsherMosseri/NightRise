@@ -98,8 +98,14 @@ function clearTonight(state) {
   if (state.night.lightsOutAward) {
     revokeGrant(state, state.night.lightsOutAward.xp, state.night.lightsOutAward.dust);
     state.night.lightsOutAward = null;
+    // The key goes back only with the money. It is the once-per-date guard, and
+    // clearing it unconditionally opened the exact hole it exists to close:
+    // "Bank tonight and start fresh" builds a new night object, so the record of
+    // what Lights out paid is gone while the date stays paid. A clear after that
+    // handed back nothing — and re-armed the reward, so pressing Lights out
+    // again on the same date paid for the same night twice.
+    state.profile.lastLightsOutKey = null;
   }
-  state.profile.lastLightsOutKey = null;
   state.night.lightsOutAt = null;
   state.night.lightsOutOnTime = false;
 }

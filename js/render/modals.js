@@ -17,7 +17,7 @@ import { forceNewNight, computeStats, effectiveStreak, effectiveLightsOutStreak 
 import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
-  LAST_CALL_CHOICES, formatLastCall,
+  LAST_CALL_CHOICES, formatLastCall, lastCallCapped,
 } from '../time.js';
 import { serializeState, parseImport, clearStorage, exportedAtOf } from '../storage.js';
 import { createInitialState } from '../model.js';
@@ -31,6 +31,7 @@ import { RESET_PARTS, resetPartById, applyReset } from '../reset.js';
 import { refreshApp, runningVersion } from '../updates.js';
 import {
   bedtimeSeries, bedtimeSummary, formatFromNoon, formatShift,
+  BEDTIME_EARLIEST_FROM_NOON, BEDTIME_LATEST_FROM_NOON,
 } from '../bedtime.js';
 
 let dialog = null;
@@ -632,10 +633,12 @@ const CHART_NIGHTS = 21;
 function targetFromNoon(bedtime) {
   const parsed = parseClock(bedtime);
   if (!parsed) return null;
-  const minutes = parsed.hours * 60 + parsed.minutes - 12 * 60;
   // A 1am target belongs to the small hours of the *next* morning, same as the
-  // night it ends — otherwise it plots twenty-three hours early.
-  return parsed.hours < 4 ? minutes + 1440 : minutes;
+  // night it ends — otherwise it plots twenty-three hours early. Modulo a day
+  // from noon, which pivots where bedtimeInstant pivots: the old `< 4` here
+  // disagreed with it for every hour between 4 and noon, so a 5am target plotted
+  // a full day below a 5am night that the countdown had resolved forward.
+  return ((parsed.hours * 60 + parsed.minutes - 720) % 1440 + 1440) % 1440;
 }
 
 /**
@@ -935,8 +938,10 @@ function bedtimePicker(current, onChange) {
   // "later" from midnight reached 4am — a time the night cycle reads as this
   // morning rather than tomorrow's. Measured from noon, an evening is a simple
   // range: 19:00 is 420 and 03:45 is 945, and there is nothing to wrap through.
-  const EARLIEST = 7 * 60; // 19:00
-  const LATEST = 15 * 60 + 45; // 03:45 — one step short of the 4am rollover
+  // Shared with suggestBedtime, which writes straight into this setting: the
+  // range you can dial in and the range the app may suggest are one range.
+  const EARLIEST = BEDTIME_EARLIEST_FROM_NOON; // 19:00
+  const LATEST = BEDTIME_LATEST_FROM_NOON; // 03:45 — one step short of the 4am rollover
   const fromNoon = (h, m) => (h * 60 + m - 720 + 1440) % 1440;
 
   const shift = (minutes) => {
@@ -976,6 +981,30 @@ function bedtimePicker(current, onChange) {
 
 function downloadBackup(state) {
   downloadText(serializeState(state), `nightcheck-${state.night.key}.json`);
+}
+
+/**
+ * What last call actually does, in the panel that sets it.
+ *
+ * Every clause here is one the code has to keep. The version this replaced said
+ * "what stopping pays keeps shrinking" inside a sentence beginning "Past it",
+ * which credited last call with the decaying reward — that follows the bedtime
+ * and shrinks the same whether this is on, off, or set to two hours. Naming the
+ * wrong cause for a real consequence is how a setting acquires a reputation it
+ * did not earn, in either direction.
+ */
+function lastCallHint(state, settings) {
+  if (!settings.lastCall) {
+    return 'Off. Bedtime is the only line, and being an hour past it looks the same as being three.';
+  }
+  const at = formatLastCall(state.night.key, settings.bedtime, settings.lastCall);
+  const capped = lastCallCapped(state.night.key, settings.bedtime, settings.lastCall);
+  return [
+    `${settings.lastCall} minutes past ${formatClockLabel(settings.bedtime)}, so ${at}.`,
+    capped ? 'The night rolls over at 4am and the list starts again, so last call cannot land later than that.' : '',
+    'Past it the shop, star map, history and insights stop letting you in, with no way through.',
+    'Your list and one-at-a-time are never touched.',
+  ].filter(Boolean).join(' ');
 }
 
 VIEWS.settings = () => {
@@ -1068,9 +1097,7 @@ VIEWS.settings = () => {
     title: 'Settings',
     body: h('div', { class: 'settings' },
       field('Target bedtime', bedtime, 'Drives the countdown and the on-pace reading.'),
-      field('Last call', lastCall, settings.lastCall
-        ? `${formatClockLabel(settings.bedtime)} is the target; last call is ${formatLastCall(state.night.key, settings.bedtime, settings.lastCall)}. Past it the shop, star map, history and insights stop letting you in, and what stopping pays keeps shrinking. Your list and one-at-a-time are never touched.`
-        : 'Off. Bedtime is the only line, and being an hour past it looks the same as being three.'),
+      field('Last call', lastCall, lastCallHint(state, settings)),
       field('Motion', motion, 'The sky, the FLIP animations and the pointer trail.'),
       h('div', { class: 'field' },
         toggle('dim', 'Sleep-safe dim', 'Warms and dims the whole page for late nights.'),

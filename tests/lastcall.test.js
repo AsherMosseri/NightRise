@@ -10,12 +10,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { execFileSync } from 'node:child_process';
+
 import {
-  lateStage, lastCallInstant, minutesPastLastCall, formatLastCall,
-  bedtimeInstant, LAST_CALL_DEFAULT, LAST_CALL_CHOICES, PACING_COPY,
+  lateStage, lastCallInstant, minutesPastLastCall, formatLastCall, lastCallCapped,
+  bedtimeInstant, nightEndInstant, panelGate, shiftKey,
+  LAST_CALL_DEFAULT, LAST_CALL_CHOICES, PACING_COPY,
 } from '../js/time.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
-import { lastNightReckoning, suggestBedtime, minutesFromNoon } from '../js/bedtime.js';
+import {
+  lastNightReckoning, suggestBedtime, minutesFromNoon, bedtimeSummary,
+} from '../js/bedtime.js';
 import { createInitialState, createProfile } from '../js/model.js';
 import { normalizeState } from '../js/storage.js';
 
@@ -305,4 +310,122 @@ test('a save written before last call existed gets the default', () => {
   delete state.profile.settings.lastCall;
   const loaded = normalizeState(JSON.parse(JSON.stringify(state)));
   assert.equal(loaded.profile.settings.lastCall, LAST_CALL_DEFAULT);
+});
+
+/* ------------------------------------------- last call and the 4am rollover */
+
+test('last call cannot land after the night it belongs to', () => {
+  const end = nightEndInstant(KEY);
+  assert.equal(end.getHours(), 4);
+  assert.equal(end.getDate(), 2, 'the morning after');
+
+  // 3:45 is the latest bedtime the picker offers. Two hours past it is 5:45am —
+  // an instant this key never sees, because the night rolled at 4 and every
+  // consumer asks about the *current* key. So the stage could not fire, while
+  // Settings named 5:45 AM as the time it would.
+  assert.equal(lastCallInstant(KEY, '03:45', 120).getTime(), end.getTime());
+  assert.equal(lastCallCapped(KEY, '03:45', 120), true);
+
+  // An ordinary evening is untouched, and still counted in real minutes.
+  assert.equal(lastCallCapped(KEY, BED, 120), false);
+  assert.equal(lastCallInstant(KEY, BED, 120).getTime(),
+    bedtimeInstant(KEY, BED).getTime() + 120 * 60000);
+});
+
+test('no bedtime the picker offers can push last call out of its night', () => {
+  const end = nightEndInstant(KEY).getTime();
+  for (let fromNoon = 7 * 60; fromNoon <= 15 * 60 + 45; fromNoon += 15) {
+    const total = (fromNoon + 720) % 1440;
+    const bedtime = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    for (const choice of LAST_CALL_CHOICES.filter(Boolean)) {
+      const call = lastCallInstant(KEY, bedtime, choice).getTime();
+      assert.ok(call <= end, `${bedtime} + ${choice} min escaped the night`);
+      assert.ok(call >= bedtimeInstant(KEY, bedtime).getTime(),
+        `${bedtime} + ${choice} min landed before the bedtime it follows`);
+    }
+  }
+});
+
+test('turning off the market curfew does not turn off last call', () => {
+  assert.equal(panelGate('clear', true), 'open');
+  assert.equal(panelGate('curfew', true), 'soft', 'a sheet with a way through');
+  assert.equal(panelGate('past', true), 'soft');
+  assert.equal(panelGate('lastcall', true), 'shut', 'and no way through');
+
+  // "Close the market before bed" off: the soft rung goes, the hard one stays.
+  assert.equal(panelGate('curfew', false), 'open');
+  assert.equal(panelGate('past', false), 'open');
+  assert.equal(panelGate('lastcall', false), 'shut',
+    'the Last call row promises the panels stop letting you in — a different toggle must not cancel that');
+});
+
+/* --------------------------------------- the night that ran past the rollover */
+
+test('the record does not jump a day at the 4am rollover', () => {
+  // Stop at 3:50 and it belongs to KEY. Twenty minutes later the night has
+  // rolled, so stopping at 4:10 is stamped on the *next* key, 470 minutes
+  // before that key's own noon.
+  const before = minutesFromNoon(new Date(2026, 7, 2, 3, 50).getTime(), KEY);
+  const after = minutesFromNoon(new Date(2026, 7, 2, 4, 10).getTime(), '2026-08-02');
+  assert.equal(before, 950);
+  assert.equal(after, 970, 'twenty minutes later, not a day earlier');
+});
+
+test('one night past 4am does not drag the week hours earlier', () => {
+  const today = '2026-08-08';
+  const history = {};
+  for (let i = 1; i <= 7; i += 1) {
+    const key = shiftKey(today, -i);
+    const [y, m, d] = key.split('-').map(Number);
+    // The most recent night ran to 4:10am, so the roll stamped it on its own
+    // key in the morning. The rest ended at 12:30am, the night after theirs.
+    const at = i === 1 ? new Date(y, m - 1, d, 4, 10) : new Date(y, m - 1, d + 1, 0, 30);
+    history[key] = { lightsOutAt: at.getTime(), minutesLate: 60, bedtime: '23:30', onTime: false };
+  }
+
+  const summary = bedtimeSummary(history, today);
+  assert.ok(summary.average > summary.earliest, 'the mean sits inside its own range');
+  assert.equal(summary.latest, 970, 'the 4:10am night is the latest of them, not the earliest');
+
+  // The whole point of the suggestion is that you could actually hit it. Read
+  // raw, that one night pulled the mean to 546 and the app offered to move a
+  // 11:30 target to 9:15 PM as the remedy for going to bed too late.
+  const { suggestedValue } = suggestBedtime(summary.average, today);
+  assert.equal(suggestedValue, '01:15');
+  assert.ok(minutesFromNoon(new Date(2026, 7, 8, 1, 15).getTime(), '2026-08-07') >= summary.earliest,
+    'never earlier than the earliest night it was computed from');
+});
+
+test('a suggestion stays inside the range the picker offers', () => {
+  // It is applied by writing straight into the setting, so it has to be a time
+  // the picker could have produced — and one the night cycle reads as tonight.
+  assert.equal(suggestBedtime(60, KEY).suggestedValue, '19:00', 'nothing earlier than 7pm');
+  assert.equal(suggestBedtime(1200, KEY).suggestedValue, '03:45', 'nothing past the rollover');
+});
+
+test('minutes from noon are clock minutes, on the two nights that differ', () => {
+  // This machine runs in UTC, where every day is exactly 1440 minutes and the
+  // difference cannot show. So ask a zone that changes: on 2026-11-01 New York
+  // runs 1:59am twice, making that night 25 real hours long.
+  const probe = `
+    import { minutesFromNoon, formatFromNoon, suggestBedtime } from './js/bedtime.js';
+    const fallBack = minutesFromNoon(new Date(2026, 10, 1, 3, 30).getTime(), '2026-10-31');
+    const ordinary = minutesFromNoon(new Date(2026, 10, 8, 3, 30).getTime(), '2026-11-07');
+    console.log(JSON.stringify({
+      fallBack, ordinary,
+      face: formatFromNoon(fallBack, '2026-10-31'),
+      suggested: suggestBedtime(fallBack, '2026-10-31').suggestedValue,
+      offsets: [new Date(2026, 9, 31, 12).getTimezoneOffset(), new Date(2026, 10, 1, 12).getTimezoneOffset()],
+    }));
+  `;
+  const out = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+    env: { ...process.env, TZ: 'America/New_York' }, encoding: 'utf8',
+  }));
+
+  assert.notDeepEqual(out.offsets[0], out.offsets[1], 'the probe zone really did change');
+  assert.equal(out.fallBack, 930, '3:30am is 930 minutes past noon');
+  assert.equal(out.fallBack, out.ordinary,
+    'the same clock time gives the same number, whatever the calendar did that night');
+  assert.equal(out.face, '3:30 AM', 'and converts back to the time you actually stopped');
+  assert.equal(out.suggested, '03:30');
 });

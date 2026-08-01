@@ -118,32 +118,21 @@ export function renderStats() {
           title: `${formatNumber(level.into)} / ${formatNumber(level.need)} XP`,
         }, xpFill(level)))),
     (() => {
-      const live = effectiveStreak(state);
-      // The gift lands before the accounting. Painting the streak red the
-      // instant a returning user opens the app is the sentence that sends them
-      // to a feed instead — so while there is still something on the mat, the
-      // chip stays quiet and says what it will say once the envelopes are open.
-      const mat = pendingEnvelopes(state).length > 1;
-      const title = mat
-        ? `${plural(live.missed, 'night', 'nights')} away. Open what is waiting first — the streak can wait its turn.`
-        : live.atRisk
-        ? `${plural(live.missed, 'night', 'nights')} missed since you last banked one.`
-          + (live.covered
-            ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover it.`
-            : ` ${live.held ? `${plural(live.held, 'freeze', 'freezes')} is not enough to cover all of them, and a freeze is never spent unless it saves the streak. ` : ''}The streak is gone.`)
-        // "60% of your list" is not what is measured: the percentage is over
-        // the tasks that counted, and a rain check takes one out of the
-        // denominator entirely. Four of eleven done with seven rain-checked is
-        // 100%, and it extends this streak.
-        : `Nights running you reached 60% of what counted — rain checks are left`
-          + ` out of the sum. About the list, not the clock.`
-          + ` Best: ${profile.bestStreak}. Freezes held: ${profile.tokens.freeze}`;
+      // The headline streak is the one about the clock, not the one about the
+      // list. This app's whole argument is that going to bed early should beat
+      // scrolling, and a flame that counts nights you got 60% through a list
+      // goes up just as happily at 2am — which is the same mistake as pricing
+      // rows instead of evenings, in the number people actually watch.
+      const nights = effectiveLightsOutStreak(state);
+      const best = state.profile.lightsOut?.best || 0;
       return statChip({
-        iconName: 'flame',
-        value: String(live.streak),
-        label: 'list streak',
-        title,
-        className: `stat--streak ${live.streak > 0 && !live.atRisk ? 'stat--hot' : ''} ${live.atRisk && !mat ? 'stat--risk' : ''}`.trim(),
+        iconName: 'moon',
+        value: String(nights),
+        label: 'nights on time',
+        title: `Nights in a row you were done before ${profile.settings.bedtime}.`
+          + ` Pressing Lights out counts, and so does simply finishing before then`
+          + ` and closing the app. Best: ${best}.`,
+        className: `stat--streak ${nights > 0 ? 'stat--hot' : ''}`.trim(),
       });
     })(),
     statChip({
@@ -534,12 +523,21 @@ function renderTonightInner() {
         h('div', { class: 'tonight__chips' },
           // The streak that belongs next to the bedtime countdown, not the one
           // about the list. It only appears once there is one to show.
-          effectiveLightsOutStreak(state) > 0
-            ? h('span', {
-              class: 'chip chip--ontime',
-              title: `Nights in a row you called it before your bedtime. Best: ${state.profile.lightsOut.best}.`,
-            }, icon('moon', { size: 13 }), `${effectiveLightsOutStreak(state)} on time`)
-            : null,
+          // The list streak, demoted. It is a real thing to have kept up and it
+          // still shows — but "nights you got through the list" is not what the
+          // app is for, so it is not the number in the top bar any more.
+          (() => {
+            const live = effectiveStreak(state);
+            if (!live.streak) return null;
+            return h('span', {
+              class: `chip chip--ontime ${live.atRisk ? 'chip--risk' : ''}`.trim(),
+              // A rain check leaves a task out of the denominator entirely, so
+              // this is 60% of what counted, not 60% of what you wrote down.
+              title: `Nights running you reached 60% of what counted — rain checks are`
+                + ` left out of the sum. About the list, not the clock.`
+                + ` Best: ${state.profile.bestStreak}.`,
+            }, icon('flame', { size: 13 }), `${live.streak} on the list`);
+          })(),
           combo && momentumLive(state)
             ? h('span', {
               class: 'chip chip--combo',

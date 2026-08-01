@@ -187,6 +187,12 @@ test('starting fresh does not hand out a second envelope or quest reward', () =>
   // This profile has banked a night before, and its First Light tier is already
   // settled — so the stardust below can only move if the envelope paid again.
   state.profile.nightsLogged = 1;
+  // Banking now also settles the bedtime streak, and this night's work finished
+  // before bedtime, so it earns the first on-time tier. That is a real reward
+  // from a different family; pre-settling it here keeps stardust an honest
+  // proxy for "did the envelope pay twice", which is what this test is about.
+  // Tier 2 is three nights running, so the bank below cannot reach it.
+  state.profile.lightsOut = { streak: 1, best: 1, lastKey: '2026-07-28' };
   checkAchievements(state, computeStats(state));
   const dust = state.profile.stardust;
   const freezes = state.profile.tokens.freeze;
@@ -516,4 +522,65 @@ test('the history entry records what the night actually paid', () => {
   bankNight(getState(), computeStats(getState()));
   assert.equal(getState().history['2026-07-29'].xp, gained,
     'the permanent record and the profile have to agree');
+});
+
+/* The bedtime streak is the headline number now, so what feeds it matters more
+   than it did as a quiet chip. */
+
+test('going to bed early counts even when you never pressed Lights out', () => {
+  // It used to advance only on an explicit press, so finishing at ten and
+  // simply closing the app read as a miss — the app punishing you for the exact
+  // behaviour it exists to cause, over a button.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.key = '2026-07-29';
+  state.night.lastDoneAt = new Date(2026, 6, 29, 22, 0).getTime();
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.lightsOut.streak, 1);
+  assert.equal(state.history['2026-07-29'].onTime, true, 'and the history says so too');
+});
+
+test('a night you were still going at 1am does not count', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.key = '2026-07-29';
+  state.night.lastDoneAt = new Date(2026, 6, 30, 1, 0).getTime();
+  state.profile.lightsOut = { streak: 4, best: 4, lastKey: '2026-07-28' };
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.lightsOut.streak, 0);
+});
+
+test('a night nobody opened is not an on-time night', () => {
+  // `night.startedAt` is when the night RECORD was made — the 4am rollover, not
+  // something you did. It is present on every night including untouched ones,
+  // and 4am is comfortably before any bedtime, so counting it as evidence would
+  // have handed the headline streak a night for every day the app sat unopened.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.key = '2026-07-29';
+  state.profile.lightsOut = { streak: 6, best: 6, lastKey: '2026-07-28' };
+  assert.ok(state.night.startedAt > 0, 'the night record does carry a timestamp');
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.lightsOut.streak, 0, 'and it is not evidence of anything');
+});
+
+test('a night where you started something but finished nothing still counts', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.key = '2026-07-29';
+  state.night.started = { t1: { at: new Date(2026, 6, 29, 21, 30).getTime(), face: 3 } };
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.lightsOut.streak, 1, 'you were here, and you stopped in time');
+});
+
+test('pressing Lights out is not second-guessed by the inference', () => {
+  // The press is the strongest evidence there is. A night ended deliberately at
+  // 11pm must not be re-judged from a check-off timestamp at 11:29.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.settings.bedtime = '23:30';
+  state.night.key = '2026-07-29';
+  state.night.lastDoneAt = new Date(2026, 6, 30, 2, 0).getTime(); // late, on its own
+  state.profile.lightsOut = { streak: 3, best: 3, lastKey: '2026-07-29' }; // already settled
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.lightsOut.streak, 3, 'the press stands');
 });

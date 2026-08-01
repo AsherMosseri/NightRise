@@ -195,7 +195,10 @@ export const MOONS = [
     desc: 'No craters, the way the moon looks at full when nothing casts a shadow.',
     disc: '#f7f6f2',
     shadow: '#171b30',
-    glow: '#93a8e2',
+    // drawMoon paints the glow out to 3.2r at up to 0.85 alpha, so it is the
+    // largest lit area on an 11pm screen. #93a8e2 was 2.7x Midnight's --glow
+    // and brighter than any sky ships; this sits inside the range they set.
+    glow: '#7b8fd0',
     craterAlpha: 0,
     craters: [],
     ring: null,
@@ -209,44 +212,64 @@ export const MOONS = [
     shadow: '#2b1707',
     glow: '#b96a22',
     craterAlpha: 0.11,
-    craters: [[-0.23, -0.54, 0.26], [0.27, -0.47, 0.2], [0.52, -0.15, 0.22], [-0.27, 0.36, 0.17], [-0.57, 0.41, 0.1], [0.56, 0.26, 0.09]],
+    // Six, the cratered one of the set. The (0.52,-0.15) lens used to be 0.22
+    // and reached into its neighbour at (0.27,-0.47); drawMoon fills each
+    // crater as its own rgba circle with no union, so the overlap composited
+    // twice and read as a clipping artifact rather than a crater.
+    craters: [[-0.23, -0.54, 0.26], [0.27, -0.47, 0.2], [0.52, -0.15, 0.17], [-0.27, 0.36, 0.17], [-0.57, 0.41, 0.1], [0.56, 0.26, 0.09]],
     ring: null,
   },
   {
     id: 'bluemoon',
     name: 'Blue Moon',
     cost: 740,
-    desc: 'Actually blue, the way it looked from Europe after the Alberta fires of 1950.',
+    desc: 'Actually blue, the way it looks through the smoke of a very large fire.',
     disc: '#a8c6ff',
     shadow: '#101a38',
     glow: '#4a6cc8',
     craterAlpha: 0.06,
-    craters: [[-0.23, -0.54, 0.2], [0.27, -0.47, 0.15], [0.52, -0.15, 0.16], [-0.27, 0.36, 0.12]],
+    // Its own face, not Harvest's at a smaller radius. Spread across x on
+    // purpose: the lit lune grows from the right, so craters at x 0.5, 0.1,
+    // -0.05, -0.36 arrive at roughly a quarter, half, and two thirds full and
+    // the moon keeps developing all evening instead of arriving at once.
+    craters: [[0.5, 0.18, 0.2], [-0.05, -0.44, 0.16], [-0.36, 0.2, 0.19], [0.1, 0.48, 0.11]],
     ring: null,
   },
   {
-    id: 'earthshine',
-    name: 'Earthshine',
+    // Was Earthshine, whose whole idea — a lit unlit half — worked against the
+    // one thing the moon does here, and whose disc was a second white a hair
+    // from Porcelain's. The shelf had no dark moon and no metal one; this is
+    // both.
+    id: 'copper',
+    name: 'Old Copper',
     cost: 1060,
-    desc: 'The dark half is not dark: that is our own daylight, coming back.',
-    disc: '#f2f3fa',
-    shadow: '#3c4a70',
-    glow: '#6d84c6',
-    craterAlpha: 0.09,
-    craters: [[-0.23, -0.54, 0.24], [0.27, -0.47, 0.19], [0.52, -0.15, 0.21], [0.06, -0.23, 0.07], [-0.27, 0.36, 0.16]],
+    desc: 'Beaten copper gone dark, the colour of a kettle nobody polishes.',
+    disc: '#c07a3c',
+    shadow: '#1e0f06',
+    glow: '#9a5f2c',
+    craterAlpha: 0.14,
+    craters: [[-0.4, -0.35, 0.22], [0.15, -0.6, 0.14], [0.44, -0.12, 0.19], [-0.05, 0.28, 0.25], [0.5, 0.44, 0.11]],
     ring: null,
   },
   {
     id: 'halo',
     name: 'Ice Halo',
     cost: 1290,
-    desc: 'The ring cirrus ice puts around the moon, which is supposed to mean rain by morning.',
-    disc: '#f4e7c8',
-    shadow: '#1b1e36',
-    glow: '#8f9ccb',
+    desc: 'A ring of high ice around the moon, which is supposed to mean rain by morning.',
+    // Ice, not cream. The old #f4e7c8 / #1b1e36 pair was Midnight's own --moon
+    // and --moon-shadow to within a percent, so the most expensive moon on the
+    // shelf sold most users the free one with a ring drawn round it.
+    disc: '#d8e8f6',
+    shadow: '#151a2e',
+    glow: '#7f92c4',
     craterAlpha: 0.07,
-    craters: [[-0.23, -0.54, 0.22], [0.52, -0.15, 0.18], [-0.27, 0.36, 0.14], [0.56, 0.26, 0.09]],
-    ring: { alpha: 0.26, dash: '', scale: 1.8 },
+    craters: [[0.26, -0.5, 0.18], [-0.42, -0.22, 0.14], [0.38, 0.12, 0.1], [-0.16, 0.44, 0.21]],
+    // 1.35, which is also drawMoon's own fallback, because the moon sits in a
+    // corner: moonGeometry insets it by 28px from the right edge and clears the
+    // top bar by 14px, so a ring at 1.8 ran flush to the bezel on every phone
+    // and put its top arc inside the bar's blur. 1.35 leaves 15px and 2px.
+    // Brighter instead of bigger — the ring is the only reason to buy this.
+    ring: { alpha: 0.34, dash: '', scale: 1.35 },
   },
 ];
 

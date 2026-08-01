@@ -222,6 +222,19 @@ export function bankNight(state, stats) {
   profile.nightsLogged += 1;
   profile.lastBankedKey = night.key;
 
+  // A night that was never explicitly ended still gets a verdict. Skipped when
+  // Lights out was pressed, because that already settled this key — pressing it
+  // is the strongest evidence there is and must not be second-guessed by an
+  // inference from the same night's timestamps.
+  if (profile.lightsOut && profile.lightsOut.lastKey !== night.key) {
+    const onTime = inferredOnTime(state, night);
+    if (onTime) night.lightsOutOnTime = true;
+    advanceLightsOutStreak(profile.lightsOut, night.key, onTime);
+    result.onTime = onTime;
+  } else {
+    result.onTime = Boolean(night.lightsOutOnTime);
+  }
+
   const entry = summarizeForHistory(stats, xp);
   entry.quest = Boolean(night.quest?.claimed);
   stampBedtime(entry, state);
@@ -295,6 +308,36 @@ export function rolloverIfNeeded(state, now = new Date()) {
  * as three nights running — and a badge that says "three nights running" has to
  * be telling the truth.
  */
+/**
+ * Did this night end on time, when nobody pressed Lights out?
+ *
+ * The bedtime streak is the headline number now, and it used to advance only on
+ * an explicit press — so going to bed early and simply closing the app read as a
+ * miss. That is the app punishing you for the exact behaviour it exists to
+ * cause, over a button.
+ *
+ * The evidence is the last thing you did here. If your final check-off — or the
+ * last task you started, for a night where nothing got finished — was before
+ * your bedtime, you were done before your bedtime. A night with no activity at
+ * all is not on time: there is nothing to infer from, and a streak that grows
+ * while the app sits unopened is measuring nothing.
+ *
+ * Deliberately NOT `night.startedAt`: that is when the night RECORD was made,
+ * which is the 4am rollover, not something you did. It is present on every
+ * night including ones nobody opened, and 4am is comfortably before any bedtime
+ * — so counting it would have quietly handed the headline streak a night for
+ * every day the app sat unopened, which is the exact opposite of the point.
+ */
+export function inferredOnTime(state, night = state.night) {
+  let lastActivity = Number(night.lastDoneAt) || 0;
+  for (const record of Object.values(night.started || {})) {
+    lastActivity = Math.max(lastActivity, Number(record?.at) || 0);
+  }
+  if (!lastActivity) return false;
+  const bedtime = bedtimeInstant(night.key, state.profile.settings.bedtime);
+  return Boolean(bedtime) && lastActivity <= bedtime.getTime();
+}
+
 export function advanceLightsOutStreak(lights, key, onTime) {
   if (!lights || lights.lastKey === key) return lights; // once per night, however many presses
   const consecutive = Boolean(lights.lastKey) && keyDiffDays(lights.lastKey, key) === 1;

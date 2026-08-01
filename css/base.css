@@ -250,7 +250,9 @@ svg { display: block; }
   transition: transform var(--speed) var(--ease), background var(--speed) var(--ease),
               border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
 }
-.btn:hover:not(:disabled) { background: var(--panel-hover); border-color: var(--border-strong); transform: translateY(-1px); }
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { background: var(--panel-hover); border-color: var(--border-strong); transform: translateY(-1px); }
+}
 .btn:active:not(:disabled) { transform: translateY(0); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -260,7 +262,19 @@ svg { display: block; }
   color: #0a0c1c;
   box-shadow: 0 6px 20px -8px var(--glow);
 }
-.btn--primary:hover:not(:disabled) { box-shadow: 0 10px 26px -8px var(--glow); }
+@media (hover: hover) {
+  /* The gradient restated, not just the shadow. `.btn:hover:not(:disabled)` is
+     three classes and `.btn--primary` is one, so specificity beat source order
+     and hovering a Buy button flattened it to `--panel-hover` while it kept
+     `color: #0a0c1c` — near-black label on a near-black plate. The same
+     collision the sticky-hover note above is about, live on a mouse the whole
+     time and invisible because nobody buys things with a mouse. */
+  .btn--primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+    box-shadow: 0 10px 26px -8px var(--glow);
+  }
+}
 /* A price you cannot meet yet is information, not a call to action.
    It used to be `btn--primary` regardless: a full accent gradient carrying
    `color: #0a0c1c` — near-black label text — dimmed to 45% by :disabled. So the
@@ -282,7 +296,9 @@ svg { display: block; }
 .btn--ghost { background: transparent; }
 .btn--sm { padding: 6px 12px; font-size: 13px; border-radius: var(--r-sm); }
 .btn--danger { border-color: color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }
-.btn--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 16%, transparent); }
+@media (hover: hover) {
+  .btn--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 16%, transparent); }
+}
 
 .icon-btn {
   display: inline-grid;
@@ -295,10 +311,14 @@ svg { display: block; }
   transition: color var(--speed) var(--ease), background var(--speed) var(--ease),
               border-color var(--speed) var(--ease), transform var(--speed) var(--ease);
 }
-.icon-btn:hover { color: var(--text); background: var(--panel-hover); border-color: var(--border); }
+@media (hover: hover) {
+  .icon-btn:hover { color: var(--text); background: var(--panel-hover); border-color: var(--border); }
+}
 .icon-btn:active { transform: scale(0.94); }
 .icon-btn[aria-pressed="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
-.icon-btn--danger:hover { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+@media (hover: hover) {
+  .icon-btn--danger:hover { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+}
 
 .chip {
   display: inline-flex;

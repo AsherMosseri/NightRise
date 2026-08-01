@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 21,000 lines, and all of it ships as written.
+About 21,200 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -31,14 +31,28 @@ About 21,000 lines, and all of it ships as written.
   time wheel — the bedtime, the motion setting and every "are you sure" are the app's own
   controls, in the app's own type, and none of them slide a grey system panel over your
   night.
-- **Double-tapping a control does not zoom the page.** This app is a fixed-viewport layer
-  cake — the sky canvas is `position: fixed; inset: 0` and the page gradient is
-  `background-attachment: fixed`, both sized to the *layout* viewport. iOS keeps
-  double-tap-to-zoom on by default, so the instant it zoomed the *visual* viewport in,
-  neither covered what you were looking at and the night sky was simply gone behind
-  whatever panel was open. `touch-action: manipulation` drops that one gesture. Pinch-zoom
-  stays, deliberately: killing zoom outright would take a real accessibility affordance
-  from someone reading at 1am.
+- **Hover is a pointer idea, and on a phone it was a state.** iOS keeps `:hover` applied
+  to the last thing you tapped until you tap something else, so every hover rule in here
+  arrived on the first tap and stayed. That is fatal in a UI where hover styles and state
+  styles dress the same elements: `.tab:hover { background: none }` also outranked
+  `.tab.is-active`, so the market tab you tapped lost its gradient pill and went muted, and
+  `.btn:hover { background: var(--panel) }` outranked `.btn--primary`, so a Buy button
+  became near-black text on a near-black plate. From the phone: *the button's background
+  goes blank, it's just the text* — on the first tap, on every shelf.
+  This had been "solved" by a `@media (hover: none)` block that re-declared each hover rule
+  with a neutral value, which is what *caused* both, because a neutral value is only
+  neutral for an element with no state. Four collisions inside that block had already been
+  patched by hand, which was the tell. Every hover rule is now gated where it stands with
+  `@media (hover: hover)` — nothing to neutralise, nothing to out-specify, and the ordering
+  of hover against state is preserved because nothing moved. A test fails the build if a
+  single `:hover` rule escapes the gate.
+- **Double-tapping a control does not zoom the page.** Not the cause of the above, but a
+  real hazard alongside it: this app is a fixed-viewport layer cake — the sky canvas is
+  `position: fixed; inset: 0` and the page gradient is `background-attachment: fixed`, both
+  sized to the *layout* viewport, so a double-tap zoom of the *visual* viewport leaves
+  neither of them covering what you are looking at. `touch-action: manipulation` drops that
+  one gesture. Pinch-zoom stays, deliberately: killing zoom outright would take a real
+  accessibility affordance from someone reading at 1am.
 - Adding a section asks what to call it first, rather than dropping a row named
   "New section" into the list.
 - **Adding a task is three taps**: type the words, tap how long (30s/1/2/5/10/15/30), tap
@@ -531,7 +545,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 21,000 lines: 12,800 of application JavaScript, 4,700 of tests, 3,200 of CSS, and
+About 21,200 lines: 12,800 of application JavaScript, 4,700 of tests, 3,200 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

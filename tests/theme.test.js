@@ -204,3 +204,64 @@ test('a double tap on a control cannot zoom the page', () => {
   assert.doesNotMatch(html, /user-scalable\s*=\s*no|maximum-scale/,
     'pinch-zoom stays: the fix is touch-action, not banning zoom');
 });
+
+test('no hover style escapes the pointer gate', () => {
+  /* iOS keeps `:hover` on the last thing you tapped until you tap something
+     else, so on a phone every hover rule is a STATE that arrives on the first
+     tap. That is fatal here because hover styles and state styles target the
+     same elements: an unguarded `.tab:hover { background: none }` also beats
+     `.tab.is-active`, so the tab you touched lost its pill and went muted, and
+     `.btn:hover { background: var(--panel) }` beat `.btn--primary`, leaving a
+     Buy button as near-black text on a near-black plate.
+
+     This was previously answered by a `@media (hover: none)` block that
+     re-declared each hover rule with a neutral value — which is what produced
+     both of those, because a neutral value is only neutral for an element that
+     has no state. Every hover rule is gated at its source now, and the whole
+     point is that nothing gets to opt out. */
+  const files = ['base', 'components', 'layout', 'themes'];
+  const offenders = [];
+  for (const name of files) {
+    const css = readFileSync(new URL(`../css/${name}.css`, import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    // Walk the file tracking which at-rule preludes we are inside.
+    const stack = [];
+    let i = 0;
+    let chunk = 0;
+    while (i < css.length) {
+      const c = css[i];
+      if (c === '{') {
+        const prelude = css.slice(chunk, i).trim().split('\n').pop().trim();
+        if (prelude.startsWith('@')) stack.push(prelude);
+        else {
+          const selector = css.slice(chunk, i).trim();
+          if (selector.includes(':hover') && !stack.some((a) => /hover:\s*hover/.test(a))) {
+            offenders.push(`${name}.css: ${selector.split('\n').pop().trim().slice(0, 60)}`);
+          }
+          stack.push(null);
+        }
+        chunk = i + 1;
+      } else if (c === '}') {
+        stack.pop();
+        chunk = i + 1;
+      }
+      i += 1;
+    }
+  }
+  assert.deepEqual(offenders, [],
+    `these hover rules apply on touch, where they are sticky state:\n  ${offenders.join('\n  ')}`);
+});
+
+test('the neutralising block is gone, and stays gone', () => {
+  // Re-declaring a hover rule to undo it cannot work: the undo value has to
+  // equal the element's own non-hover value, which for anything with a state
+  // is not one value. Four collisions had already been hand-patched inside it.
+  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const blocks = [...css.matchAll(/@media \(hover: none\)[^{]*\{([\s\S]*?)\n\}/g)];
+  for (const [, body] of blocks) {
+    assert.ok(!body.includes(':hover'),
+      'a @media (hover: none) block is neutralising hover rules again — gate them '
+      + 'at the source with @media (hover: hover) instead');
+  }
+});

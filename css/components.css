@@ -29,7 +29,9 @@
 }
 .section__head:active { cursor: grabbing; }
 .section__grip { color: var(--muted); opacity: 0.5; flex-shrink: 0; }
-.section__head:hover .section__grip { opacity: 1; }
+@media (hover: hover) {
+  .section__head:hover .section__grip { opacity: 1; }
+}
 /* Matches `.icon-btn` beside it: same transition, same press. It was the one
    hand-rolled button in the row — no transition, no :active, and 22px against
    its neighbours' 32. */
@@ -44,7 +46,9 @@
   transition: color var(--speed) var(--ease), background var(--speed) var(--ease),
               border-color var(--speed) var(--ease), transform var(--speed) var(--ease);
 }
-.section__collapse:hover { color: var(--text); background: var(--panel-hover); border-color: var(--border); }
+@media (hover: hover) {
+  .section__collapse:hover { color: var(--text); background: var(--panel-hover); border-color: var(--border); }
+}
 .section__collapse:active { transform: scale(0.94); }
 .section__title { font-size: 16px; font-weight: 650; letter-spacing: 0.01em; }
 .section__count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -63,9 +67,11 @@
   transition: width var(--speed-bar) var(--ease);
 }
 .section__actions { display: flex; gap: 1px; opacity: 0; transition: opacity var(--speed) var(--ease); }
-.section__head:hover .section__actions,
 .section__head:focus-within .section__actions,
 .section__head:focus-visible .section__actions { opacity: 1; }
+@media (hover: hover) {
+  .section__head:hover .section__actions { opacity: 1; }
+}
 
 .section--collapsed .section__body { display: none; }
 
@@ -116,7 +122,9 @@
   -webkit-touch-callout: none;
   transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease), opacity var(--speed) var(--ease);
 }
-.task:hover { background: var(--panel-2); }
+@media (hover: hover) {
+  .task:hover { background: var(--panel-2); }
+}
 .task:focus-visible { border-color: var(--accent); }
 .task:active { cursor: grabbing; }
 .task.is-dragging { opacity: 0.35; }
@@ -135,7 +143,9 @@
   background: var(--panel-2);
   transition: all var(--speed) var(--ease);
 }
-.task__check:hover { border-color: var(--accent); transform: scale(1.06); }
+@media (hover: hover) {
+  .task__check:hover { border-color: var(--accent); transform: scale(1.06); }
+}
 .task--done .task__check {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   border-color: transparent;
@@ -188,17 +198,23 @@
   border: 1px solid transparent;
   transition: all var(--speed) var(--ease);
 }
-.task__minutes:hover { border-color: var(--border); color: var(--text); }
+@media (hover: hover) {
+  .task__minutes:hover { border-color: var(--border); color: var(--text); }
+}
 
 /* Hover-reveal, for pointers only. On touch these are removed outright by the
    `hover: none` block below — invisible-but-tappable meant a tap on apparently
    blank row space could hit Delete. */
 .task__actions { display: flex; gap: 0; opacity: 0; transition: opacity var(--speed) var(--ease); }
-.task:hover .task__actions,
 .task:focus-within .task__actions { opacity: 1; }
+@media (hover: hover) {
+  .task:hover .task__actions { opacity: 1; }
+}
 .task__actions .icon-btn { width: 28px; height: 28px; }
 .task__grip { color: var(--muted); opacity: 0; flex-shrink: 0; }
-.task:hover .task__grip { opacity: 0.45; }
+@media (hover: hover) {
+  .task:hover .task__grip { opacity: 0.45; }
+}
 
 body.is-dragging-active .task__actions,
 body.is-dragging-active .section__actions { opacity: 0 !important; }
@@ -243,7 +259,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   font-size: 14px;
   transition: all var(--speed) var(--ease);
 }
-.add-section:hover { color: var(--text); border-color: var(--border-strong); background: var(--panel-2); }
+@media (hover: hover) {
+  .add-section:hover { color: var(--text); border-color: var(--border-strong); background: var(--panel-2); }
+}
 
 .empty-state {
   display: flex;
@@ -275,7 +293,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   border-radius: 50%;
   transition: transform var(--speed) var(--ease);
 }
-.companion:hover { transform: translateY(-4px) scale(1.04); }
+@media (hover: hover) {
+  .companion:hover { transform: translateY(-4px) scale(1.04); }
+}
 .companion__art { width: 64px; height: 64px; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5)); }
 .companion__name {
   font-size: 11px;
@@ -338,7 +358,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   font-weight: 600;
   color: var(--accent);
 }
-.toast__action:hover { background: var(--panel-hover); }
+@media (hover: hover) {
+  .toast__action:hover { background: var(--panel-hover); }
+}
 .toast--win { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .toast--win .toast__icon { color: var(--accent-2); }
 .toast--warn { border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
@@ -421,7 +443,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   white-space: nowrap;
   transition: all var(--speed) var(--ease);
 }
-.tab:hover { color: var(--text); background: var(--panel-2); }
+@media (hover: hover) {
+  .tab:hover { color: var(--text); background: var(--panel-2); }
+}
 .tab.is-active { color: #0a0c1c; background: linear-gradient(120deg, var(--accent), var(--accent-2)); border-color: transparent; font-weight: 650; }
 
 /* cards */
@@ -436,7 +460,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   background: var(--panel-2);
   transition: border-color var(--speed) var(--ease), transform var(--speed) var(--ease);
 }
-.card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+@media (hover: hover) {
+  .card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+}
 .card--equipped { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .card--locked { opacity: 0.72; }
 .card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -755,7 +781,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   background: var(--panel);
   color: var(--text);
 }
-.timeset__btn:hover { border-color: var(--accent); color: var(--accent); }
+@media (hover: hover) {
+  .timeset__btn:hover { border-color: var(--accent); color: var(--accent); }
+}
 .timeset__value {
   min-width: 96px;
   text-align: center;
@@ -802,7 +830,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   cursor: pointer;
   transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
 }
-.picker__row:hover { background: var(--panel-2); }
+@media (hover: hover) {
+  .picker__row:hover { background: var(--panel-2); }
+}
 .picker__row input { position: absolute; opacity: 0; width: 0; height: 0; }
 .picker__mark {
   display: grid;
@@ -957,11 +987,16 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   color: var(--text);
   transition: background var(--speed) var(--ease);
 }
-.sheet__item:hover, .sheet__item:focus-visible { background: var(--panel-hover); }
+.sheet__item:focus-visible { background: var(--panel-hover); }
+@media (hover: hover) {
+  .sheet__item:hover { background: var(--panel-hover); }
+}
 .sheet__item:disabled { opacity: 0.4; }
 /* Read-only content at full strength — it is not an inactive control. */
 .sheet__item--static { cursor: default; }
-.sheet__item--static:hover { background: none; }
+@media (hover: hover) {
+  .sheet__item--static:hover { background: none; }
+}
 .sheet__item-icon { color: var(--accent); display: grid; place-items: center; width: 24px; }
 .sheet__item-body { display: flex; flex-direction: column; min-width: 0; }
 .sheet__item-label { font-size: 15px; font-weight: 550; }
@@ -978,7 +1013,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
   font-weight: 600;
   color: var(--muted);
 }
-.sheet__cancel:hover { color: var(--text); background: var(--panel-hover); }
+@media (hover: hover) {
+  .sheet__cancel:hover { color: var(--text); background: var(--panel-hover); }
+}
 
 body.has-sheet,
 /* Same reason: a <dialog> does not stop the document behind it scrolling, and
@@ -1091,7 +1128,9 @@ body.has-modal { overflow: hidden; }
   color: var(--text);
   animation: envelope-breathe 2.8s var(--ease) infinite;
 }
-.envelope--sealed:hover { filter: brightness(1.12); }
+@media (hover: hover) {
+  .envelope--sealed:hover { filter: brightness(1.12); }
+}
 .envelope__label { font-weight: 650; }
 .envelope__cta {
   margin-left: auto;
@@ -1290,8 +1329,9 @@ body.has-modal { overflow: hidden; }
 .lightsout > svg, .lightsout__label, .lightsout__hint { position: relative; }
 /* Scoped: once the night is stamped this class lands on a <p>, and an
    unqualified hover made a receipt fade under the cursor like a control. The
-   parallel case, `.envelope--sealed:hover`, was already scoped this way. */
-.lightsout:not(.lightsout--done):hover { background: var(--panel-hover); }
+   parallel case, `.envelope--sealed:hover`, was already scoped this way. */@media (hover: hover) {
+  .lightsout:not(.lightsout--done):hover { background: var(--panel-hover); }
+}
 .lightsout__label { white-space: nowrap; }
 .lightsout__hint {
   margin-left: auto;
@@ -1388,7 +1428,9 @@ body.has-modal { overflow: hidden; }
   font-size: 13.5px;
   transition: opacity 3s var(--ease), color var(--speed) var(--ease);
 }
-.goodnight__stay:hover { color: var(--text); }
+@media (hover: hover) {
+  .goodnight__stay:hover { color: var(--text); }
+}
 /* Everything fades but the way out, which only dims. */
 .is-goodnight-deep .goodnight__title,
 .is-goodnight-deep .goodnight__line,
@@ -1514,7 +1556,9 @@ body.has-modal { overflow: hidden; }
   font-variant-numeric: tabular-nums;
   transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
 }
-.keypad__key:hover { border-color: var(--border-strong); background: var(--panel-hover); }
+@media (hover: hover) {
+  .keypad__key:hover { border-color: var(--border-strong); background: var(--panel-hover); }
+}
 .keypad__key:active { background: var(--accent); border-color: transparent; color: #0a0c1c; }
 .keypad__key--del { color: var(--muted); }
 /* A full stop at button size is nearly invisible; give it something to hit. */
@@ -1531,7 +1575,9 @@ body.has-modal { overflow: hidden; }
   font-size: 14px;
   transition: all var(--speed) var(--ease);
 }
-.chip-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+@media (hover: hover) {
+  .chip-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+}
 .chip-toggle.is-on {
   border-color: transparent;
   background: linear-gradient(120deg, var(--accent), var(--accent-2));
@@ -1590,7 +1636,9 @@ body.has-modal { overflow: hidden; }
   font-weight: 600;
   transition: all var(--speed) var(--ease);
 }
-.focus-btn:hover { background: var(--panel-hover); border-color: var(--accent); }
+@media (hover: hover) {
+  .focus-btn:hover { background: var(--panel-hover); border-color: var(--accent); }
+}
 
 .onecard { position: fixed; inset: 0; z-index: 45; }
 .onecard:empty { display: none; }
@@ -1646,7 +1694,9 @@ body.has-modal { overflow: hidden; }
   font-weight: 600;
   white-space: nowrap;
 }
-.onecard__undo:hover { color: var(--text); background: var(--panel-2); }
+@media (hover: hover) {
+  .onecard__undo:hover { color: var(--text); background: var(--panel-2); }
+}
 
 .onecard__body {
   flex: 1;
@@ -1737,7 +1787,9 @@ body.has-modal { overflow: hidden; }
   font-weight: 600;
   transition: all var(--speed) var(--ease);
 }
-.onecard__timer-btn:hover { border-color: var(--accent); color: var(--accent); }
+@media (hover: hover) {
+  .onecard__timer-btn:hover { border-color: var(--accent); color: var(--accent); }
+}
 .onecard__timer-btn--quiet { padding: 8px 12px; color: var(--muted); }
 
 /* The target is the bottom half of the screen: no aiming, one hand, dark room. */
@@ -1761,7 +1813,9 @@ body.has-modal { overflow: hidden; }
   transition: transform 120ms var(--ease), background var(--speed) var(--ease),
               border-color var(--speed) var(--ease);
 }
-.onecard__start:hover { background: var(--panel-hover); border-color: var(--accent); }
+@media (hover: hover) {
+  .onecard__start:hover { background: var(--panel-hover); border-color: var(--accent); }
+}
 .onecard__start:active { transform: scale(0.985); }
 
 /* "4m in already" — the reason the clock survives leaving the card at all. */
@@ -1813,7 +1867,9 @@ body.has-modal { overflow: hidden; }
   box-shadow: 0 18px 50px -22px var(--glow);
   transition: transform 120ms var(--ease), filter var(--speed) var(--ease);
 }
-.onecard__check:hover { filter: brightness(1.06); }
+@media (hover: hover) {
+  .onecard__check:hover { filter: brightness(1.06); }
+}
 .onecard__check:active { transform: scale(0.985); }
 
 /* Lives on the body layer now, not inside the card — the card is destroyed by
@@ -1842,7 +1898,9 @@ body.has-modal { overflow: hidden; }
   color: var(--muted);
   font-size: 14px;
 }
-.onecard__minor:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+@media (hover: hover) {
+  .onecard__minor:hover:not(:disabled) { color: var(--text); background: var(--panel-2); }
+}
 .onecard__minor:disabled { opacity: 0.35; }
 
 .onecard__done {
@@ -1935,43 +1993,25 @@ body.has-modal { overflow: hidden; }
 /* -------------------------------------------------------- sticky hover */
 
 /* iOS keeps `:hover` applied to the last thing you tapped until you tap
-   something else. Every decorative hover in this project was unguarded, so a
-   checked-off row stayed lit, a tapped shop card stayed lifted 2px, and the
-   last icon button you touched kept a filled background that reads exactly like
-   the `[aria-pressed="true"]` state next to it.
+   something else, so on a phone every hover style in this project was a
+   *state* — one that arrived on the first tap and stayed until the next.
 
-   Neutralised here rather than wrapping thirty-two rules in `@media (hover:
-   hover)`: this file loads last, and equal specificity means the later rule
-   wins. Anything that is genuine state — pressed, on, done — is untouched. */
-@media (hover: none) {
-  .btn:hover:not(:disabled) { background: var(--panel); border-color: var(--border); transform: none; }
-  .btn--primary:hover:not(:disabled) { box-shadow: none; }
-  .btn--danger:hover:not(:disabled) { background: none; }
-  .icon-btn:hover { color: var(--muted); background: none; border-color: transparent; }
-  .icon-btn--danger:hover { color: var(--muted); background: none; }
-  .icon-btn[aria-pressed="true"]:hover { color: var(--accent); }
-  .section__collapse:hover { color: var(--muted); background: none; }
-  .task:hover { background: none; }
-  .task__check:hover { border-color: var(--border-strong); transform: none; }
-  .task__minutes:hover { border-color: transparent; color: var(--muted); }
-  .add-section:hover { color: var(--muted); border-color: var(--border); background: none; }
-  .companion:hover { transform: none; }
-  .tab:hover { color: var(--muted); background: none; }
-  .card:hover { border-color: var(--border); transform: none; }
-  .timeset__btn:hover { border-color: var(--border); color: var(--text); }
-  .picker__row:hover { background: none; }
-  .sheet__item:hover:not(:focus-visible) { background: none; }
-  .sheet__cancel:hover { color: var(--muted); background: none; }
-  .envelope--sealed:hover { filter: none; }
-  .lightsout:hover { background: var(--panel-2); }
-  .lightsout--ready:hover { background: linear-gradient(120deg, var(--accent), var(--accent-2)); }
-  .goodnight__stay:hover { color: var(--muted); }
-  .keypad__key:hover { border-color: var(--border); background: var(--panel-2); }
-  .chip-toggle:hover:not(.is-on) { color: var(--muted); border-color: var(--border); }
-  .focus-btn:hover { background: var(--panel-2); border-color: var(--border-strong); }
-  .onecard__timer-btn:hover { border-color: var(--border-strong); color: var(--text); }
-  .onecard__check:hover { filter: none; }
-  .onecard__start:hover { background: var(--panel-2); border-color: var(--border-strong); }
-  .tonight__nudge:hover { background: none; border-color: transparent; }
-  .onecard__minor:hover:not(:disabled) { color: var(--muted); background: none; }
-}
+   This used to be answered by a `@media (hover: none)` block that re-declared
+   each hover rule with a neutral value, on the reasoning that this file loads
+   last and equal specificity means the later rule wins. It does win — that is
+   the problem. A neutral value is only neutral for an element with no state.
+   `.tab:hover { background: none }` also beat `.tab.is-active`, so the tab you
+   tapped lost its pill and went muted the instant you touched it; and
+   `.btn:hover { background: var(--panel) }` beat `.btn--primary`, so a Buy
+   button became a flat panel still carrying `color: #0a0c1c`, which is
+   near-black text on a near-black box. From the phone: "the button's background
+   goes blank, it's just the text", on the first tap, on every shelf.
+
+   Four of those collisions had already been patched by hand here — the pressed
+   icon button, the chip toggle, the ready lights-out button, the static sheet
+   row — which is the tell that the approach was wrong rather than incomplete.
+
+   So the hover rules are gated at the source instead, each one wrapped in
+   `@media (hover: hover)` where it stands. Nothing to neutralise, nothing to
+   out-specify, and the careful ordering of hover against state is preserved
+   because nothing moved. A test asserts no `:hover` rule escapes the gate. */

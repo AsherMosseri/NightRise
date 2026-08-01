@@ -190,9 +190,11 @@
   color: var(--warn);
   transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
 }
-.tonight__nudge:hover {
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+@media (hover: hover) {
+  .tonight__nudge:hover {
+    background: color-mix(in srgb, var(--warn) 10%, transparent);
+    border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+  }
 }
 .tonight__nudge > span { min-width: 0; }
 .tonight__side { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }

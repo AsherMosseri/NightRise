@@ -97,6 +97,16 @@ export function enterCards(invoker = null) {
  * Always paused on the way out: nothing may keep counting while the app is not
  * the thing in front of you.
  */
+/**
+ * The task auto-start has already fired for on this card.
+ *
+ * Two jobs. It stops `startTask` re-entering this function forever, and it
+ * means auto-start happens once per card rather than on every render — so
+ * pausing a clock the app started for you actually pauses it, instead of being
+ * undone by the next repaint.
+ */
+let autoStartedFor = null;
+
 function parkTimer({ silent = false } = {}) {
   if (!timer) return;
   pauseTimer(timer);
@@ -127,6 +137,7 @@ export function exitCards() {
   deferred = new Set();
   timer = null;
   face = null;
+  autoStartedFor = null;
   if (ticker) {
     clearInterval(ticker);
     ticker = null;
@@ -337,7 +348,38 @@ export function renderCards() {
     const saved = state.night.clocks[task.id];
     timer = saved
       ? { ...saved, taskId: task.id, plannedMs: Math.max(0, (task.minutes || 0) * 60000) }
-      : createTimer(task.id, task.minutes, Boolean(state.profile.settings.autoTimer));
+      : createTimer(task.id, task.minutes);
+    // A different card is a fresh chance to auto-start. Cleared here rather
+    // than left standing, or pressing Later and coming back would find the
+    // setting had quietly stopped applying to this task.
+    autoStartedFor = null;
+  }
+
+  // Auto-start, in one place and doing both halves of the job.
+  //
+  // It used to be an argument to createTimer, which is only reached when the
+  // task has NO saved clock — so a card you were seeing for the first time
+  // started itself and a card you came back to after pressing Later did not.
+  // That is the "it works about half the time".
+  //
+  // And it started the clock without starting the TASK, so `night.started`
+  // stayed empty: the card went on offering "Start it" over a running timer,
+  // and the start advance was never paid. The button asks whether the task has
+  // begun; a running clock is the app's own answer to that, so the two are
+  // settled together here or not at all.
+  if (autoStartedFor !== task.id
+    && state.profile.settings.autoTimer
+    && state.night.done[task.id] === undefined
+    && !isRunning(timer)) {
+    // Set before the call: startTask notifies synchronously and re-enters this
+    // function, and without the guard that is an unbounded loop.
+    autoStartedFor = task.id;
+    timer = toggleTimer(timer);
+    if (!state.night.started[task.id]) {
+      startTask(task.id);
+      // The re-entrant render drew the card with the clock already going.
+      return;
+    }
   }
 
   const started = state.night.started[task.id];

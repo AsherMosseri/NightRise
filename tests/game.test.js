@@ -5,7 +5,7 @@ import {
   xpForLevel, levelFromXp, titleForLevel, nextTitle, comboMultiplier, taskXp,
   stardustFor, grantXp, applyTaskCompletion, revokeTaskCompletion, chainLengthFor,
   nightCompletionBonus, COMBO_MAX, MOMENTUM_MIN_GAP_MS, momentumWindow,
-  TITLES, titleLadder, minuteCurve, TASK_FULL_MINUTES,
+  TITLES, titleLadder, minuteCurve, TASK_FULL_MINUTES, momentumFloor,
 } from '../js/game.js';
 import { ACHIEVEMENTS } from '../js/achievements.js';
 import { QUEST_DEFS } from '../js/quests.js';
@@ -267,4 +267,36 @@ test('the head start actually pays the x1.5 it promises', async () => {
     const award = applyTaskCompletion(copy, task, Date.now() + delay);
     assert.equal(award.multiplier, 1.5, `at +${delay}ms`);
   }
+});
+
+test('the momentum floor scales with the task, like the window already did', () => {
+  // The ceiling has always been proportional and the floor was a flat twenty
+  // seconds — which is nothing against a fifteen-minute task and most of a
+  // thirty-second one. A night of half-minute jobs kept failing it, sat at x1
+  // all evening, and paid the rounding floor of one stardust a task.
+  assert.ok(momentumFloor(0.5) < MOMENTUM_MIN_GAP_MS, 'a thirty-second task asks for less');
+  assert.equal(momentumFloor(15), MOMENTUM_MIN_GAP_MS, 'and a long one asks for the old twenty');
+  assert.ok(momentumFloor(0.1) >= 10_000, 'but never so little that tapping counts as work');
+  // Monotonic, so a longer estimate never asks for less.
+  let previous = 0;
+  for (let m = 0; m <= 20; m += 0.5) {
+    assert.ok(momentumFloor(m) >= previous, `the floor fell at ${m}m`);
+    previous = momentumFloor(m);
+  }
+});
+
+test('a list of short tasks can build momentum at all', () => {
+  // The thing the flat floor made impossible. Half-minute tasks, ticked
+  // eighteen seconds apart, which is a person doing them rather than tapping.
+  const night = { lastDoneAt: 0, combo: 1, lastMinutes: 0 };
+  let at = 1_000_000;
+  let chain = 0;
+  for (let i = 0; i < 6; i += 1) {
+    at += 18_000;
+    chain = chainLengthFor(night, at, 0.5);
+    night.combo = comboMultiplier(chain);
+    night.lastDoneAt = at;
+    night.lastMinutes = 0.5;
+  }
+  assert.ok(night.combo > 1, `six half-minute tasks at eighteen seconds apart still sat at x${night.combo}`);
 });

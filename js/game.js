@@ -308,6 +308,25 @@ export function momentumWindow(minutes) {
 }
 
 /**
+ * And how *fast* is too fast to have been real work.
+ *
+ * The ceiling has always scaled with the task and the floor was a flat twenty
+ * seconds, which is inconsistent in a way that lands entirely on short lists.
+ * Twenty seconds is nothing against a fifteen-minute task and is most of a
+ * thirty-second one — so a night of half-minute jobs kept failing the floor,
+ * sat at x1 all evening, and paid the rounding floor of one stardust a task.
+ * A list of quick tasks is not a dishonest list.
+ *
+ * Proportional now, and still bounded: never less than ten seconds, because the
+ * floor exists to stop a phone being tapped in a bathroom, and never more than
+ * the twenty it always was.
+ */
+export function momentumFloor(minutes) {
+  const expected = Math.max(0, minutes || 0) * 60 * 1000;
+  return clamp(expected * 0.5, 10 * 1000, MOMENTUM_MIN_GAP_MS);
+}
+
+/**
  * The chain length this completion earns. 1 means the chain restarted: either
  * the tap came too fast to be real work, or too long after the last one.
  */
@@ -315,7 +334,7 @@ export function chainLengthFor(night, at, lastMinutes = 0) {
   const last = night.lastDoneAt;
   if (!last) return 1;
   const gap = at - last;
-  if (gap < MOMENTUM_MIN_GAP_MS) return 1;
+  if (gap < momentumFloor(lastMinutes)) return 1;
   if (gap > momentumWindow(lastMinutes)) return 1;
   return Math.round((night.combo - 1) / COMBO_STEP) + 2;
 }

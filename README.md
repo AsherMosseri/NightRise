@@ -122,12 +122,16 @@ About 20,600 lines, and all of it ships as written.
   unlocks no longer leaves you holding the freezes and rain checks it refunded. **Nobody
   loses savings over it** — the migration multiplies the balance you already had, so a
   jar of dust buys exactly what it bought the day before the change.
-- What that buys, simulated through the real action layer rather than estimated. A solid
-  eighteen-row night — everything ticked, quest claimed, lights out on time — pays about
-  **200 stardust early on** and settles to **131** once the level-ups thin out. Saving
-  every night's worth from a standing start: a companion's last tier on night 3, all
-  twenty constellation shapes on night 136, the whole market on **night 234**, and
-  everything there is on night 981. The market was night 60 before it was filled out.
+- What that buys, simulated through the real action layer rather than estimated — and it
+  depends on your list more than on how many rows it has. An eighteen-row night of
+  eight-minute tasks pays about **200 stardust early on**, settling to **131**. The same
+  eighteen rows totalling twenty-five minutes pays **88 at ×1 momentum and 267 at ×2.5**,
+  because a one-minute task is worth 11 XP and 11/8 rounds to one stardust. Short lists
+  live at the coarse end of that division, and momentum is what lifts them off it.
+- The nights-to-afford figures below are from the eight-minute list, so read them as the
+  middle of a range rather than a promise: a companion's last tier on night 3, all twenty
+  constellation shapes on night 136, the whole market on **night 234**, everything there
+  is on night 981. The market was night 60 before it was filled out.
 
 **The night cycle**
 - A night rolls over at **4am**, so anything you tick off at 1am still counts for the

@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 18,000 lines, and all of it ships as written.
+About 20,000 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -480,7 +480,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 18,200 lines: 11,400 of application JavaScript, 3,600 of tests, 2,800 of CSS, and
+About 20,500 lines: 12,600 of application JavaScript, 4,400 of tests, 3,100 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 
@@ -507,6 +507,7 @@ js/bedtime.js            the bedtime record: averages, trend, on-time rate
 js/insights.js           per-task stats and the history numbers
 js/shop.js               catalog, purchase, equip, consumables
 js/constellations.js     the star map and its per-star economy
+js/skins.js              every cosmetic catalog, as data and nothing else
 js/companion.js          the companion, its moods and evolution tiers
 
 js/sky.js                the canvas: stars, moon, meteors, particles, ribbons, rings
@@ -529,7 +530,7 @@ js/render/sheet.js          the phone bottom sheet
 js/render/confirm.js        the app's own confirm and chooser dialogs
 js/render/add-task.js       the three-tap add flow and the number pad
 
-tests/                   15 suites, node --test, no dependencies
+tests/                   17 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
 ```
 

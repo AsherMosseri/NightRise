@@ -393,3 +393,59 @@ test('price is the only ladder, and the level check still works if it is ever wa
   state.profile.level = 9;
   assert.equal(canBuy(state, gated).ok, true);
 });
+
+test('a save from before any of this arrives whole and unchanged', () => {
+  // The migration the whole expansion rests on: five categories, a renamed
+  // typeface and a schema bump between this save and today. Everything new must
+  // arrive at its free default, everything old must be exactly as it was, and
+  // nothing may be handed over that was not paid for.
+  const before = {
+    version: 2,
+    profile: {
+      xp: 41_000,
+      stardust: 640,
+      streak: 12,
+      bestStreak: 19,
+      nightsLogged: 44,
+      tokens: { freeze: 2, raincheck: 1 },
+      equipped: { theme: 'frost', sounds: 'synth', trail: 'comet', font: 'aurora', companion: 'fox' },
+      inventory: {
+        themes: ['midnight', 'aurora', 'frost'],
+        sounds: ['chime', 'synth'],
+        trails: ['none', 'comet'],
+        fonts: ['aurora'],
+        companions: ['fox'],
+      },
+    },
+  };
+  const after = normalizeState(before, new Date(2026, 6, 29, 22, 0)).profile;
+
+  // Everything they had, still theirs.
+  assert.equal(after.xp, 41_000);
+  assert.equal(after.streak, 12);
+  assert.equal(after.nightsLogged, 44);
+  assert.equal(after.equipped.theme, 'frost');
+  assert.equal(after.equipped.sounds, 'synth');
+  assert.equal(after.equipped.companion, 'fox');
+  assert.ok(after.inventory.themes.includes('frost'));
+  // The stardust was rebased once at v2 and must not be rebased twice.
+  assert.equal(after.stardust, 640);
+
+  // The typeface they had, under the id it has now.
+  assert.equal(after.equipped.font, 'sans');
+  assert.deepEqual(after.inventory.fonts, ['sans']);
+
+  // Everything new, at its free default and owned.
+  for (const [bucket, id] of [['weather', 'clear'], ['moons', 'classic'], ['marks', 'check'], ['envelopes', 'plain']]) {
+    assert.ok(after.inventory[bucket].includes(id), `${bucket} did not arrive owning ${id}`);
+  }
+  for (const [slot, id] of [['weather', 'clear'], ['moon', 'classic'], ['mark', 'check'], ['envelope', 'plain']]) {
+    assert.equal(after.equipped[slot], id, `equipped.${slot} did not arrive`);
+  }
+
+  // And nothing they never bought.
+  const paid = allItems().filter((i) => i.cost > 0);
+  const owned = paid.filter((i) => (after.inventory[i.bucket] || []).includes(i.id));
+  assert.deepEqual(owned.map((i) => `${i.bucket}/${i.id}`).sort(),
+    ['companions/fox', 'sounds/synth', 'themes/aurora', 'themes/frost', 'trails/comet'].sort());
+});

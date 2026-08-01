@@ -552,7 +552,7 @@ VIEWS.history = () => {
           // A consecutive run, sitting in a row of lifetime totals. The label
           // said "to bed on time" and read as a count of nights.
           title: 'Nights in a row you called it before your target bedtime — the number this app actually cares about',
-        }, h('strong', {}, String(effectiveLightsOutStreak(state))), h('span', {}, 'on time in a row')),
+        }, h('strong', {}, String(effectiveLightsOutStreak(state))), h('span', {}, 'clean nights in a row')),
         h('div', { class: 'stat-box' }, h('strong', {}, String(state.profile.nightsLogged)), h('span', {}, 'nights logged')),
         h('div', { class: 'stat-box' }, h('strong', {}, `${overallRate(state) ?? 0}%`), h('span', {}, 'average night')),
         h('div', {
@@ -707,7 +707,7 @@ function bedtimeSection(state) {
       h('strong', {}, 'Lights out'), ' are on the record — close the app without it and there '
       + 'is nothing to measure.'),
     h('div', { class: 'stat-row' },
-      box(String(effectiveLightsOutStreak(state)), 'on time in a row',
+      box(String(effectiveLightsOutStreak(state)), 'clean nights in a row',
         `Best run: ${lights.best || 0}. This is the number the app is actually about.`),
       box(summary.onTimeRate === null ? '—' : `${summary.onTimeRate}%`, 'on time this week',
         `${summary.onTime} of ${summary.recorded} recorded nights in the last 7`),

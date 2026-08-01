@@ -208,15 +208,12 @@ export function bankNight(state, stats) {
   const needed = gapMissed + (met ? 0 : 1);
   result.missedNights = needed;
 
-  if (needed === 0) {
-    profile.streak += 1;
-  } else if (profile.streak > 0 && profile.tokens.freeze >= needed) {
-    profile.tokens.freeze -= needed;
-    result.frozenUsed = needed;
-    if (met) profile.streak += 1;
-  } else {
-    profile.streak = met ? 1 : 0;
-  }
+  // The list streak is a plain count now, and freezes no longer touch it. A
+  // Streak Freeze costs 310 stardust and its own copy says it saves your
+  // streak — so it has to guard the one in the top bar, which is the clean-night
+  // streak below. Spending it on the demoted chip instead would be the item
+  // lying about what it does.
+  profile.streak = (met && gapMissed === 0) ? profile.streak + 1 : (met ? 1 : 0);
 
   profile.bestStreak = Math.max(profile.bestStreak, profile.streak);
   profile.nightsLogged += 1;
@@ -226,16 +223,37 @@ export function bankNight(state, stats) {
   // Lights out was pressed, because that already settled this key — pressing it
   // is the strongest evidence there is and must not be second-guessed by an
   // inference from the same night's timestamps.
-  if (profile.lightsOut && profile.lightsOut.lastKey !== night.key) {
+  const lights = profile.lightsOut;
+  if (lights && lights.lastKey !== night.key) {
     const onTime = inferredOnTime(state, night);
     // `lightsOutOnTime` stays the plain fact — you stopped before your bedtime.
     // It is what the history heatmap and the permanent night star are for, and
     // those are earned by sleeping, not by finishing. The streak asks for more.
     if (onTime) night.lightsOutOnTime = true;
-    advanceLightsOutStreak(profile.lightsOut, night.key, isCleanNight(stats, onTime));
+    const clean = isCleanNight(stats, onTime);
     result.onTime = onTime;
+    result.clean = clean;
+
+    // All-or-nothing, the way it has always been: enough freezes to cover every
+    // missed night, or none are spent and the streak goes. Half-covering a gap
+    // spends the tokens and loses the streak anyway, which is the worst of both.
+    const owed = gapMissed + (clean ? 0 : 1);
+    if (owed === 0) {
+      advanceLightsOutStreak(lights, night.key, true);
+    } else if (lights.streak > 0 && profile.tokens.freeze >= owed) {
+      profile.tokens.freeze -= owed;
+      result.frozenUsed = owed;
+      // The freeze holds the streak where it was; a clean night on top of a
+      // covered gap still moves it forward.
+      lights.lastKey = night.key;
+      if (clean) lights.streak += 1;
+      lights.best = Math.max(lights.best || 0, lights.streak);
+    } else {
+      advanceLightsOutStreak(lights, night.key, clean);
+    }
   } else {
     result.onTime = Boolean(night.lightsOutOnTime);
+    result.clean = Boolean(night.lightsOutOnTime);
   }
 
   const entry = summarizeForHistory(stats, xp);
@@ -422,24 +440,36 @@ export function pendingMisses(state, now = new Date()) {
 /** The streak as it actually stands right now, not as it was last banked. */
 export function effectiveStreak(state, now = new Date()) {
   const missed = pendingMisses(state, now);
-  const held = state.profile.tokens.freeze || 0;
   if (missed === 0) {
     return { streak: state.profile.streak, missed: 0, covered: 0, atRisk: false };
   }
-  // bankNight is all-or-nothing: it spends freezes only when it holds enough to
-  // cover every missed night, and otherwise spends none and resets the streak.
-  // This used to report `min(missed, held)`, so with one freeze against two
-  // missed nights the header cheerfully said a freeze would cover it — and then
-  // 4am spent nothing and took the streak anyway. It reports what will actually
-  // happen: either the whole gap is covered or none of it is.
+  // Freezes moved to the clean-night streak, so a gap simply ends this one.
+  return { streak: 0, missed, covered: 0, held: 0, atRisk: true };
+}
+
+/**
+ * The clean-night streak as it stands, and what a freeze will do about a gap.
+ *
+ * The header has to promise exactly what bankNight will do, which is where the
+ * old version of this went wrong for the list streak: it reported
+ * `min(missed, held)`, so one freeze against two missed nights read as covered
+ * and then 4am spent nothing and took the streak anyway.
+ */
+export function lightsOutOutlook(state, now = new Date()) {
+  const lights = state.profile.lightsOut;
+  const streak = effectiveLightsOutStreak(state, now);
+  const missed = pendingMisses(state, now);
+  const held = state.profile.tokens.freeze || 0;
+  if (missed === 0 || !streak) {
+    return { streak, missed: 0, covered: 0, held, atRisk: false };
+  }
   const enough = held >= missed;
-  const covered = enough ? missed : 0;
-  const survives = enough && state.profile.streak > 0;
   return {
-    streak: survives ? state.profile.streak : 0,
+    streak: enough ? streak : 0,
     missed,
-    covered,
+    covered: enough ? missed : 0,
     held,
     atRisk: true,
   };
 }
+

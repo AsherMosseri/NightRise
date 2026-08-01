@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   computeStats, bankNight, rolloverIfNeeded, forceNewNight, effectiveStreak, effectiveLightsOutStreak,
+  lightsOutOutlook,
   MIN_REAL_MS_BETWEEN_BANKS,
   advanceLightsOutStreak,
 } from '../js/night.js';
@@ -64,16 +65,28 @@ test('a bad night with no freeze resets the streak', () => {
   assert.equal(state.profile.streak, 0);
 });
 
-test('a freeze covers a bad night and is spent', () => {
+test('a freeze covers a night that was not clean, and is spent', () => {
+  // A Streak Freeze costs 310 stardust and says it saves your streak, so it
+  // guards the one in the top bar. It used to guard the list streak, which is
+  // now the demoted chip — the item would have been lying about what it does.
   const state = stateWithProgress(1);
-  state.profile.streak = 6;
+  state.profile.lightsOut = { streak: 6, best: 6, lastKey: '2026-07-28' };
   state.profile.tokens.freeze = 1;
   state.profile.lastBankedKey = '2026-07-28';
   const result = bankNight(state, computeStats(state));
   assert.equal(result.frozenUsed, 1);
   assert.equal(state.profile.tokens.freeze, 0);
-  assert.equal(state.profile.streak, 6, 'the streak is protected, not advanced');
+  assert.equal(state.profile.lightsOut.streak, 6, 'held where it was, not advanced');
   assert.equal(state.history['2026-07-29'].frozen, true);
+});
+
+test('the list streak is not what a freeze is for any more', () => {
+  const state = stateWithProgress(1); // one of nine done: nowhere near 60%
+  state.profile.streak = 6;
+  state.profile.tokens.freeze = 3;
+  state.profile.lastBankedKey = '2026-07-28';
+  bankNight(state, computeStats(state));
+  assert.equal(state.profile.streak, 0, 'a bad list ends the list streak');
 });
 
 test('nights where the app was never opened count as missed', () => {
@@ -88,15 +101,15 @@ test('nights where the app was never opened count as missed', () => {
 });
 
 test('freezes cover a gap when there are enough of them', () => {
-  const state = stateWithProgress(9);
-  state.profile.streak = 5;
+  const state = stateWithProgress(11); // every task, and the fixture stamps them in 1970
+  state.profile.lightsOut = { streak: 5, best: 5, lastKey: '2026-07-27' };
   state.profile.tokens.freeze = 3;
   state.profile.lastBankedKey = '2026-07-27';
   const result = bankNight(state, computeStats(state));
-  assert.equal(result.missedNights, 1);
-  assert.equal(result.frozenUsed, 1);
+  assert.equal(result.frozenUsed, 1, 'one night away, one freeze');
   assert.equal(state.profile.tokens.freeze, 2);
-  assert.equal(state.profile.streak, 6);
+  // The freeze covers the gap; tonight was clean, so it still moves forward.
+  assert.equal(state.profile.lightsOut.streak, 6);
 });
 
 test('an empty list is not judged', () => {
@@ -193,6 +206,10 @@ test('starting fresh does not hand out a second envelope or quest reward', () =>
   // proxy for "did the envelope pay twice", which is what this test is about.
   // Tier 2 is three nights running, so the bank below cannot reach it.
   state.profile.lightsOut = { streak: 1, best: 1, lastKey: '2026-07-28' };
+  // And no freezes to spend. This night is nine of eleven, so it is not clean,
+  // and banking would rightly spend one to hold the streak — a real, separate
+  // transaction that would move the counts this test watches.
+  state.profile.tokens.freeze = 0;
   checkAchievements(state, computeStats(state));
   const dust = state.profile.stardust;
   const freezes = state.profile.tokens.freeze;
@@ -262,14 +279,25 @@ test('the streak shown after an absence is the honest one', () => {
 
 test('freezes you hold are counted before the streak is written off', () => {
   const state = stateWithProgress(0);
-  state.profile.streak = 9;
+  state.profile.lightsOut = { streak: 9, best: 9, lastKey: '2026-07-28' };
   state.profile.tokens.freeze = 3;
   state.profile.lastBankedKey = '2026-07-26'; // two nights missed
 
-  const live = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  const live = lightsOutOutlook(state, new Date(2026, 6, 29, 22, 0));
   assert.equal(live.missed, 2);
   assert.equal(live.covered, 2);
   assert.equal(live.streak, 9, 'covered, so it still stands');
+  assert.equal(live.atRisk, true);
+});
+
+test('a gap simply ends the list streak, with nothing to cover it', () => {
+  const state = stateWithProgress(0);
+  state.profile.streak = 9;
+  state.profile.tokens.freeze = 3;
+  state.profile.lastBankedKey = '2026-07-26';
+  const live = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  assert.equal(live.covered, 0, 'freezes do not reach this one any more');
+  assert.equal(live.streak, 0);
   assert.equal(live.atRisk, true);
 });
 
@@ -402,16 +430,16 @@ test('the header promises a freeze only when it will actually be spent', () => {
   // against two missed nights read as "1 streak freeze will cover some of it",
   // and then 4am spent nothing and took the streak anyway.
   const state = stateWithProgress(0);
-  state.profile.streak = 6;
+  state.profile.lightsOut = { streak: 6, best: 6, lastKey: '2026-07-28' };
   state.profile.lastBankedKey = '2026-07-26'; // two nights missed
   state.profile.tokens.freeze = 1;
-  const short = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  const short = lightsOutOutlook(state, new Date(2026, 6, 29, 22, 0));
   assert.equal(short.missed, 2);
   assert.equal(short.covered, 0, 'one freeze covers none of two, not one of two');
   assert.equal(short.streak, 0, 'and the streak is gone');
 
   state.profile.tokens.freeze = 2;
-  const enough = effectiveStreak(state, new Date(2026, 6, 29, 22, 0));
+  const enough = lightsOutOutlook(state, new Date(2026, 6, 29, 22, 0));
   assert.equal(enough.covered, 2);
   assert.equal(enough.streak, 6, 'covered in full, so it stands');
 });
@@ -592,6 +620,7 @@ test('a finished list you were still working on at 1am does not count', () => {
   for (const id of Object.keys(state.night.done)) state.night.done[id] = at;
   state.night.lastDoneAt = at;
   state.profile.lightsOut = { streak: 4, best: 4, lastKey: '2026-07-28' };
+  state.profile.tokens.freeze = 0; // nothing to save it — the rule itself is under test
   const stats = computeStats(state);
   assert.equal(stats.pct, 100, 'the list was finished — the clock is what failed');
   bankNight(state, stats);
@@ -607,6 +636,7 @@ test('a night nobody opened is not an on-time night', () => {
   state.profile.settings.bedtime = '23:30';
   state.night.key = '2026-07-29';
   state.profile.lightsOut = { streak: 6, best: 6, lastKey: '2026-07-28' };
+  state.profile.tokens.freeze = 0;
   assert.ok(state.night.startedAt > 0, 'the night record does carry a timestamp');
   bankNight(state, computeStats(state));
   assert.equal(state.profile.lightsOut.streak, 0, 'and it is not evidence of anything');

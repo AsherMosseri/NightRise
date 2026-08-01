@@ -3,7 +3,7 @@
 
 import { h, svg, icon, clear, replace, withFocus } from '../dom.js';
 import { getState } from '../state.js';
-import { computeStats, effectiveStreak, effectiveLightsOutStreak } from '../night.js';
+import { computeStats, effectiveStreak, lightsOutOutlook } from '../night.js';
 import { momentumWindow } from '../game.js';
 import { evaluateQuest } from '../quests.js';
 import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
@@ -123,18 +123,31 @@ export function renderStats() {
       // scrolling, and a flame that counts nights you got 60% through a list
       // goes up just as happily at 2am — which is the same mistake as pricing
       // rows instead of evenings, in the number people actually watch.
-      const nights = effectiveLightsOutStreak(state);
+      const live = lightsOutOutlook(state);
       const best = state.profile.lightsOut?.best || 0;
-      return statChip({
-        iconName: 'moon',
-        value: String(nights),
-        label: 'clean nights',
-        title: `Nights in a row you finished everything that counted and were done`
+      // The gift lands before the accounting. Painting the streak red the
+      // instant a returning user opens the app is the sentence that sends them
+      // to a feed instead — so while there is still something on the mat, the
+      // chip stays quiet and says what it will say once the envelopes are open.
+      const mat = pendingEnvelopes(state).length > 1;
+      const title = mat
+        ? `${plural(live.missed, 'night', 'nights')} away. Open what is waiting first — the streak can wait its turn.`
+        : live.atRisk
+        ? `${plural(live.missed, 'night', 'nights')} missed since you last banked one.`
+          + (live.covered
+            ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover it.`
+            : ` ${live.held ? `${plural(live.held, 'freeze', 'freezes')} is not enough to cover all of them, and a freeze is never spent unless it saves the streak. ` : ''}The streak is gone.`)
+        : `Nights in a row you finished everything that counted and were done`
           + ` before ${profile.settings.bedtime}. A rain check takes a task out of`
           + ` "everything", which is what rain checks are for. Pressing Lights out`
           + ` counts, and so does simply finishing and closing the app.`
-          + ` Best: ${best}.`,
-        className: `stat--streak ${nights > 0 ? 'stat--hot' : ''}`.trim(),
+          + ` Best: ${best}. Freezes held: ${profile.tokens.freeze}`;
+      return statChip({
+        iconName: 'moon',
+        value: String(live.streak),
+        label: 'clean nights',
+        title,
+        className: `stat--streak ${live.streak > 0 && !live.atRisk ? 'stat--hot' : ''} ${live.atRisk && !mat ? 'stat--risk' : ''}`.trim(),
       });
     })(),
     statChip({

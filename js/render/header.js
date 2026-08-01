@@ -351,7 +351,11 @@ function reckoningButton(state, reck) {
       subtitle: [
         `Lights out ${reck.at}`,
         reck.average === null ? `against a target of ${formatClockLabel(reck.target)}` : null,
-        reck.average === null ? null : `${reck.window}-night average ${reck.average}`,
+        // "over N nights", not "N-night average". The mean divides by the nights
+        // you ended, not by the seven it looked through, and saying seven when
+        // it was one put the same figure on both sides of the separator.
+        reck.average === null ? null
+          : `average ${reck.average} over ${plural(reck.recorded, 'night', 'nights')}`,
         reck.shift === '—' ? null : reck.shift,
       ].filter(Boolean).join(' · '),
       invoker: button,
@@ -362,7 +366,7 @@ function reckoningButton(state, reck) {
           hint: 'Every night, against its own target',
           onClick: () => openPanel('insights'),
         },
-        {
+        reck.suggestedValue === null ? null : {
           icon: 'moon',
           label: `Move the target to ${reck.suggested}`,
           // Not "give up". A bedtime you miss by two hours every night is not a
@@ -375,7 +379,7 @@ function reckoningButton(state, reck) {
           },
         },
         { icon: 'check', label: 'Keep the target', hint: 'Tonight, then', onClick: () => {} },
-      ],
+      ].filter(Boolean),
       });
     },
   }, icon('moon', { size: 13 }), h('span', {}, `Last night ran ${formatDuration(reck.late)} long`));

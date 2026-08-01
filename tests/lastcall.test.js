@@ -223,7 +223,37 @@ test('a night that ran past last call is worth one sentence', () => {
   const reck = lastNightReckoning(withHistory(longNight));
   assert.ok(reck, 'nothing to say about a 2h10m overrun');
   assert.equal(reck.late, 130);
-  assert.ok(reck.suggestedValue, 'it has to offer a target you might hit');
+});
+
+test('one night is not an average, and not a reason to move the target', () => {
+  // This fixture holds exactly one night. The sheet used to call its mean a
+  // "7-night average" — the window size, not the count it divided by — so the
+  // line under "Lights out 1:20 AM" read "7-night average 1:20 AM": the same
+  // figure twice, one of them claiming to be a week of them. And "Move the
+  // target to 1:30 AM" was computed from that single night, which would set
+  // your bedtime to the worst night on record because it is also the only one.
+  const reck = lastNightReckoning(withHistory(longNight));
+  assert.equal(reck.recorded, 1, 'one night ended inside the window');
+  assert.equal(reck.average, null, 'so there is no average to print');
+  assert.equal(reck.suggestedValue, null, 'and nothing to move the target to');
+});
+
+test('a run of them is both', () => {
+  const state = withHistory(longNight);
+  // Three nights ending at 12:30am, against the same target.
+  for (let i = 1; i <= 3; i += 1) {
+    const key = shiftKey(KEY, -i);
+    const [y, m, d] = key.split('-').map(Number);
+    state.history[key] = {
+      key, lightsOutAt: new Date(y, m - 1, d + 1, 0, 30).getTime(),
+      onTime: false, bedtime: BED, minutesLate: 165,
+    };
+  }
+  const reck = lastNightReckoning(state);
+  assert.equal(reck.recorded, 4);
+  assert.ok(reck.average, 'four nights is an average');
+  assert.ok(reck.suggestedValue, 'and a pattern worth offering to act on');
+  assert.notEqual(reck.average, reck.at, 'the mean is not just last night again');
 });
 
 test('and an ordinary miss is not', () => {

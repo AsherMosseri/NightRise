@@ -265,3 +265,55 @@ test('the neutralising block is gone, and stays gone', () => {
       + 'at the source with @media (hover: hover) instead');
   }
 });
+
+/* --------------------------------------------- the pacing chip's status word */
+
+const LAYOUT = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+
+test('the status word is never painted in a neat accent', () => {
+  // 12.5px at 600 is normal text under WCAG, so 4.5:1 applies to it as painted —
+  // and --good, --warn and --bad all miss that under sleep-safe dim, which was
+  // true on an ordinary evening long before last call existed. Measured across
+  // twelve skies the label ran 3.07-3.55:1 in --bad under dim and 2.55:1 under
+  // last call's veil. It is mixed toward --text now; the border and the plate
+  // carry the status colour at full strength.
+  const neat = [...LAYOUT.matchAll(/\.pacing[^{]*\.pacing__label[^{]*\{([^}]*)\}/g)]
+    .map((m) => m[1])
+    .filter((body) => /color:\s*var\(--(good|warn|bad)\)/.test(body));
+  assert.deepEqual(neat, [], 'a pacing label is taking an accent colour undiluted');
+
+  const label = LAYOUT.match(/\.pacing__label\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(label, /color-mix\([^)]*--pace-tone/, 'the label mixes its tone toward --text');
+});
+
+test('every pacing state hands the label a tone', () => {
+  // The mix falls back to --text with no tone set, which is legible but colourless.
+  // A state that forgets to set one loses its status colour silently.
+  const states = new Set([...LAYOUT.matchAll(/\.pacing--([a-z]+)/g)].map((m) => m[1]));
+  const toned = new Set();
+  for (const rule of LAYOUT.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    if (!/--pace-tone\s*:/.test(rule[2])) continue;
+    for (const hit of rule[1].matchAll(/\.pacing--([a-z]+)/g)) toned.add(hit[1]);
+  }
+  for (const state of states) {
+    assert.ok(toned.has(state), `.pacing--${state} sets no --pace-tone`);
+  }
+});
+
+test('sleep-safe dim drains the chip further, because it has already spent the budget', () => {
+  assert.match(CSS, /\.is-dim \.pacing\s*\{[^}]*--pace-mix/,
+    'dim has to lower the mix or --bad stays under AA');
+  assert.match(CSS, /\.is-dim \.pacing--lastcall\s*\{[^}]*background:\s*var\(--panel-2\)/,
+    'and drop the tinted fill, which was raising the plate under the label');
+});
+
+test('no dim escape list filters a toast that is already inside a filtered dialog', () => {
+  // #toasts-modal lives inside <dialog id="modal">, so a bare `.toast` in these
+  // lists applied the filter a second time on top of the dialog's own —
+  // 0.66 x 0.66 — and the toast came out darker than the panel it was raised on.
+  const bare = [...CSS.matchAll(/^\.is-[a-z.-]*\s+\.toast,$/gm)];
+  assert.deepEqual(bare.map((m) => m[0]), [],
+    'scope the toast rule to #toasts so the modal host inherits it once');
+  const scoped = [...CSS.matchAll(/^\.is-[a-z.-]*\s+#toasts \.toast,$/gm)];
+  assert.equal(scoped.length, 3, 'all three escape lists (dim, lastcall, both) scope it');
+});

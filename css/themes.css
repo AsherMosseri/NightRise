@@ -357,6 +357,16 @@
    and the level chip — everything that makes this look like a game. The list
    and the clock stay exactly as legible as they were. The app stops being
    entertainment without stopping being useful. */
+/* Sleep-safe dim has already spent the contrast budget — brightness(0.66)
+   costs every coloured thing on the page about two stops, and the pacing chip's
+   status word is the smallest coloured text in the app. Measured across twelve
+   skies, --bad at the ordinary mix runs 4.24-4.42:1 under dim: under AA, and
+   under it before last call existed. So while dim is on the chip gives up its
+   fill and most of its ink colour. The border keeps the status hue at full
+   strength, which is what actually reads at this size. */
+.is-dim .pacing { --pace-mix: 25%; }
+.is-dim .pacing--lastcall { background: var(--panel-2); }
+
 .is-lastcall #dim-veil {
   opacity: 1;
   background: transparent;
@@ -406,7 +416,7 @@
 .is-lastcall #modal,
 .is-lastcall .sheet,
 .is-lastcall .sheet-scrim,
-.is-lastcall .toast,
+.is-lastcall #toasts .toast,
 .is-lastcall .onecard,
 .is-lastcall .env-stage,
 .is-lastcall .fx-layer,
@@ -417,7 +427,7 @@
 .is-dim.is-lastcall #modal,
 .is-dim.is-lastcall .sheet,
 .is-dim.is-lastcall .sheet-scrim,
-.is-dim.is-lastcall .toast,
+.is-dim.is-lastcall #toasts .toast,
 .is-dim.is-lastcall .onecard,
 .is-dim.is-lastcall .env-stage,
 .is-dim.is-lastcall .fx-layer,
@@ -428,7 +438,7 @@
 .is-dim #modal,
 .is-dim .sheet,
 .is-dim .sheet-scrim,
-.is-dim .toast,
+.is-dim #toasts .toast,
 .is-dim .onecard,
 .is-dim .env-stage,
 .is-dim .fx-layer,
@@ -436,7 +446,12 @@
   /* The same treatment as the veil, for the layers the veil cannot reach. It
      has to match it exactly or the two halves of the screen dim differently —
      which is what made the Night History panel read as washed-out grey while
-     the page behind it went brown. */
+     the page behind it went brown.
+     `#toasts .toast`, not `.toast`: the in-modal toast host lives INSIDE
+     <dialog id="modal">, so a bare .toast filtered it a second time on top of
+     the dialog's own — 0.66 x 0.66, a toast noticeably darker than the panel it
+     was raised over. Scoped to the page-level host, the modal's toasts inherit
+     the filter from the modal exactly once. */
   filter: brightness(0.66) saturate(0.88);
 }
 .is-dim #modal::backdrop { background: rgba(2, 3, 10, 0.78); }

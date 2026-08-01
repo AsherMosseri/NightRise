@@ -190,12 +190,30 @@ export function lastNightReckoning(state, todayKey = state.night.key) {
     late: night.late,
     at: formatFromNoon(night.minutes, key),
     target: night.target || bedtime,
+    // How many nights the mean is actually over — NOT the size of the window it
+    // looked in. `summary.window` is the 7 that was passed in; `recorded` is how
+    // many of those seven you ended with Lights out, which is what the mean
+    // divides by. The insights tile one panel over already carries a comment
+    // about this exact confusion ("a mean of two claiming to be a mean of
+    // seven"); this returned the same overclaim in a different shape.
+    recorded: summary.recorded,
     window: summary.window,
-    average: summary.recorded ? formatFromNoon(summary.average, key) : null,
+    average: summary.recorded >= AVERAGE_MIN_NIGHTS ? formatFromNoon(summary.average, key) : null,
     shift: formatShift(summary.delta),
-    ...suggestBedtime(summary.average, key),
+    // Moving the bedtime target is the one option here that changes a setting,
+    // and one night is an incident. Offered on a run or not at all: on your
+    // first ever Lights out the "average" and the night above it are the same
+    // number, and accepting it would set your target to the worst night on
+    // record because it is also the only one.
+    ...(summary.recorded >= SUGGEST_MIN_NIGHTS
+      ? suggestBedtime(summary.average, key)
+      : { suggested: '—', suggestedValue: null }),
   };
 }
+
+/** A mean needs two nights to be a mean, and three to be a pattern worth acting on. */
+export const AVERAGE_MIN_NIGHTS = 2;
+export const SUGGEST_MIN_NIGHTS = 3;
 
 /**
  * A bedtime you might actually hit, from when you actually stop.

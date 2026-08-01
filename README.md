@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 21,800 lines, and all of it ships as written.
+About 23,000 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -216,8 +216,9 @@ it's the scroll.
   There are two numbers now. Bedtime stays the aspiration and drives the pacing. **Last
   call**, an hour past it by default (30 / 60 / 90 / 120, or off), is where the app stops
   negotiating. Between them the reward for stopping **shrinks by the minute** on one
-  continuous curve — 161 XP ninety minutes early, 26 on the minute, 16 an hour late, 8 at
-  three in the morning. It is asymptotic and **never reaches zero**, which is the property
+  continuous curve — 161 XP ninety minutes early, 26 on the minute, 16 an hour late, 9 at
+  three in the morning against the default 11:30 target — the floor of 8 is not
+  reached until about five hours over. It is asymptotic and **never reaches zero**, which is the property
   that matters most: a reward that decays to nothing removes the last reason to stop, so at
   3am the app would be arguing *for* staying up.
 - **Past last call the app goes grey, not dark.** The shop, star map, history and insights
@@ -231,8 +232,19 @@ it's the scroll.
   There is no room underneath it; the first attempt at a darker veil took every sky to
   3.7:1. Measured as painted across all twelve skies: **4.83:1** at last call, **4.66:1**
   with sleep-safe on top. The app stops being entertainment without stopping being useful.
+  That measurement covered the body copy and missed the one element whose *colour* this
+  state changes: the pacing chip's status word. A later sweep of it — solid probes of the
+  label's own computed colour against the chip's own painted plate, twelve skies, four veil
+  combinations — found **2.55:1** at its worst. Most of that predated last call and failed
+  on an ordinary evening: at full strength `--good`, `--warn` and `--bad` all miss AA under
+  sleep-safe dim, so "On pace" was failing too. The label mixes its tone toward `--text`
+  now and drains further under dim, leaving the border and the plate to carry the status
+  colour at full strength. Re-measured the same way: **4.63:1 at worst across all six
+  states**, none below AA. Dimming costing contrast is a fact about the arithmetic; missing
+  it on the one word that says which state you are in was not.
 - **And it says so in the morning, once.** After a night that ran past last call, one quiet
-  line in the tonight panel: how long it ran, your seven-night average, the trend. It opens
+  line in the tonight panel: how long it ran, your average over the nights you actually
+  ended, the trend — the count it divides by, never the size of the window it looked in. It opens
   a sheet, never a modal, and it is keyed to the night so it cannot fire twice.
   The third option is the honest one: **move the target**, to your own average rounded up
   to the quarter hour. If you finish at midnight every night against a 9:45 target, either
@@ -560,7 +572,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**351 tests, 18 suites, zero dependencies**, on Node's built-in runner. No install step:
+**357 tests, 18 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -599,7 +611,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 21,800 lines: 13,300 of application JavaScript, 5,200 of tests, 3,300 of CSS, and
+About 23,000 lines: 13,300 of application JavaScript, 5,300 of tests, 3,400 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

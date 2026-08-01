@@ -55,7 +55,7 @@ export const RESET_PARTS = [
   {
     id: 'settings',
     label: 'Settings',
-    hint: 'Bedtime, motion, dim, sounds, curfew.',
+    hint: 'Bedtime, last call, motion, dim, sounds, curfew.',
   },
 ];
 

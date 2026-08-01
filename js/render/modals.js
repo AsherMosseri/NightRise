@@ -997,14 +997,22 @@ function lastCallHint(state, settings) {
   if (!settings.lastCall) {
     return 'Off. Bedtime is the only line, and being an hour past it looks the same as being three.';
   }
-  const at = formatLastCall(state.night.key, settings.bedtime, settings.lastCall);
-  const capped = lastCallCapped(state.night.key, settings.bedtime, settings.lastCall);
+  const key = state.night.key;
+  const at = formatLastCall(key, settings.bedtime, settings.lastCall);
+  const capped = lastCallCapped(key, settings.bedtime, settings.lastCall);
+  const bed = formatClockLabel(settings.bedtime);
   return [
-    `${settings.lastCall} minutes past ${formatClockLabel(settings.bedtime)}, so ${at}.`,
-    capped ? 'The night rolls over at 4am and the list starts again, so last call cannot land later than that.' : '',
+    // When the clamp bites, the offset and the time no longer agree, and saying
+    // "120 minutes past 3:45 AM, so 4:00 AM" is arithmetic that does not hold.
+    // Name the time the offset would have reached, then say what moved it.
+    capped
+      ? `${settings.lastCall} minutes past ${bed} would be `
+        + `${formatLastCall(key, settings.bedtime, settings.lastCall, { clamp: false })}, `
+        + `but the night rolls over at 4am and the list starts again — so last call is ${at}.`
+      : `${settings.lastCall} minutes past ${bed}, so ${at}.`,
     'Past it the shop, star map, history and insights stop letting you in, with no way through.',
     'Your list and one-at-a-time are never touched.',
-  ].filter(Boolean).join(' ');
+  ].join(' ');
 }
 
 VIEWS.settings = () => {

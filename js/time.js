@@ -150,7 +150,7 @@ export function nightEndInstant(key) {
   return new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1, NIGHT_BOUNDARY_HOUR, 0, 0, 0);
 }
 
-export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
+export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT, { clamp = true } = {}) {
   const minutes = Math.max(0, Math.round(Number(lastCall) || 0));
   if (!minutes) return null;
   const target = bedtimeInstant(key, bedtime);
@@ -167,6 +167,11 @@ export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
   // the real answer there: the night ends, the list resets, and nothing later
   // than that belongs to it. Clamped forward only — if the bedtime itself is
   // already past the boundary, last call stays after the bedtime it follows.
+  // `clamp: false` asks what the offset alone would have produced, which is the
+  // only honest way to explain the clamp to someone: "two hours past 3:45 would
+  // be 5:45, but the night ends at 4" is true, and "120 minutes past 3:45 AM,
+  // so 4:00 AM" — which is what the settings hint said — is not.
+  if (!clamp) return raw;
   const end = nightEndInstant(key);
   return raw > end && end > target ? end : raw;
 }
@@ -178,8 +183,8 @@ export function lastCallInstant(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
  * because the offset can cross midnight (an 11:30 bedtime and 120 minutes is
  * 1:30 the next day) and string arithmetic on "23:30" + 120 does not.
  */
-export function formatLastCall(key, bedtime, lastCall = LAST_CALL_DEFAULT) {
-  const at = lastCallInstant(key, bedtime, lastCall);
+export function formatLastCall(key, bedtime, lastCall = LAST_CALL_DEFAULT, opts) {
+  const at = lastCallInstant(key, bedtime, lastCall, opts);
   if (!at) return '—';
   return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }

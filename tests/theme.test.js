@@ -178,3 +178,29 @@ test('the hidden attribute outranks a component that sets display', () => {
     .map((m) => m[1].trim());
   assert.deepEqual(offenders, [], `${offenders.join(', ')} re-declares display on a hidden element`);
 });
+
+test('a double tap on a control cannot zoom the page', () => {
+  /* This app is a fixed-viewport layer cake: the sky canvas is `position:
+     fixed; inset: 0` and the page gradient is `background-attachment: fixed`.
+     Both are sized to the LAYOUT viewport. iOS keeps double-tap-to-zoom on by
+     default, and the moment it zooms the VISUAL viewport in, neither covers
+     what you are looking at — the night sky is simply gone behind whatever
+     panel is open. That is the "double-tap a button in the market and the
+     background disappears" report, and why it hit some buttons and not others.
+
+     `manipulation` drops the double-tap gesture and keeps pinch-zoom, which has
+     to stay: killing zoom outright would take a real accessibility affordance
+     from someone reading at 1am. */
+  const base = readFileSync(new URL('../css/base.css', import.meta.url), 'utf8');
+  const rule = base.match(/([^{}]*\[role="button"\][^{}]*)\{([^}]*touch-action[^}]*)\}/);
+  assert.ok(rule, 'css/base.css no longer gives interactive elements a touch-action');
+  assert.match(rule[2], /touch-action:\s*manipulation/);
+  for (const el of ['button', 'a', 'label', 'input', 'select', 'textarea']) {
+    assert.match(rule[1], new RegExp(`(^|[\\s,])${el}([\\s,]|$)`), `${el} is not covered`);
+  }
+
+  // And the viewport must not have solved it the other way.
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /user-scalable\s*=\s*no|maximum-scale/,
+    'pinch-zoom stays: the fix is touch-action, not banning zoom');
+});

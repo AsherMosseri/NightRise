@@ -4,6 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, allItems, itemById,
@@ -484,4 +485,64 @@ test('a save from before any of this arrives whole and unchanged', () => {
   const owned = paid.filter((i) => (after.inventory[i.bucket] || []).includes(i.id));
   assert.deepEqual(owned.map((i) => `${i.bucket}/${i.id}`).sort(),
     ['companions/fox', 'sounds/synth', 'themes/aurora', 'themes/frost', 'trails/comet'].sort());
+});
+
+/* Every control that spends stardust is built by one helper, because they were
+   four hand-typed class strings and all four stayed `btn--primary` while
+   disabled. `.btn--primary` carries `color: #0a0c1c` — near-black label text —
+   over a full accent gradient, dimmed to 45% by `:disabled`. Measured as
+   painted, across all twelve skies: 1.02–1.43:1. The label saying WHY you
+   cannot buy the thing was the least readable pixel on the card and also the
+   most eye-catching, on nearly every card at once, because you cannot afford
+   most of a 24,000-stardust market on most nights. It measures 6.4–7.5:1 now. */
+
+test('a button you cannot use is never dressed as the main action', () => {
+  const src = readFileSync(new URL('../js/render/modals.js', import.meta.url), 'utf8');
+
+  // Every button that takes a `disabled:` must get its classes from spendClass
+  // or from something other than a literal primary string.
+  const buttons = [...src.matchAll(/h\('button',\s*\{([\s\S]*?)\}\s*,/g)].map((m) => m[1]);
+  const dressed = buttons.filter((b) => /disabled:/.test(b) && /'btn[^']*btn--primary/.test(b));
+  assert.deepEqual(dressed, [],
+    'a disabled button is still hardcoded as btn--primary — route it through spendClass');
+
+  assert.match(src, /function spendClass\(/, 'the helper is gone');
+  assert.ok(src.match(/spendClass\(/g).length >= 5,
+    'the market, the supplies shelf, the feed button and the star map all spend stardust');
+});
+
+test('the unaffordable state is a real style, not just a dimmed one', () => {
+  const base = readFileSync(new URL('../css/base.css', import.meta.url), 'utf8');
+  const block = base.match(/\.btn--cost \{([^}]*)\}/);
+  assert.ok(block, 'css/base.css no longer defines .btn--cost');
+  assert.match(block[1], /color: var\(--muted\)/, 'the label has to be readable');
+  assert.match(block[1], /background: var\(--panel-2\)/, 'no accent gradient under near-black text');
+  // .btn:disabled dims to 45%, which is the opposite of what a label you are
+  // meant to READ needs. The override has to come after it to win.
+  const dim = base.indexOf('.btn:disabled');
+  const undim = base.indexOf('.btn--cost:disabled { opacity: 1;');
+  assert.ok(undim > dim && dim !== -1,
+    '.btn--cost:disabled must follow .btn:disabled — same specificity, source order decides');
+});
+
+test('the supplies shelf says why on the button, not in a tooltip', () => {
+  // A `title` is a hover affordance and this app is used one-handed in the
+  // dark. Every other shelf states its terms in visible text — the market cards
+  // label themselves with `canBuy`'s reason, the star map and the feed button
+  // carry their price — and this one put the shortfall in a `title` and nowhere
+  // else, so the button said "Buy" and did nothing when you tapped it.
+  const src = readFileSync(new URL('../js/render/modals.js', import.meta.url), 'utf8');
+  const shelf = src.slice(src.indexOf('buyConsumable(item.id)'));
+  assert.match(shelf.slice(0, 400), /poor \?[^]*more stardust`/,
+    'the supplies button still hides its reason in a tooltip');
+});
+
+test('the market card labels itself with the reason it cannot be bought', () => {
+  // canBuy returns the shortfall or the level it wants; the card must show it.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 108;
+  const dear = { id: 'x', cost: 430, bucket: 'weather', kind: 'weather' };
+  assert.equal(canBuy(state, dear).reason, '322 more stardust');
+  state.profile.level = 1;
+  assert.equal(canBuy(state, { ...dear, reqLevel: 11 }).reason, 'Reach level 11');
 });

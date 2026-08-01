@@ -214,6 +214,21 @@ function skinPreview(item) {
   return h('div', { class: `swatch swatch--${item.kind} swatch--${item.id}`, 'aria-hidden': 'true' });
 }
 
+/**
+ * The class list for a button that spends stardust.
+ *
+ * One helper for all four of them — the market, the supplies shelf, the feed
+ * button and the star map — because they had the same class string typed out
+ * four times and every one of them stayed `btn--primary` when it was disabled.
+ * A gradient with near-black text at 45% opacity is the least readable thing on
+ * the card and the most eye-catching, which is the wrong way round for a
+ * control you cannot use.
+ */
+function spendClass(affordable, { small = true } = {}) {
+  return ['btn', small && 'btn--sm', affordable ? 'btn--primary' : 'btn--cost']
+    .filter(Boolean).join(' ');
+}
+
 function shopCard(state, item, { onPreview } = {}) {
   const ownedAlready = owns(state, item);
   const equipped = isEquipped(state, item);
@@ -244,7 +259,7 @@ function shopCard(state, item, { onPreview } = {}) {
         }, 'Equip'))
       : h('button', {
         type: 'button',
-        class: 'btn btn--primary btn--sm',
+        class: spendClass(check.ok),
         disabled: !check.ok,
         title: check.ok ? `Buy for ${item.cost} stardust` : check.reason,
         dataset: { focus: `shop:${item.id}` },
@@ -278,7 +293,7 @@ function companionPanel(state) {
       h('div', { class: 'row' },
         h('button', {
           type: 'button',
-          class: 'btn btn--primary btn--sm',
+          class: spendClass(state.profile.stardust >= FEED_COST),
           disabled: state.profile.stardust < FEED_COST,
           onClick: () => {
             const result = feedCompanion();
@@ -361,11 +376,14 @@ VIEWS.shop = () => {
             : `${state.profile.tokens[item.id] || 0} held`),
           h('button', {
             type: 'button',
-            class: 'btn btn--primary btn--sm',
+            class: spendClass(!poor && !blocked),
             disabled: poor || Boolean(blocked),
             title: blocked || (poor ? `${item.cost - state.profile.stardust} more stardust` : `Buy for ${item.cost} stardust`),
             onClick: () => { buyConsumable(item.id); refreshModal(); },
-          }, 'Buy')));
+            // The shortfall said only in a `title`, which a phone has no way to
+            // show. Every other shelf puts it on the button; this one made you
+            // guess why the tap did nothing.
+          }, poor ? `${item.cost - state.profile.stardust} more stardust` : 'Buy')));
     }));
   } else {
     const onPreview = active[0] === 'sounds' ? (item) => previewPack(item.id) : null;
@@ -451,7 +469,7 @@ VIEWS.starmap = () => {
           : h('div', { class: 'row' },
             h('button', {
               type: 'button',
-              class: 'btn btn--primary btn--sm',
+              class: spendClass(affordable),
               dataset: { focus: `star:${def.id}` },
               disabled: !affordable,
               onClick: () => {

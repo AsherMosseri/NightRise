@@ -15,7 +15,7 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 20,900 lines, and all of it ships as written.
+About 21,000 lines, and all of it ships as written.
 
 ## What's in it
 
@@ -31,6 +31,14 @@ About 20,900 lines, and all of it ships as written.
   time wheel — the bedtime, the motion setting and every "are you sure" are the app's own
   controls, in the app's own type, and none of them slide a grey system panel over your
   night.
+- **Double-tapping a control does not zoom the page.** This app is a fixed-viewport layer
+  cake — the sky canvas is `position: fixed; inset: 0` and the page gradient is
+  `background-attachment: fixed`, both sized to the *layout* viewport. iOS keeps
+  double-tap-to-zoom on by default, so the instant it zoomed the *visual* viewport in,
+  neither covered what you were looking at and the night sky was simply gone behind
+  whatever panel was open. `touch-action: manipulation` drops that one gesture. Pinch-zoom
+  stays, deliberately: killing zoom outright would take a real accessibility affordance
+  from someone reading at 1am.
 - Adding a section asks what to call it first, rather than dropping a row named
   "New section" into the list.
 - **Adding a task is three taps**: type the words, tap how long (30s/1/2/5/10/15/30), tap
@@ -324,6 +332,16 @@ it's the scroll.
   should be something you can reach into, not a wall of locks.
 - Every shelf reads cheapest first — three of them had drifted out of order simply by
   having new entries appended, so Skies read 400, 700, 920, 1150, 1550, 620, 840.
+- **A price you cannot meet is information, not a dead call to action.** All four spend
+  buttons — the market, the supplies shelf, the feed button, the star map — were typed out
+  by hand and all four stayed `btn--primary` while disabled: a full accent gradient
+  carrying near-black label text, dimmed to 45%. Measured as painted, across all twelve
+  skies, that was **1.02–1.43:1** — the label telling you *why* you could not buy the thing
+  was the least readable pixel on the card and simultaneously the loudest, on nearly every
+  card at once, because you cannot afford most of a 24,000-stardust market on most nights.
+  One helper builds all four now, and the unaffordable state is its own quiet style:
+  **6.4–7.5:1**, sleep-safe mode included. The supplies shelf also said its shortfall only
+  in a `title`, which a phone has no way to show — so the button read "Buy" and did nothing.
 
 **The rest**
 - A live canvas sky: parallax twinkling stars that drift on their own, a shooting star on
@@ -513,7 +531,7 @@ node tools/make-icons.mjs
 
 ## Layout
 
-About 20,900 lines: 12,800 of application JavaScript, 4,600 of tests, 3,100 of CSS, and
+About 21,000 lines: 12,800 of application JavaScript, 4,700 of tests, 3,200 of CSS, and
 the rest markup, the service worker and one icon generator. Nothing is generated, bundled
 or installed.
 

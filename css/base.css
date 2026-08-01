@@ -12,6 +12,26 @@
    every new flex component walks into, so it is settled once, here. */
 [hidden] { display: none !important; }
 
+/* Double-tapping a control must not zoom the page.
+   iOS keeps double-tap-to-zoom on by default, and this app is a fixed-viewport
+   layer cake: the sky is `position: fixed; inset: 0` and the page gradient is
+   `background-attachment: fixed`. Both are sized to the LAYOUT viewport, so the
+   moment a double tap zooms the visual viewport in, neither covers what you are
+   looking at any more and the night sky is simply gone behind the panel — which
+   is exactly the "double-tap a button in the market and the background
+   disappears" report, and why it happened on some buttons and not others: iOS
+   only fires the gesture where it thinks there is something to zoom to.
+
+   `manipulation` turns off the double-tap gesture on these elements and leaves
+   pinch-zoom alone, which matters — killing zoom outright with
+   `user-scalable=no` would take a real accessibility affordance away from
+   someone reading at 1am. Element selectors, so the two components that need a
+   stricter value (the sheet grip, the lights-out hold) still win on their own
+   class. */
+button, a, label, summary, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
 html, body { height: 100%; }
 
 /* The root gets a flat night colour of its own.
@@ -241,6 +261,24 @@ svg { display: block; }
   box-shadow: 0 6px 20px -8px var(--glow);
 }
 .btn--primary:hover:not(:disabled) { box-shadow: 0 10px 26px -8px var(--glow); }
+/* A price you cannot meet yet is information, not a call to action.
+   It used to be `btn--primary` regardless: a full accent gradient carrying
+   `color: #0a0c1c` — near-black label text — dimmed to 45% by :disabled. So the
+   least readable thing on the card was also the most visually prominent, and
+   since you cannot afford most of a 24,000-stardust market on most nights, that
+   was nearly every card in the shop at once.
+
+   It keeps the button's box so nothing reflows when you can finally afford it,
+   and it keeps `disabled` for the keyboard and the screen reader — but it drops
+   the dimming, because the whole point of the label is to be read. */
+.btn--cost {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--muted);
+  box-shadow: none;
+}
+.btn--cost:disabled { opacity: 1; cursor: default; }
+
 .btn--ghost { background: transparent; }
 .btn--sm { padding: 6px 12px; font-size: 13px; border-radius: var(--r-sm); }
 .btn--danger { border-color: color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }

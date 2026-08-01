@@ -388,13 +388,37 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .modal__lead { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
 .modal__section { font-size: 14px; font-weight: 700; margin: 22px 0 10px; }
 
-.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; }
+/* One row that scrolls, not three that wrap.
+   Ten categories wrapped to three rows of chips on a phone — 140px of a 654px
+   panel, a fifth of the market spent on its own table of contents before a
+   single item was visible. A strip scrolls sideways, keeps the active chip in
+   view, and costs one row whatever the market grows to. The fade on the right
+   edge is the affordance that says there is more. */
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 14px;
+  padding-bottom: 2px;
+  /* Room for the chip's own focus ring, which a hidden overflow would clip. */
+  padding-inline: 2px;
+  margin-inline: -2px;
+  scroll-padding-inline: 16px;
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 26px), transparent 100%);
+}
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
+  flex: none;
   padding: 7px 13px;
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--muted);
   font-size: 13px;
+  white-space: nowrap;
   transition: all var(--speed) var(--ease);
 }
 .tab:hover { color: var(--text); background: var(--panel-2); }
@@ -956,7 +980,10 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 }
 .sheet__cancel:hover { color: var(--text); background: var(--panel-hover); }
 
-body.has-sheet { overflow: hidden; }
+body.has-sheet,
+/* Same reason: a <dialog> does not stop the document behind it scrolling, and
+   on iOS the scroll chains out of the modal and carries the panel off-screen. */
+body.has-modal { overflow: hidden; }
 
 /* The menu button only exists on narrow screens; the inline row buttons only
    exist on wide ones. Neither is ever the sole way to do something. */
@@ -979,6 +1006,11 @@ body.has-sheet { overflow: hidden; }
      Buy/Equip/Feed button in the market is a purchase. The minutes chip keeps
      its small ink and grows an invisible target, the way `.task__check` does. */
   .btn--sm, .tab, .confirm__actions .btn, .onecard__exit, .tonight__nudge { min-height: 44px; }
+  /* min-height alone squares off the short labels: at 44px tall, "Buy" was as
+     wide as it was high and sat beside a much longer "In use" looking like a
+     different control. A floor on the width too, so the market's buttons read
+     as one family however short the word on them is. */
+  .card__foot .btn--sm { min-width: 88px; }
   .onecard__exit { width: 44px; }
   .task__minutes { position: relative; }
   .task__minutes::after {

@@ -64,6 +64,13 @@ export function openModal(name) {
   currentView = name;
   renderModal({ keepScroll: !changed });
   if (!dialog.open) dialog.showModal();
+  // Lock the page behind it. A <dialog> does not stop the document scrolling,
+  // and iOS chains a scroll that reaches the end of the modal body straight on
+  // to the page underneath — which slides the whole panel up and takes the
+  // title and the close button off the top of the screen with it. The bottom
+  // sheet has always locked the body for exactly this reason; the modal never
+  // did, and it is the bigger surface.
+  document.body.classList.add('has-modal');
   setSkyPaused(true);
 }
 
@@ -71,6 +78,7 @@ let closing = null;
 
 export function closeModal() {
   currentView = null;
+  document.body.classList.remove('has-modal');
   setSkyPaused(false);
   if (!dialog?.open) return;
   if (still()) {
@@ -177,6 +185,15 @@ function skinPreview(item) {
       style: ink(item.paper, '--env-paper') + ink(item.flap, '--env-flap') + ink(item.seal, '--env-seal') || null,
     }, h('span', { class: 'swatch__flap' }),
     item.seal && item.seal !== 'theme' ? h('span', { class: 'swatch__seal' }) : null);
+  }
+
+  if (item.kind === 'font') {
+    // The face itself, from the item's own stack — see the note in js/skins.js.
+    return h('div', {
+      class: `swatch swatch--font ${item.glow ? 'swatch--glow' : ''}`.trim(),
+      'aria-hidden': 'true',
+      style: `font-family:${item.stack};`,
+    }, 'Aa');
   }
 
   return h('div', { class: `swatch swatch--${item.kind} swatch--${item.id}`, 'aria-hidden': 'true' });
@@ -300,6 +317,12 @@ VIEWS.shop = () => {
       onClick: () => { shopTab = id; refreshModal(); },
     }, label)));
   rovingGroup(tabBar, { onPick: (node) => node.click() });
+  // The strip scrolls, so the chip you are on has to be brought into view — on
+  // a fresh render the active tab can otherwise be sitting off the right edge
+  // with nothing to say the market has ten shelves rather than four.
+  queueMicrotask(() => {
+    tabBar.querySelector('.is-active')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  });
 
   let content;
   if (active[0] === 'supplies') {

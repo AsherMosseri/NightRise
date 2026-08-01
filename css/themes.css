@@ -233,20 +233,9 @@
   color: var(--text);
   background: var(--panel-2);
 }
-/* The swatch shows the pack's real stack, not an approximation of it. The serif
-   swatch used to say Georgia while the pack leads with Iowan Old Style — which
-   is installed on every iPhone, so the preview was a face you would not get.
-   Same for the display swatch's own letter-spacing, which was 0.08em against
-   the pack's 0.01em. Written once, in base.css, and referenced here. */
-.swatch--font::after { content: "Aa"; font-family: var(--font-stack); }
-.swatch--font.swatch--aurora { --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-.swatch--font.swatch--mono { --font-stack: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-.swatch--font.swatch--serif { --font-stack: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif; }
-.swatch--font.swatch--display {
-  --font-stack: "Avenir Next", Futura, "Trebuchet MS", system-ui, sans-serif;
-  letter-spacing: 0.01em;
-}
-.swatch--font.swatch--display::after { text-shadow: 0 0 14px var(--glow); }
+/* The face comes from the item's own `stack`, set inline — a class name matched
+   by convention came unstuck the moment an id was renamed. */
+.swatch--font.swatch--glow { text-shadow: 0 0 14px var(--glow); letter-spacing: 0.01em; }
 
 /* The five newer categories draw their own preview from the very data the
    renderer reads, so a card cannot show something the app then does not do.

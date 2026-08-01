@@ -34,16 +34,48 @@ export const TRAILS = [
   { id: 'fireflies', name: 'Fireflies', cost: 660, desc: 'Little lights that drift after you.' },
 ];
 
+/**
+ * Typefaces. `stack` is the same list `css/base.css` sets for the equipped font,
+ * carried here so the card's preview can render in the face you are actually
+ * buying rather than relying on a matching CSS rule.
+ *
+ * It used to rely on one: `.swatch--font.swatch--aurora`. Renaming this id to
+ * `sans` — to stop it colliding with the Aurora *sky* — orphaned that rule
+ * silently, and the default typeface's card began previewing in whatever face
+ * happened to be equipped. Data the renderer reads cannot come unstuck from the
+ * item it describes; a class name matched by convention can.
+ */
 export const FONTS = [
-  // `sans`, not `aurora`. The Aurora *sky* is also `aurora`, and ids are global
-  // in `itemById` — so tapping Equip on this card looked up the theme, and the
-  // default typeface could never be equipped again once you left it. Renamed
-  // rather than disambiguated alone, because two things in one market sharing a
-  // name is a trap whatever the lookup does. Saves are migrated in storage.js.
-  { id: 'sans', name: 'Aurora Sans', cost: 0, desc: 'The clean default.' },
-  { id: 'mono', name: 'Terminal', cost: 260, desc: 'Monospaced, for the very online.' },
-  { id: 'serif', name: 'Bedside', cost: 310, desc: 'A quiet book serif.' },
-  { id: 'display', name: 'Neon', cost: 480, reqLevel: 5, desc: 'Wide letterforms with a glow.' },
+  {
+    id: 'sans',
+    name: 'Aurora Sans',
+    cost: 0,
+    desc: 'The clean default.',
+    stack: 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  },
+  {
+    id: 'mono',
+    name: 'Terminal',
+    cost: 260,
+    desc: 'Monospaced, for the very online.',
+    stack: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+  },
+  {
+    id: 'serif',
+    name: 'Bedside',
+    cost: 310,
+    desc: 'A quiet book serif.',
+    stack: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif',
+  },
+  {
+    id: 'display',
+    name: 'Neon',
+    cost: 480,
+    reqLevel: 5,
+    desc: 'Wide letterforms with a glow.',
+    stack: '"Avenir Next", Futura, "Trebuchet MS", system-ui, sans-serif',
+    glow: true,
+  },
 ];
 
 /**

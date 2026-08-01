@@ -18,6 +18,12 @@ export const THEMES = [
   { id: 'city', name: 'City Skyline', cost: 920, reqLevel: 6, desc: 'Amber windows under a hazy orange sky.' },
   { id: 'frost', name: 'Frost', cost: 1150, reqLevel: 8, desc: 'Pale ice blue and a very long winter night.' },
   { id: 'bloodmoon', name: 'Blood Moon', cost: 1550, reqLevel: 10, desc: 'Rust and ember. Rare, and a little ominous.' },
+  { id: 'harbour', name: 'Harbour', cost: 620, reqLevel: 3, desc: 'Cold water, and the sodium lights still on along the quay.' },
+  { id: 'hollow', name: 'Hollow', cost: 840, reqLevel: 5, desc: 'Deep woods after dark, greener than you expect.' },
+  { id: 'dunes', name: 'Dunes', cost: 1020, reqLevel: 7, desc: 'Warm sand giving its heat back to a cold sky.' },
+  { id: 'thunderhead', name: 'Thunderhead', cost: 1280, reqLevel: 9, desc: 'Weather coming in, lit from somewhere behind.' },
+  { id: 'lantern', name: 'Paper Lantern', cost: 1420, reqLevel: 11, desc: 'Warm light through paper, close and small.' },
+  { id: 'abyss', name: 'Abyss', cost: 1680, reqLevel: 13, desc: 'Almost nothing at all. The stars have it to themselves.' },
 ];
 
 export const SOUND_PACKS = [
@@ -25,6 +31,9 @@ export const SOUND_PACKS = [
   { id: 'crickets', name: 'Crickets', cost: 260, desc: 'A short chirp from the garden.' },
   { id: 'windchime', name: 'Wind Chime', cost: 440, desc: 'Three notes on a breeze.' },
   { id: 'synth', name: 'Synth', cost: 570, desc: 'Warm analog blip, retro and satisfying.' },
+  { id: 'kalimba', name: 'Kalimba', cost: 690, desc: 'A thumb piano, short and woody.' },
+  { id: 'bell', name: 'Temple Bell', cost: 810, desc: 'Low and long, for when somebody else is already asleep.' },
+  { id: 'pulse', name: 'Pulse', cost: 900, desc: 'Barely a note. Something happened, and nothing more than that.' },
 ];
 
 export const TRAILS = [
@@ -32,6 +41,9 @@ export const TRAILS = [
   { id: 'stardust', name: 'Stardust', cost: 330, desc: 'Fine glittering dust follows the pointer.' },
   { id: 'comet', name: 'Comet', cost: 530, desc: 'A short bright tail with a slow fade.' },
   { id: 'fireflies', name: 'Fireflies', cost: 660, desc: 'Little lights that drift after you.' },
+  { id: 'embers', name: 'Embers', cost: 720, desc: 'Warm sparks that lift and go out.' },
+  { id: 'moondust', name: 'Moondust', cost: 840, desc: 'Pale grains that fall slowly and take their time.' },
+  { id: 'ripple', name: 'Ripple', cost: 950, desc: 'A quiet ring, the way water answers a dropped stone.' },
 ];
 
 /**
@@ -75,6 +87,20 @@ export const FONTS = [
     desc: 'Wide letterforms with a glow.',
     stack: '"Avenir Next", Futura, "Trebuchet MS", system-ui, sans-serif',
     glow: true,
+  },
+  {
+    id: 'rounded',
+    name: 'Pebble',
+    cost: 340,
+    desc: 'Soft corners, nothing sharp about it.',
+    stack: 'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", Quicksand, system-ui, sans-serif',
+  },
+  {
+    id: 'condensed',
+    name: 'Platform',
+    cost: 390,
+    desc: 'Narrow and matter-of-fact, like a departure board.',
+    stack: '"Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif',
   },
 ];
 

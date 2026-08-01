@@ -120,7 +120,7 @@ test('consumables are priced and named', () => {
 test('the whole market costs what the README says it costs', () => {
   // Quoted in prose and used to pace every sink. Measured, not remembered.
   const total = allItems().reduce((sum, item) => sum + (item.cost || 0), 0);
-  assert.equal(total, 23030, 'the market total moved');
+  assert.equal(total, 38770, 'the market total moved');
 });
 
 test('a starting profile owns nothing it has not paid for', () => {

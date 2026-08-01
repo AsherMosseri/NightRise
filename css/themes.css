@@ -159,6 +159,160 @@
   --trail: #ff9d92;
 }
 
+/* Six more skies. Each sets the same twenty-six properties the first six do —
+   the canvas reads --sky-star, --moon, --glow and --trail back out through
+   getComputedStyle, so a theme that omits one gets the previous sky's colour on
+   a surface it does not own. Contrast for --text and --muted against --panel is
+   checked in tests/theme.test.js rather than eyeballed. */
+
+[data-theme="harbour"] {
+  --sky-1: #04090e;
+  --sky-2: #08202c;
+  --sky-3: #0f3a48;
+  --bg-base:
+    radial-gradient(80% 45% at 50% 100%, rgba(255, 186, 92, 0.16) 0%, transparent 62%),
+    radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 42%, var(--sky-1) 100%) fixed;
+  --text: #e7f4fa;
+  --muted: #95bccb;
+  --accent: #5fc9d8;
+  --accent-2: #ffbb5c;
+  --glow: #2d7f92;
+  --panel: rgba(10, 36, 48, 0.55);
+  --panel-2: rgba(14, 48, 62, 0.5);
+  --panel-hover: rgba(22, 70, 88, 0.6);
+  --panel-solid: #0a2532;
+  --border: rgba(120, 210, 228, 0.18);
+  --border-strong: rgba(120, 210, 228, 0.38);
+  --sky-star: #eefaff;
+  --sky-star-dim: #86b4c4;
+  --moon: #ffe9c4;
+  --moon-shadow: #0a222e;
+  --trail: #7fd8e6;
+}
+
+[data-theme="dunes"] {
+  --sky-1: #0a0710;
+  --sky-2: #1e1226;
+  --sky-3: #3a2338;
+  --bg-base:
+    radial-gradient(90% 50% at 50% 100%, rgba(226, 160, 116, 0.2) 0%, transparent 60%),
+    radial-gradient(120% 90% at 60% 0%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%) fixed;
+  --text: #f7ecdf;
+  --muted: #c4a693;
+  --accent: #e2a074;
+  --accent-2: #b58cd4;
+  --glow: #a86a45;
+  --panel: rgba(44, 26, 42, 0.55);
+  --panel-2: rgba(58, 34, 54, 0.5);
+  --panel-hover: rgba(84, 50, 78, 0.6);
+  --panel-solid: #2a1828;
+  --border: rgba(230, 178, 142, 0.2);
+  --border-strong: rgba(230, 178, 142, 0.4);
+  --sky-star: #fff4e8;
+  --sky-star-dim: #bb9a86;
+  --moon: #ffe4c2;
+  --moon-shadow: #26141f;
+  --trail: #e8b48c;
+}
+
+[data-theme="hollow"] {
+  --sky-1: #030806;
+  --sky-2: #0a1c14;
+  --sky-3: #143026;
+  --bg-base:
+    radial-gradient(70% 45% at 25% 8%, rgba(126, 214, 160, 0.14) 0%, transparent 62%),
+    radial-gradient(120% 90% at 50% 100%, var(--sky-3) 0%, var(--sky-2) 45%, var(--sky-1) 100%) fixed;
+  --text: #e6f6ec;
+  --muted: #93bfa4;
+  --accent: #7ed6a0;
+  --accent-2: #d2c26a;
+  --glow: #3c8a60;
+  --panel: rgba(10, 32, 24, 0.55);
+  --panel-2: rgba(14, 44, 32, 0.5);
+  --panel-hover: rgba(22, 66, 48, 0.6);
+  --panel-solid: #0a2418;
+  --border: rgba(140, 224, 176, 0.18);
+  --border-strong: rgba(140, 224, 176, 0.38);
+  --sky-star: #f0fff5;
+  --sky-star-dim: #82b494;
+  --moon: #eaf7e6;
+  --moon-shadow: #0a2018;
+  --trail: #9ce6ba;
+}
+
+[data-theme="thunderhead"] {
+  --sky-1: #06070b;
+  --sky-2: #141824;
+  --sky-3: #262d3f;
+  --bg-base:
+    radial-gradient(80% 50% at 70% 12%, rgba(180, 196, 230, 0.14) 0%, transparent 60%),
+    radial-gradient(120% 90% at 40% 100%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%) fixed;
+  --text: #eef1f8;
+  --muted: #a4adc2;
+  --accent: #b4c4e6;
+  --accent-2: #8fd0e8;
+  --glow: #5a6683;
+  --panel: rgba(28, 34, 50, 0.55);
+  --panel-2: rgba(38, 46, 66, 0.5);
+  --panel-hover: rgba(58, 68, 94, 0.6);
+  --panel-solid: #1a1f2e;
+  --border: rgba(186, 200, 230, 0.18);
+  --border-strong: rgba(186, 200, 230, 0.38);
+  --sky-star: #f6f8ff;
+  --sky-star-dim: #97a1b8;
+  --moon: #f2f4fb;
+  --moon-shadow: #171b28;
+  --trail: #c2cfec;
+}
+
+[data-theme="lantern"] {
+  --sky-1: #0d0608;
+  --sky-2: #24101a;
+  --sky-3: #3f1d2c;
+  --bg-base:
+    radial-gradient(60% 40% at 22% 14%, rgba(255, 176, 120, 0.2) 0%, transparent 58%),
+    radial-gradient(120% 90% at 60% 100%, var(--sky-3) 0%, var(--sky-2) 44%, var(--sky-1) 100%) fixed;
+  --text: #fdeee9;
+  --muted: #cfa4a0;
+  --accent: #ffab86;
+  --accent-2: #f08ab0;
+  --glow: #b8624a;
+  --panel: rgba(50, 22, 34, 0.55);
+  --panel-2: rgba(66, 30, 44, 0.5);
+  --panel-hover: rgba(94, 44, 64, 0.6);
+  --panel-solid: #2e1420;
+  --border: rgba(255, 178, 150, 0.2);
+  --border-strong: rgba(255, 178, 150, 0.4);
+  --sky-star: #fff2ec;
+  --sky-star-dim: #c69a94;
+  --moon: #ffdcc4;
+  --moon-shadow: #2a1018;
+  --trail: #ffb894;
+}
+
+[data-theme="abyss"] {
+  --sky-1: #010204;
+  --sky-2: #04080f;
+  --sky-3: #0a1120;
+  --bg-base: radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 46%, var(--sky-1) 100%) fixed;
+  --text: #e4e9f2;
+  --muted: #93a0b8;
+  --accent: #7f92b8;
+  --accent-2: #6fa8b8;
+  --glow: #35455f;
+  --panel: rgba(10, 16, 30, 0.6);
+  --panel-2: rgba(16, 24, 42, 0.55);
+  --panel-hover: rgba(28, 40, 64, 0.6);
+  --panel-solid: #080e1a;
+  --border: rgba(140, 160, 200, 0.16);
+  --border-strong: rgba(140, 160, 200, 0.34);
+  --sky-star: #eef3fc;
+  --sky-star-dim: #7b8aa4;
+  --moon: #e8eef8;
+  --moon-shadow: #060a14;
+  --trail: #9fb0d0;
+}
+
 /* Sleep-safe dim: a warm veil over everything, no blue light blast at 1am. */
 #dim-veil {
   position: fixed;
@@ -215,6 +369,12 @@
 .swatch--theme.swatch--city { background: linear-gradient(135deg, #ffb054, #4b2410 65%, #120a06); }
 .swatch--theme.swatch--frost { background: linear-gradient(135deg, #a0dcff, #16374f 60%, #040a12); }
 .swatch--theme.swatch--bloodmoon { background: linear-gradient(135deg, #ff5252, #4a1218 60%, #0d0405); }
+.swatch--theme.swatch--harbour { background: linear-gradient(135deg, #5fc9d8, #0f3a48 60%, #04090e); }
+.swatch--theme.swatch--dunes { background: linear-gradient(135deg, #e2a074, #3a2338 62%, #0a0710); }
+.swatch--theme.swatch--hollow { background: linear-gradient(135deg, #7ed6a0, #143026 60%, #030806); }
+.swatch--theme.swatch--thunderhead { background: linear-gradient(135deg, #b4c4e6, #262d3f 60%, #06070b); }
+.swatch--theme.swatch--lantern { background: linear-gradient(135deg, #ffab86, #3f1d2c 62%, #0d0608); }
+.swatch--theme.swatch--abyss { background: linear-gradient(135deg, #7f92b8, #0a1120 58%, #010204); }
 
 .swatch--sounds.swatch--chime { background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 12px); }
 .swatch--sounds.swatch--crickets { background: repeating-linear-gradient(90deg, var(--good) 0 2px, transparent 2px 7px); }

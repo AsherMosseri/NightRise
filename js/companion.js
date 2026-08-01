@@ -7,6 +7,10 @@ export const COMPANIONS = [
   { id: 'cat', name: 'Cat', cost: 550, desc: 'Supervises from the edge of the screen.', palette: ['#6f7fbc', '#3c4570'] },
   { id: 'fox', name: 'Fox', cost: 700, desc: 'Sharp-eyed, and never far from the last task.', palette: ['#e08a4a', '#8c4a20'] },
   { id: 'bat', name: 'Bat', cost: 660, desc: 'Awake at this hour on purpose, unlike you.', palette: ['#9b7fd4', '#4b3a78'] },
+  { id: 'hare', name: 'Hare', cost: 720, desc: 'Ready to bolt, and never does.', palette: ['#c8b49a', '#6d5942'] },
+  { id: 'hedgehog', name: 'Hedgehog', cost: 780, desc: 'Out on business of its own, most of the night.', palette: ['#b09a86', '#54443a'] },
+  { id: 'moth', name: 'Moth', cost: 840, desc: 'Turned up for the lamp and stayed for the company.', palette: ['#d6cbb6', '#615647'] },
+  { id: 'raccoon', name: 'Raccoon', cost: 900, desc: 'Has been through your things and regrets nothing.', palette: ['#9aa3b4', '#454c5e'] },
 ];
 
 /** Stardust to feed from tier N to N+1, and the total feeds needed. */
@@ -82,6 +86,42 @@ const SPECIES = {
     layers: [
       { d: 'M32 42C20 30 10 32 8 28c6 2 10-6 24 6zM68 42c12-12 22-10 24-14-6 2-10-6-24 6z', fill: 'dark', opacity: 0.95 },
       { d: 'M40 30l3-10 4 8zM60 30l-3-10-4 8z', fill: 'dark' },
+    ],
+    eyeY: 46,
+  },
+  hare: {
+    body: 'M50 30c13 0 21 11 21 26s-9 26-21 26-21-11-21-26 8-26 21-26z',
+    layers: [
+      // The ears are the whole animal at this size, so they are long and
+      // slightly splayed rather than symmetric — a hare's never match.
+      { d: 'M41 32c-4-14-5-24-2-26s7 8 8 24zM59 32c4-13 6-23 9-21s0 11-4 23z', fill: 'dark' },
+      { d: 'M50 60l-4 6h8z', fill: '#e79aa6' },
+    ],
+    eyeY: 50,
+  },
+  hedgehog: {
+    body: 'M50 34c14 0 22 10 22 24S64 82 50 82 28 72 28 58s8-24 22-24z',
+    layers: [
+      { d: 'M30 50l-6-11 10 4 2-12 7 9 5-12 5 12 7-9 2 12 10-4-6 11z', fill: 'dark' },
+      { d: 'M50 64l-3 5h6z', fill: '#2a1a14' },
+    ],
+    eyeY: 54,
+  },
+  moth: {
+    body: 'M50 34c7 0 11 7 11 18s-4 20-11 20-11-9-11-20 4-18 11-18z',
+    layers: [
+      { d: 'M39 44C24 30 10 34 9 44s10 20 30 14zM61 44c15-14 29-10 30 0s-10 20-30 14z', fill: 'dark', opacity: 0.9 },
+      { d: 'M45 32c-3-9-8-13-11-12s0 7 8 13zM55 32c3-9 8-13 11-12s0 7-8 13z', fill: 'dark' },
+    ],
+    eyeY: 46,
+  },
+  raccoon: {
+    body: 'M50 26c15 0 24 12 24 28S65 82 50 82 26 68 26 54 35 26 50 26z',
+    layers: [
+      { d: 'M31 30l1-13 12 8zM69 30l-1-13-12 8z', fill: 'dark' },
+      // The mask, which is the only reason anyone recognises a raccoon.
+      { d: 'M32 46q8-6 15 0-7 8-15 0zM68 46q-8-6-15 0 7 8 15 0z', fill: 'dark', opacity: 0.85 },
+      { d: 'M50 60l-4 6h8z', fill: '#241a16' },
     ],
     eyeY: 46,
   },

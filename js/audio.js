@@ -87,6 +87,30 @@ const PACKS = {
     level: () => [220, 330, 440, 660].forEach((f, i) => tone({ freq: f, dur: 0.2, type: 'square', gain: 0.05, delay: i * 0.08, filter: 2600 })),
     complete: () => [330, 440, 550, 880].forEach((f, i) => tone({ freq: f, dur: 0.3, type: 'sawtooth', gain: 0.06, delay: i * 0.1, filter: 3000 })),
   },
+  // A thumb piece: short, woody, a little detuned so two in a row are not
+  // identical. Triangle rather than sine because a kalimba has a hard onset.
+  kalimba: {
+    check: () => { tone({ freq: 587, dur: 0.5, type: 'triangle', gain: 0.07, filter: 2600 }); tone({ freq: 1174, dur: 0.3, gain: 0.03, delay: 0.01 }); },
+    uncheck: () => tone({ freq: 392, dur: 0.3, type: 'triangle', gain: 0.05, filter: 1600 }),
+    level: () => [523, 622, 784, 932].forEach((f, i) => tone({ freq: f, dur: 0.6, type: 'triangle', gain: 0.06, delay: i * 0.1, filter: 2800 })),
+    complete: () => [440, 523, 659, 784, 1046].forEach((f, i) => tone({ freq: f, dur: 0.8, type: 'triangle', gain: 0.055, delay: i * 0.12, filter: 3000 })),
+  },
+  // Low and long. The quietest pack here on purpose — it is the one to have on
+  // when somebody else in the room is already asleep.
+  bell: {
+    check: () => { tone({ freq: 196, dur: 1.6, gain: 0.06, filter: 900 }); tone({ freq: 294, dur: 1.1, gain: 0.025, delay: 0.02 }); },
+    uncheck: () => tone({ freq: 147, dur: 0.7, gain: 0.04, filter: 700 }),
+    level: () => [196, 262, 330].forEach((f, i) => tone({ freq: f, dur: 1.8, gain: 0.05, delay: i * 0.22, filter: 1100 })),
+    complete: () => [131, 196, 262, 392].forEach((f, i) => tone({ freq: f, dur: 2.2, gain: 0.05, delay: i * 0.26, filter: 1200 })),
+  },
+  // Barely a note: a filtered thud with no pitch to speak of, for anyone who
+  // wants to hear that something happened and nothing more than that.
+  pulse: {
+    check: () => tone({ freq: 150, sweepTo: 70, dur: 0.14, type: 'sine', gain: 0.09, filter: 400 }),
+    uncheck: () => tone({ freq: 90, sweepTo: 60, dur: 0.12, type: 'sine', gain: 0.06, filter: 320 }),
+    level: () => [110, 110, 165].forEach((f, i) => tone({ freq: f, sweepTo: f * 0.6, dur: 0.16, gain: 0.07, delay: i * 0.13, filter: 460 })),
+    complete: () => [110, 147, 110, 220].forEach((f, i) => tone({ freq: f, sweepTo: f * 0.55, dur: 0.2, gain: 0.07, delay: i * 0.15, filter: 520 })),
+  },
 };
 
 const SHARED = {

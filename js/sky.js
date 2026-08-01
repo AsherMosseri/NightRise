@@ -516,6 +516,9 @@ const TRAIL_SPECS = {
   stardust: { per: 1, decay: 0.03, r: 1, jitter: 1, drift: null, flicker: false, color: () => colors.trail },
   comet: { per: 2, decay: 0.045, r: 1.6, jitter: 1.6, drift: null, flicker: false, color: () => colors.star },
   fireflies: { per: 1, decay: 0.012, r: 1, jitter: 1, drift: { up: 0.15, spread: 0.3 }, flicker: true, color: () => '#ffe58a' },
+  embers: { per: 2, decay: 0.028, r: 0.8, jitter: 1.2, drift: { up: 0.35, spread: 0.45 }, flicker: true, color: () => '#ff9d5c' },
+  moondust: { per: 1, decay: 0.008, r: 0.8, jitter: 0.9, drift: { up: -0.06, spread: 0.12 }, flicker: false, color: () => colors.moon },
+  ripple: { per: 3, decay: 0.06, r: 2.2, jitter: 1.4, drift: null, flicker: false, color: () => colors.accent },
 };
 
 /** Which trails this renderer can actually draw — the shop is tested against it. */

@@ -63,13 +63,26 @@ const KIND_BY_LIST = [
 
 export const COMPANION_ITEMS = COMPANIONS.map((c) => ({ ...c, kind: 'companion' }));
 
-/** Every equippable item, tagged with its inventory bucket. */
+/**
+ * Every equippable item, tagged with its inventory bucket, cheapest first.
+ *
+ * Sorted here rather than in the catalogs, because a shelf is a ladder and the
+ * catalogs are edited by hand: skies, type and companions had all drifted out of
+ * order simply by having new entries appended to the end, so the Skies tab read
+ * 400, 700, 920, 1150, 1550, 620, 840. Price is the only pacing this market has
+ * — levels come far too fast to gate anything — so the order it is read in has
+ * to be the order it is affordable in.
+ */
+function byPrice(a, b) {
+  return (a.cost || 0) - (b.cost || 0);
+}
+
 export function allItems() {
   const items = [];
   for (const [bucket, kind, list] of KIND_BY_LIST) {
-    for (const item of list) items.push({ ...item, kind, bucket });
+    for (const item of [...list].sort(byPrice)) items.push({ ...item, kind, bucket });
   }
-  for (const c of COMPANIONS) items.push({ ...c, kind: 'companion', bucket: 'companions' });
+  for (const c of [...COMPANIONS].sort(byPrice)) items.push({ ...c, kind: 'companion', bucket: 'companions' });
   return items;
 }
 

@@ -326,7 +326,10 @@ VIEWS.shop = () => {
 
   let content;
   if (active[0] === 'supplies') {
-    content = h('div', { class: 'cards' }, ...CONSUMABLES.map((item) => {
+    // Sorted like every other shelf. Supplies are not in `allItems()`, so the
+    // sort there did not reach them and this one read 310, 100, 180, 220.
+    const supplies = [...CONSUMABLES].sort((a, b) => a.cost - b.cost);
+    content = h('div', { class: 'cards' }, ...supplies.map((item) => {
       // Two kinds of supply. A freeze or a rain check is a token you hold, and
       // the card counts them. A head start and a second wind act on tonight the
       // moment you buy them, so there is nothing to count — the card says what

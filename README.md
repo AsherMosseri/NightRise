@@ -125,8 +125,9 @@ About 18,000 lines, and all of it ships as written.
 - What that buys, simulated through the real action layer rather than estimated. A solid
   eighteen-row night — everything ticked, quest claimed, lights out on time — pays about
   **200 stardust early on** and settles to **131** once the level-ups thin out. Saving
-  every night's worth from a standing start, the whole market is affordable on **night 60**,
-  a companion's last tier on night 3, and the star map is the long game below.
+  every night's worth from a standing start: a companion's last tier on night 3, all
+  twenty constellation shapes on night 136, the whole market on **night 234**, and
+  everything there is on night 981. The market was night 60 before it was filled out.
 
 **The night cycle**
 - A night rolls over at **4am**, so anything you tick off at 1am still counts for the
@@ -188,6 +189,26 @@ it's the scroll.
   supposed to be rescuing you from. A deliberate second tap still gets you in.
 
 **The game**
+- **The streak in the top bar is about the clock, not the list.** It counts **clean
+  nights**: everything that counted, finished, and finished before your bedtime. It used
+  to count nights you got 60% through a list, which goes up just as happily at 2am — the
+  same mistake as pricing rows instead of evenings, in the number people actually watch.
+  And when it *was* only about the clock, it was far looser than it sounded: one task of
+  eleven carried it, and so did a task merely started and never finished. Now both halves
+  have to be true. A rain check takes a task out of "everything", which is exactly what
+  rain checks are for and what stops a rule this strict ending your streak on the first
+  bad evening. The list streak still exists, as the quiet chip beside the countdown.
+- **You do not have to press anything.** Pressing Lights out counts, and so does simply
+  finishing before your bedtime and closing the app — inferred at 4am from your last
+  check-off, or the last task you started on a night where nothing got finished. A night
+  nobody opened is not a clean night, and getting that right meant *not* reading
+  `night.startedAt`, which sounds like when you started but is when the night record was
+  made, at the 4am rollover. It is there on every night including untouched ones, and 4am
+  is before any bedtime, so it would have handed the streak a night for every day the app
+  sat unopened.
+- **A Streak Freeze covers the streak it says it covers.** It guards the clean-night
+  streak — all or nothing, enough to cover every missed night or none are spent, because
+  half-covering a gap burns the tokens and loses the streak anyway.
 - XP with a level curve and eight titles, from Dreamer upward. You can see the level each
   one arrives at but never what it is called until you get there — a list of every name you
   will ever be given is a list of endings, and the reveal is the reward.
@@ -219,10 +240,32 @@ it's the scroll.
   Nothing you can un-tick leaves you holding what it paid for.
 
 **Spending stardust**
-- **Skies** — Midnight, Aurora, Deep Space, City Skyline, Frost, Blood Moon. Each one
-  restyles the whole app *and* the live canvas sky.
-- **Companions** — an owl, cat, fox or bat that lives in the corner, reacts to your
-  progress, and evolves through four tiers as you feed it.
+- **Skies** — twelve of them, from Midnight through Harbour, Hollow, Dunes, Thunderhead,
+  Paper Lantern and Abyss. Each restyles the whole app *and* the live canvas sky: the
+  canvas reads seven of a sky's twenty-six custom properties back out through
+  `getComputedStyle`, so a sky that forgot one would not throw, it would inherit — and
+  you would get the previous sky's moon hanging in the new one's gradient. A test parses
+  the stylesheet and holds every sky to the whole contract, to its own swatch, and to
+  4.5:1 for body *and* secondary text. Secondary too, rather than taking the large-text
+  exemption, because "47m of tasks left" is small and it is 11pm.
+- **Weather** — rain, snow, a firefly field and northern lights, drawn as one particle
+  layer over the sky. Every sky used to be only a recolour, so two of them differed in
+  hue and nothing else; weather is what makes them differ in *motion*. A Meteor Shower was
+  cut from this shelf for selling something the app already does for free — an ambient
+  shooting star fires every 22 to 67 seconds on its own.
+- **Moons** — the one focal object on the screen, and it fills with tonight's completion,
+  so every skin is checked for luminance separation between its lit and unlit halves. The
+  narrowest is 7.9:1. Their lore is real: the Harvest Moon is the full moon nearest the
+  autumn equinox, and a genuinely blue moon is what smoke from a very large fire does.
+- **Marks** — the glyph that lands in the box when you check something off, which is the
+  single most-seen graphic here. Measured with `getBBox` and a 200-sample path centroid,
+  not estimated, so each one inherits the same optical centring as every interface icon.
+- **Envelopes** — skins for the nightly ceremony, the one reward opened every single
+  night. Dark paper and a light hand, because a bright rectangle at 11pm is the opposite
+  of the point, and the ink is checked against the note it sits on rather than the paper.
+- **Companions** — eight now: owl, cat, fox, bat, hare, hedgehog, moth and raccoon. Each
+  lives in the corner, reacts to your progress, and evolves through four tiers as you feed
+  it.
 - **Star map** — light constellations one star at a time. Finish one and it is drawn
   permanently into your night sky. Twenty real figures, from Ursa Minor's little dipper to
   Scorpius' hook, each one placed where it actually sits and joined along the lines people
@@ -239,9 +282,22 @@ it's the scroll.
   goes quiet rather than inventing more, because an invented star beside Cassiopeia reads
   as the real content having run out. Just long enough that it is never the reason you
   stop opening the app.
-- **Sounds, trails and type** — swappable sound packs, pointer trails and font packs.
-- **Supplies** — Streak Freezes and Rain Checks (a rain check excuses one task from
-  tonight's percentage).
+- **Sounds, trails and type** — seven synthesised sound packs (nothing is downloaded; a
+  kalimba, a low temple bell for when somebody else in the room is asleep, and a pulse
+  that is barely a note), seven trails, and six typefaces. Type stops at six on purpose:
+  there are only so many genuinely distinct faces already installed on a phone, and a web
+  font would break working offline.
+- **Supplies** — Streak Freezes, Rain Checks, and two that act on tonight rather than
+  becoming something you hold: a **Head Start** begins the evening at ×1.5 momentum, and a
+  **Second Wind** trades tonight's bonus quest for a different one, once a night and never
+  after you have claimed it. Deliberately *not* sold: anything that extends the curfew.
+  That would be selling you the right to be on your phone at bedtime.
+- **Price is the only ladder.** Eleven items used to carry a level requirement and nine of
+  them never once bound: level 13 arrives on night 17 and the level-13 sky takes thirteen
+  nights to save for, so the card said "Reach level 13" about a barrier that was never the
+  barrier. The two that did bind, bound by one night and by four. They are gone, and every
+  shelf reads cheapest first — three of them had drifted out of order simply by having new
+  entries appended, so Skies read 400, 700, 920, 1150, 1550, 620, 840.
 
 **The rest**
 - A live canvas sky: parallax twinkling stars that drift on their own, a shooting star on

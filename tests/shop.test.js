@@ -12,7 +12,7 @@ import { WEATHER, MOONS, MARKS, ENVELOPES } from '../js/skins.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
-import { equipItem, buyConsumable } from '../js/shop.js';
+import { equipItem, buyConsumable, canBuy } from '../js/shop.js';
 import { MOMENTUM_MIN_GAP_MS } from '../js/game.js';
 import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
@@ -347,4 +347,49 @@ test('every envelope is readable and none of them glare at midnight', () => {
   for (const key of ['paper', 'note', 'ink', 'flap', 'seal']) {
     assert.equal(plain[key], 'theme', `plain.${key} must defer to the sky, not restate it`);
   }
+});
+
+test('every shelf reads cheapest first', () => {
+  // A shelf is a ladder. The catalogs are hand-edited and three of them had
+  // drifted simply by having new entries appended, so Skies read 400, 700, 920,
+  // 1150, 1550, 620, 840 — which looks arbitrary because it is.
+  const buckets = {};
+  for (const item of allItems()) (buckets[item.bucket] ||= []).push(item.cost || 0);
+  for (const [bucket, costs] of Object.entries(buckets)) {
+    for (let i = 1; i < costs.length; i += 1) {
+      assert.ok(costs[i] >= costs[i - 1],
+        `${bucket} goes ${costs[i - 1]} then ${costs[i]}`);
+    }
+  }
+});
+
+test('there is no price a night could fall into with nothing to buy', () => {
+  // A gap between consecutive prices much larger than a night's earnings is a
+  // stretch where the market has nothing to offer. A settled night pays about
+  // 131, so any gap under that is invisible.
+  const costs = [...allItems(), ...CONSUMABLES].map((i) => i.cost || 0)
+    .filter(Boolean).sort((a, b) => a - b);
+  let worst = 0;
+  for (let i = 1; i < costs.length; i += 1) worst = Math.max(worst, costs[i] - costs[i - 1]);
+  assert.ok(worst <= 400, `the biggest jump between prices is ${worst} stardust`);
+});
+
+test('price is the only ladder, and the level check still works if it is ever wanted', () => {
+  // Nine of the eleven level gates never bound: level 13 arrives on night 17
+  // and the level-13 sky takes 13 nights to save for, so the gate was a card
+  // that said "Reach level 13" about a barrier that was never the barrier. The
+  // two that did bind, bound by one night and by four. They are gone, and price
+  // paces the market on its own.
+  assert.deepEqual(allItems().filter((i) => i.reqLevel), []);
+
+  // The mechanism stays, because it is the right shape if anything ever does
+  // need holding back. Exercised here so it cannot rot unnoticed.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 99999;
+  state.profile.level = 2;
+  const gated = { id: 'x', cost: 10, reqLevel: 9, bucket: 'themes', kind: 'theme' };
+  assert.equal(canBuy(state, gated).ok, false);
+  assert.match(canBuy(state, gated).reason, /level 9/);
+  state.profile.level = 9;
+  assert.equal(canBuy(state, gated).ok, true);
 });

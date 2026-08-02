@@ -84,3 +84,41 @@ test('nothing imports a name its source does not export', () => {
     }
   }
 });
+
+test('nothing calls a name that exists in the project but was never brought in', () => {
+  // The shape that has now bitten twice, and the precise version of the check:
+  // a name this project exports from somewhere, called in a module that neither
+  // declares it nor imports it. `formatMultiplier` is exported by util.js and
+  // imported by three modules — but not by header.js, which called it anyway.
+  // The momentum chip threw ReferenceError, and because every child is built as
+  // an argument to replace(), replace() never ran: the whole tonight panel was
+  // never written. Date, dial, pacing chip and Lights out all disappeared the
+  // moment momentum went above 1, and came back on their own when it decayed.
+  const exported = new Map();
+  for (const { path, src } of FILES) {
+    for (const m of src.matchAll(/export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([\w$]+)/g)) {
+      exported.set(m[1], path);
+    }
+  }
+
+  const problems = [];
+  for (const { path, src } of FILES) {
+    const local = new Set();
+    for (const m of src.matchAll(/(?:function|class|const|let|var)\s+([\w$]+)/g)) local.add(m[1]);
+    for (const m of src.matchAll(/import\s*(?:([\w$]+)\s*,?\s*)?(?:\{([^}]*)\})?/g)) {
+      if (m[1]) local.add(m[1]);
+      for (const part of (m[2] || '').split(',')) {
+        const name = part.trim().split(/\s+as\s+/).pop().trim();
+        if (name) local.add(name);
+      }
+    }
+    // Comments and string bodies cannot call anything.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/gm, '$1 ');
+    for (const call of code.matchAll(/(?<![.\w$])([\w$]+)\s*\(/g)) {
+      const name = call[1];
+      if (local.has(name) || !exported.has(name) || exported.get(name) === path) continue;
+      problems.push(`${path} calls ${name}(), exported by ${exported.get(name)} but not imported here`);
+    }
+  }
+  assert.deepEqual([...new Set(problems)], []);
+});

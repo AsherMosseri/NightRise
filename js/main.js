@@ -41,7 +41,7 @@ import {
   storageAvailable, flushPersist, STORAGE_KEY, normalizeState,
   recoveredCorruptData, recoveredFutureSave, recoveredDamagedSave, onSaveFailure, serializeState,
 } from './storage.js';
-import { plural } from './util.js';
+import { plural, formatMultiplier } from './util.js';
 import { initOptical, applyOpticalNudge } from './optical.js';
 import { initUpdates, applyUpdate } from './updates.js';
 

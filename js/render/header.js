@@ -11,7 +11,9 @@ import {
   formatNightLabel, minutesUntilBedtime, pacingStatus, PACING_COPY, formatClockLabel,
   lateStage, formatLastCall,
 } from '../time.js';
-import { formatDuration, formatNumber, plural, formatMinutesShort, roundMinutes } from '../util.js';
+import {
+  formatDuration, formatNumber, plural, formatMinutesShort, roundMinutes, formatMultiplier,
+} from '../util.js';
 import { grow, countTo, still, forgetGrow, growTo } from './motion.js';
 import { topNudge } from '../insights.js';
 import { lastNightReckoning } from '../bedtime.js';

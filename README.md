@@ -32,6 +32,16 @@ About 23,000 lines, and all of it ships as written.
   catch it, and because the throw happens inside an event handler it reached the console and
   nowhere else: the button simply did nothing. A `source` suite now parses every module for
   exactly this, and for importing a name its source does not export.
+  The same suite then found the other half of the family. `header.js` called `formatMultiplier`
+  — exported by `util.js` and imported by three other modules, but not by that one. So the
+  momentum chip threw, and because every child of the tonight panel is built as an *argument*
+  to `replace()`, `replace()` never ran: nothing was written at all. **The date, the dial, the
+  pacing chip and Lights out all vanished the moment momentum rose above 1**, and reappeared on
+  their own when it decayed, which is exactly what "sometimes the top doesn't show" looks like.
+  `main.js` had the identical missing import in its check-off handler, so a 2× combo toast
+  threw too — swallowed by `emit`'s try/catch, and invisible. The check is deliberately narrow
+  to stay trustworthy: a name this project exports from *somewhere*, called in a module that
+  neither declares nor imports it. No heuristics, no allowlist, no false positives.
 - On a phone every row action lives in a bottom sheet behind `⋯` — thumb-sized targets,
   and the task title gets the width instead of five buttons. Drag-and-drop is a pointer
   affordance; touch reordering goes through the sheet. The sheet's grip is a real handle:
@@ -586,7 +596,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**360 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
+**361 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

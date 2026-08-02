@@ -72,6 +72,17 @@ export function createNight(key) {
     // night's contribution is a function of the face it holds, and this is the
     // running total so `settleNight` knows what the difference is.
     paid: { xp: 0, dust: 0 },
+    // The targets tonight is judged against, fixed the first time the night
+    // costs you something (a task started, a task finished, an envelope opened).
+    // null until then, meaning "whatever the setting says right now".
+    //
+    // Every consequence in this app used to read the LIVE setting, so at 12:45am
+    // against a 9:45 target, two taps in Settings turned 9 XP into 49, a broken
+    // clean-night streak into a kept one, last call into curfew, and a late night
+    // into a permanent on-time star. The teeth were attached to a number the
+    // person being bitten could edit while being bitten.
+    bedtime: null,
+    lastCall: null,
     lightsOutAt: null, // when you actually stopped for the night
     lightsOutOnTime: false,
     reopenedAfterLightsOut: false,

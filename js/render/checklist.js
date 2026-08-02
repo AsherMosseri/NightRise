@@ -165,7 +165,9 @@ function rainCheck(taskId) {
   // sheet, so the toast said "buy more" and offered a four-step detour. Outside
   // it, the toast takes you there in one tap instead of describing the route.
   const live = getState();
-  const { bedtime, lastCall, curfew } = live.profile.settings;
+  const { curfew } = live.profile.settings;
+  const bedtime = live.night.bedtime ?? live.profile.settings.bedtime;
+  const lastCall = live.night.lastCall ?? live.profile.settings.lastCall;
   // The same gate the market button goes through. Asking only about the curfew
   // put a "Night Market" action on this toast that opened a sheet saying no —
   // and missed the case the toast most needs to get right, since past last call

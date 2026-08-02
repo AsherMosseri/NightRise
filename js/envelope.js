@@ -8,7 +8,7 @@
  */
 
 import { hashString, seededRandom } from './util.js';
-import { MOMENTUM_MIN_GAP_MS } from './game.js';
+import { MOMENTUM_MIN_GAP_MS, lockTonightTargets } from './game.js';
 import { keyDiffDays, shiftKey } from './time.js';
 
 export const DROPS = [
@@ -127,7 +127,12 @@ export function openEnvelope(state) {
   const rand = seededRandom(hashString(`envelope:${key}`));
   const drop = pick(rand);
   const amount = drop.apply(state, rand);
-  if (key === state.night.key) state.night.envelope = { opened: Date.now(), id: drop.id, amount };
+  // The envelope is the first thing that pays out on most nights, so it is
+  // where the night's targets usually get fixed.
+  if (key === state.night.key) {
+    lockTonightTargets(state);
+    state.night.envelope = { opened: Date.now(), id: drop.id, amount };
+  }
   state.profile.envelopesOpened = (state.profile.envelopesOpened || 0) + 1;
   // A high-water mark, so opening the oldest one first cannot leave a gap.
   state.profile.lastEnvelopeKey = key;

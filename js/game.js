@@ -359,9 +359,28 @@ export function chainLengthFor(night, at, lastMinutes = 0) {
  */
 export const START_ADVANCE_XP = 3;
 
+/**
+ * Fix tonight's bedtime and last call, once, the moment the night starts costing
+ * something. Before that nothing has been measured and changing the target is
+ * simply correcting it; after it, a change belongs to tomorrow.
+ *
+ * One way on purpose. Un-checking everything does NOT release it, or "tick,
+ * untick, move the bedtime, re-tick" would be the same loophole with two more
+ * steps in it.
+ *
+ * Written here rather than in night.js because night.js already imports from
+ * this module, and it needs nothing but the two fields.
+ */
+export function lockTonightTargets(state) {
+  const { night, profile } = state;
+  if (night.bedtime === null || night.bedtime === undefined) night.bedtime = profile.settings.bedtime;
+  if (night.lastCall === null || night.lastCall === undefined) night.lastCall = profile.settings.lastCall;
+}
+
 export function applyTaskStart(state, task, at = Date.now()) {
   const night = state.night;
   if (night.started[task.id] || night.done[task.id] !== undefined) return null;
+  lockTonightTargets(state);
   // Not a completion: it must not touch the combo, `lastDoneAt` or
   // `lastMinutes`. Momentum is for work you finished.
   //
@@ -396,6 +415,7 @@ export function applyTaskCompletion(state, task, at = Date.now()) {
   // it is the taper's business, settled below. The advance already paid against
   // this row comes off the face, so starting and then finishing costs the night
   // exactly what finishing alone would have.
+  lockTonightTargets(state);
   const full = taskXp(task.minutes, multiplier);
   const face = Math.max(1, full - (night.started[task.id]?.face || 0));
   const faceDust = stardustFor(full);

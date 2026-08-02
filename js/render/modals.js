@@ -13,7 +13,10 @@ import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../compani
 import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
 import { achievementBoard, totalTiers, checkAchievements } from '../achievements.js';
 import { taskInsights, reliableTasks, overallRate, nightsFullyCleared, onTimeNights } from '../insights.js';
-import { forceNewNight, computeStats, effectiveStreak, effectiveLightsOutStreak } from '../night.js';
+import {
+  forceNewNight, computeStats, effectiveStreak, effectiveLightsOutStreak,
+  bedtimeMovesTomorrow, lastCallMovesTomorrow,
+} from '../night.js';
 import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
@@ -1024,9 +1027,31 @@ function downloadBackup(state) {
  * wrong cause for a real consequence is how a setting acquires a reputation it
  * did not earn, in either direction.
  */
+/**
+ * When a change to a target does not apply tonight, say so where it is made.
+ *
+ * The whole design of the deferral rests on this sentence. Tonight runs on the
+ * number it was already running on, so the chip and the countdown keep showing
+ * that — and without a word here, Settings says 11:30 while the chip says 9:45
+ * and the app is contradicting itself on two screens, which is the exact fault
+ * this project keeps finding and fixing. One clause, naming both numbers.
+ */
+function tomorrowNote(tonight) {
+  return ` Tonight is already running against ${tonight}, so this takes effect tomorrow.`;
+}
+
+function lastCallTomorrowNote(state) {
+  if (!lastCallMovesTomorrow(state)) return '';
+  const tonight = state.night.lastCall === 0
+    ? 'no last call at all'
+    : formatLastCall(state.night.key, state.night.bedtime ?? state.profile.settings.bedtime, state.night.lastCall);
+  return ` Tonight already has ${tonight}, so this takes effect tomorrow.`;
+}
+
 function lastCallHint(state, settings) {
   if (!settings.lastCall) {
-    return 'Off. Bedtime is the only line, and being an hour past it looks the same as being three.';
+    return 'Off. Bedtime is the only line, and being an hour past it looks the same as being three.'
+      + lastCallTomorrowNote(state);
   }
   const key = state.night.key;
   const at = formatLastCall(key, settings.bedtime, settings.lastCall);
@@ -1043,7 +1068,7 @@ function lastCallHint(state, settings) {
       : `${settings.lastCall} minutes past ${bed}, so ${at}.`,
     'Past it the shop, star map, history and insights stop letting you in, with no way through.',
     'Your list and one-at-a-time are never touched.',
-  ].join(' ');
+  ].join(' ') + lastCallTomorrowNote(state);
 }
 
 VIEWS.settings = () => {
@@ -1135,7 +1160,8 @@ VIEWS.settings = () => {
   return {
     title: 'Settings',
     body: h('div', { class: 'settings' },
-      field('Target bedtime', bedtime, 'Drives the countdown and the on-pace reading.'),
+      field('Target bedtime', bedtime, 'Drives the countdown and the on-pace reading.'
+        + (bedtimeMovesTomorrow(state) ? tomorrowNote(formatClockLabel(state.night.bedtime)) : '')),
       field('Last call', lastCall, lastCallHint(state, settings)),
       field('Motion', motion, 'The sky, the FLIP animations and the pointer trail.'),
       h('div', { class: 'field' },

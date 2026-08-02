@@ -18,6 +18,11 @@ import {
   LAST_CALL_DEFAULT, LAST_CALL_CHOICES, PACING_COPY,
 } from '../js/time.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
+import { applyTaskCompletion, applyTaskStart } from '../js/game.js';
+import { openEnvelope } from '../js/envelope.js';
+import {
+  tonightBedtime, tonightLastCall, bedtimeMovesTomorrow, bankNight, computeStats,
+} from '../js/night.js';
 import {
   lastNightReckoning, suggestBedtime, minutesFromNoon, bedtimeSummary,
 } from '../js/bedtime.js';
@@ -458,4 +463,89 @@ test('minutes from noon are clock minutes, on the two nights that differ', () =>
     'the same clock time gives the same number, whatever the calendar did that night');
   assert.equal(out.face, '3:30 AM', 'and converts back to the time you actually stopped');
   assert.equal(out.suggested, '03:30');
+});
+
+/* ------------------------------------- the target you are judged against */
+
+function startedNight(bedtime = BED, lastCall = 60) {
+  const state = createInitialState(at(20, 0));
+  state.night.key = KEY;
+  state.profile.settings.bedtime = bedtime;
+  state.profile.settings.lastCall = lastCall;
+  return state;
+}
+
+test('a night that has not started yet takes the setting as it stands', () => {
+  const state = startedNight();
+  assert.equal(state.night.bedtime, null, 'nothing has cost anything yet');
+  assert.equal(tonightBedtime(state), BED);
+  state.profile.settings.bedtime = '22:30';
+  assert.equal(tonightBedtime(state), '22:30', 'correcting it before you begin applies tonight');
+});
+
+test('the first thing that costs you something fixes tonight’s targets', () => {
+  const state = startedNight();
+  const task = Object.values(state.template.tasks)[0];
+  applyTaskCompletion(state, task);
+  assert.equal(state.night.bedtime, BED);
+  assert.equal(state.night.lastCall, 60);
+
+  // The exploit, in one line. At 12:45am against a 9:45 target this turned
+  // 9 XP into 49, a broken clean-night streak into a kept one, last call into
+  // curfew, and a late night into a permanent on-time star.
+  state.profile.settings.bedtime = '01:00';
+  state.profile.settings.lastCall = 120;
+  assert.equal(tonightBedtime(state), BED, 'tonight is still judged against the line it was running on');
+  assert.equal(tonightLastCall(state), 60);
+  assert.equal(lateStage(KEY, tonightBedtime(state), tonightLastCall(state), at(0, 45, 2)), 'lastcall');
+  assert.equal(bedtimeMovesTomorrow(state), true, 'and the panel has to say so');
+});
+
+test('un-ticking everything does not release the lock', () => {
+  // Otherwise "tick, untick, move the bedtime, re-tick" is the same loophole
+  // with two more steps in it.
+  const state = startedNight();
+  const task = Object.values(state.template.tasks)[0];
+  applyTaskCompletion(state, task);
+  delete state.night.done[task.id];
+  delete state.night.awards[task.id];
+  state.profile.settings.bedtime = '01:00';
+  assert.equal(tonightBedtime(state), BED);
+});
+
+test('starting a task locks it too, and so does the envelope', () => {
+  const started = startedNight();
+  applyTaskStart(started, Object.values(started.template.tasks)[0]);
+  assert.equal(started.night.bedtime, BED, 'an advance is the night costing you something');
+
+  const opened = startedNight();
+  openEnvelope(opened);
+  assert.equal(opened.night.bedtime, BED, 'and so is the first payout of the night');
+});
+
+test('the history entry records the target the night was judged against', () => {
+  const state = startedNight();
+  applyTaskCompletion(state, Object.values(state.template.tasks)[0]);
+  state.night.lightsOutAt = at(23, 55).getTime();
+  state.profile.settings.bedtime = '01:00'; // moved after the fact
+  const result = bankNight(state, computeStats(state));
+  assert.equal(state.history[KEY].bedtime, BED,
+    'the stamp is what it ran against, not what the setting says now');
+  assert.ok(state.history[KEY].minutesLate > 0, 'and it was late, whatever the setting says');
+  assert.ok(result);
+});
+
+test('a locked target survives a reload, and a corrupt one does not stick', () => {
+  const state = startedNight();
+  applyTaskCompletion(state, Object.values(state.template.tasks)[0]);
+  const loaded = normalizeState(JSON.parse(JSON.stringify(state)));
+  assert.equal(loaded.night.bedtime, BED, 'the lock is part of the night, and the night is saved');
+
+  for (const bad of ['', 'nonsense', '99:99', 12, null, {}]) {
+    const hostile = JSON.parse(JSON.stringify(state));
+    hostile.night.bedtime = bad;
+    // null, not a number: a night judged against garbage is judged against
+    // nothing, and the live setting is the only safe fallback.
+    assert.equal(normalizeState(hostile).night.bedtime, null, `${JSON.stringify(bad)} survived`);
+  }
 });

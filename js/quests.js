@@ -10,7 +10,8 @@ const FRONT_LOAD_LEAD_MS = 60 * 60 * 1000;
 
 /** The moment after which a completion is no longer early. */
 function frontLoadCutoff(state) {
-  const target = bedtimeInstant(state.night.key, state.profile?.settings?.bedtime);
+  // Tonight's target, so a quest cannot be won by moving the line it measures.
+  const target = bedtimeInstant(state.night.key, state.night?.bedtime ?? state.profile?.settings?.bedtime);
   return target ? target.getTime() - FRONT_LOAD_LEAD_MS : null;
 }
 

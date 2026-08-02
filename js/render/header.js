@@ -3,7 +3,9 @@
 
 import { h, svg, icon, clear, replace, withFocus } from '../dom.js';
 import { getState } from '../state.js';
-import { computeStats, effectiveStreak, lightsOutOutlook } from '../night.js';
+import {
+  computeStats, effectiveStreak, lightsOutOutlook, tonightBedtime, tonightLastCall,
+} from '../night.js';
 import { momentumWindow } from '../game.js';
 import { evaluateQuest } from '../quests.js';
 import { levelFromXp, titleForLevel, nextTitle } from '../game.js';
@@ -144,7 +146,7 @@ export function renderStats() {
             ? ` ${plural(live.covered, 'streak freeze', 'streak freezes')} will cover it.`
             : ` ${live.held ? `${plural(live.held, 'freeze', 'freezes')} is not enough to cover all of them, and a freeze is never spent unless it saves the streak. ` : ''}The streak is gone.`)
         : `Nights in a row you finished everything that counted and were done`
-          + ` before ${profile.settings.bedtime}. A rain check takes a task out of`
+          + ` before ${state.night.bedtime ?? profile.settings.bedtime}. A rain check takes a task out of`
           + ` "everything", which is what rain checks are for. Pressing Lights out`
           + ` counts, and so does simply finishing and closing the app.`
           + ` Best: ${best}. Freezes held: ${profile.tokens.freeze}`;
@@ -268,7 +270,10 @@ function questCard(state, stats) {
 }
 
 function bedtimeChip(state, stats) {
-  const { bedtime, lastCall } = state.profile.settings;
+  // Tonight's targets, not the live setting: this chip is the countdown and the
+  // status word for the night that is actually running.
+  const bedtime = tonightBedtime(state);
+  const lastCall = tonightLastCall(state);
   const minutesLeft = minutesUntilBedtime(state.night.key, bedtime, new Date());
   // `pacingStatus` weighs work against time and tops out at 'past', which it
   // reaches one minute after bedtime and then says for the next five hours.
@@ -374,7 +379,11 @@ function reckoningButton(state, reck) {
           // Not "give up". A bedtime you miss by two hours every night is not a
           // target, it is a number you have stopped reading, and every reading
           // in the app that depends on it is wrong while it stands.
-          hint: 'A bedtime you never hit is not a bedtime',
+          // Tonight's target is already fixed if the night has started, and this
+          // item writes the setting — so it has to say which night it changes.
+          hint: state.night.bedtime && state.night.bedtime !== reck.suggestedValue
+            ? `From tomorrow — tonight still runs on ${formatClockLabel(state.night.bedtime)}`
+            : 'A bedtime you never hit is not a bedtime',
           onClick: () => {
             update((s) => { s.profile.settings.bedtime = reck.suggestedValue; });
             emit('setting', { key: 'bedtime', value: reck.suggestedValue });
@@ -514,7 +523,7 @@ function lightsOutButton(state, stats) {
   // whose whole argument is that you should go to bed should be the one making
   // it. Never after bedtime, where "call it here" would read as a scolding, and
   // never while the list is still winnable.
-  const left = minutesUntilBedtime(state.night.key, state.profile.settings?.bedtime);
+  const left = minutesUntilBedtime(state.night.key, tonightBedtime(state));
   const overrun = !done
     && stats.remaining > 0
     && left !== null

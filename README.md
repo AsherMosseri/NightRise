@@ -226,6 +226,32 @@ it's the scroll.
   button lights up and reads "Call it here · the rest can wait". The app already knew you
   could not finish and its only suggestion was "rain check something?". Never after
   bedtime, where that would be a scolding, and never while the list is still winnable.
+- **The target cannot move out from under the night it is judging.** Every consequence
+  in here — the countdown, the pacing chip, last call, what stopping pays, the clean-night
+  streak, the on-time star — used to read the bedtime setting *live*. So at 12:45am against
+  a 9:45 target, two taps in Settings turned **9 XP into 49**, a broken streak into a kept
+  one, `lastcall` back into `curfew`, and a late night into a permanent on-time star. The
+  app's teeth were attached to a number the person being bitten could edit while being
+  bitten, and that was the largest hole left in it.
+  It is **not** fixed by refusing to let you change it. This app says *"a second deliberate
+  tap, and you are an adult"*; a setting it locks you out of would be the one place it
+  stopped trusting you, and there are honest reasons to move a bedtime mid-evening — you
+  are ill, you fly at six, you typed 9:45 when you meant 11:45. A lock would not even bind:
+  the save is a JSON file you own.
+  So **a change made once the night is underway applies tomorrow.** Nothing is ever
+  refused. Tonight's bedtime and last call are stamped onto the night the first time it
+  costs you something — a task started, a task finished, an envelope opened — and every
+  reading that judges tonight comes through `tonightBedtime()` / `tonightLastCall()` rather
+  than the setting. Before that first moment nothing has been measured, so a correction at
+  8pm still applies tonight, which is the case a lock at the 4am rollover would have got
+  wrong. The lock is one-way: un-ticking everything does not release it, or "tick, untick,
+  move the bedtime, re-tick" is the same loophole with two more steps in it.
+  This is also what the morning reckoning has always offered — moving the target for the
+  *coming* night — so the two finally agree. The cost is that the app briefly holds two
+  numbers, and one screen disagreeing with itself is a fault this project keeps finding, so
+  it is said out loud where the change is made: *"Tonight is already running against
+  9:45 PM, so this takes effect tomorrow."* The history entry stamps the target the night
+  was actually judged against, not the setting as it stands afterwards.
 - **Last call: a second line, later than bedtime.** Every consequence in here used to be a
   binary switch thrown at bedtime, with no notion of how far past you were. The reward for
   stopping was the clearest case — `if (minutesEarly <= 0) return { xp: 15, dust: 3 }` —
@@ -614,7 +640,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**364 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
+**370 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

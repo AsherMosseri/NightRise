@@ -167,7 +167,10 @@ export function bedtimeSummary(history, todayKey, window = 7) {
  * have already been told about this one.
  */
 export function lastNightReckoning(state, todayKey = state.night.key) {
-  const { bedtime, lastCall } = state.profile.settings;
+  // Last call as it stood for the night being reckoned about, not as it stands
+  // now — the sentence is about a night that is over.
+  const { bedtime } = state.profile.settings;
+  const lastCall = state.night?.lastCall ?? state.profile.settings.lastCall;
   if (!lastCall) return null;
   if (state.profile.reckonedKey === todayKey) return null;
 

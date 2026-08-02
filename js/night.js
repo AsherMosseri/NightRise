@@ -6,6 +6,38 @@ import { STREAK_THRESHOLD_PCT } from './game.js';
 import { checkAchievements } from './achievements.js';
 import { questById } from './quests.js';
 
+/**
+ * The bedtime and last call TONIGHT is judged against.
+ *
+ * `night.bedtime` is fixed the first time the night costs you something and is
+ * null before that, so this reads the live setting on a night that has not
+ * started and the stamped one on a night that has. Everything that judges
+ * tonight — the countdown, the pacing chip, the stages, the panel gate, what
+ * stopping pays, whether it was on time — has to come through here, or the
+ * setting can still be edited out from under the night it is judging.
+ *
+ * A change made mid-night is not refused. It applies tomorrow, which is also
+ * what the morning reckoning has always offered.
+ */
+export function tonightBedtime(state) {
+  return state.night.bedtime ?? state.profile.settings.bedtime;
+}
+
+export function tonightLastCall(state) {
+  return state.night.lastCall ?? state.profile.settings.lastCall;
+}
+
+/** True once tonight's targets are fixed and the setting has moved off them. */
+export function bedtimeMovesTomorrow(state) {
+  return state.night.bedtime !== null && state.night.bedtime !== undefined
+    && state.night.bedtime !== state.profile.settings.bedtime;
+}
+
+export function lastCallMovesTomorrow(state) {
+  return state.night.lastCall !== null && state.night.lastCall !== undefined
+    && state.night.lastCall !== state.profile.settings.lastCall;
+}
+
 /** Live view of tonight — used by the header, sky, quests and pacing. */
 export function computeStats(state) {
   const { template, night } = state;
@@ -75,8 +107,12 @@ function stampBedtime(entry, state) {
   const { night, profile } = state;
   entry.lightsOutAt = night.lightsOutAt || null;
   entry.onTime = Boolean(night.lightsOutOnTime);
-  entry.bedtime = night.lightsOutAt ? (profile.settings?.bedtime || null) : null;
-  entry.minutesLate = latenessOf(night, profile.settings?.bedtime);
+  // What the night was JUDGED against, not what the setting says now. They are
+  // the same on a night nobody edited, and the stamped one is the honest record
+  // on a night somebody did.
+  const target = night.bedtime ?? profile.settings?.bedtime;
+  entry.bedtime = night.lightsOutAt ? (target || null) : null;
+  entry.minutesLate = latenessOf(night, target);
   return entry;
 }
 
@@ -355,7 +391,7 @@ export function inferredOnTime(state, night = state.night) {
     lastActivity = Math.max(lastActivity, Number(record?.at) || 0);
   }
   if (!lastActivity) return false;
-  const bedtime = bedtimeInstant(night.key, state.profile.settings.bedtime);
+  const bedtime = bedtimeInstant(night.key, night.bedtime ?? state.profile.settings.bedtime);
   return Boolean(bedtime) && lastActivity <= bedtime.getTime();
 }
 

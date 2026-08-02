@@ -4,7 +4,7 @@
 import { $, icon, downloadText } from './dom.js';
 import { getState, subscribe, update, on, hydrateState } from './state.js';
 import { addSection, addTask, setSetting } from './actions.js';
-import { computeStats, rolloverIfNeeded } from './night.js';
+import { computeStats, rolloverIfNeeded, tonightBedtime, tonightLastCall } from './night.js';
 import {
   nightKeyOf, formatNightLabel, formatClockLabel, lateStage, panelGate, CURFEW_LEAD_MINUTES,
 } from './time.js';
@@ -295,7 +295,8 @@ function wireEffects() {
  */
 function syncLateStage() {
   const state = getState();
-  const { bedtime, lastCall } = state.profile.settings;
+  const bedtime = tonightBedtime(state);
+  const lastCall = tonightLastCall(state);
   const stage = state.night.lightsOutAt
     // You have already stopped. The night ran long, and the app saying so over
     // the good-night screen would be scolding you for the thing it just
@@ -442,7 +443,9 @@ function boot() {
   const BROWSING = new Set(['shop', 'starmap', 'history', 'insights']);
   const openPanel = (name) => {
     const state = getState();
-    const { bedtime, lastCall, curfew } = state.profile.settings;
+    const { curfew } = state.profile.settings;
+    const bedtime = tonightBedtime(state);
+    const lastCall = tonightLastCall(state);
     const stage = lateStage(state.night.key, bedtime, lastCall);
     const gate = BROWSING.has(name) ? panelGate(stage, curfew) : 'open';
     if (gate === 'open') {

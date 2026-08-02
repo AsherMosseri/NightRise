@@ -9,7 +9,7 @@
 
 import { h, icon } from '../dom.js';
 import { getState, update, emit } from '../state.js';
-import { computeStats, advanceLightsOutStreak, isCleanNight } from '../night.js';
+import { computeStats, advanceLightsOutStreak, isCleanNight, tonightBedtime } from '../night.js';
 import { grantXp } from '../game.js';
 import { checkAchievements } from '../achievements.js';
 import { minutesUntilBedtime, formatClockLabel } from '../time.js';
@@ -161,7 +161,7 @@ export function lightsOut() {
   const result = update((state) => {
     const stats = computeStats(state);
     const now = Date.now();
-    const minutesLeft = minutesUntilBedtime(state.night.key, state.profile.settings.bedtime, new Date(now));
+    const minutesLeft = minutesUntilBedtime(state.night.key, tonightBedtime(state), new Date(now));
     const onTime = minutesLeft === null ? true : minutesLeft >= 0;
     const reward = state.night.lightsOutAt || state.profile.lastLightsOutKey === state.night.key
       ? null
@@ -222,7 +222,9 @@ function tomorrowLine(state) {
 function render({ stats, minutesLeft, onTime, reward, achievements: earned }) {
   if (!host) return;
   const state = getState();
-  const { bedtime } = state.profile.settings;
+  // The target this night was judged against — the good-night line quotes the
+  // same number the reward was computed from.
+  const bedtime = tonightBedtime(state);
   const lights = state.profile.lightsOut;
 
   const headline = onTime ? 'Good night.' : 'Good night anyway.';

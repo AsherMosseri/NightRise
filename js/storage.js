@@ -162,6 +162,14 @@ function normalizeNight(raw, template, now) {
   night.lastDoneAt = Number(night.lastDoneAt) || 0;
   night.lastMinutes = Math.max(0, Number(night.lastMinutes) || 0);
   night.lightsOutAt = Number(night.lightsOutAt) || null;
+  // Tonight's locked targets. `null` means the night has not started costing
+  // anything yet and the live setting still applies, so anything unparseable
+  // has to come back as null rather than as a number — a garbage clock string
+  // here would be the night judged against nothing at all, permanently.
+  night.bedtime = parseClock(night.bedtime) ? night.bedtime : null;
+  night.lastCall = typeof night.lastCall === 'number' && LAST_CALL_CHOICES.includes(Math.round(night.lastCall))
+    ? Math.round(night.lastCall)
+    : null;
   night.lightsOutOnTime = Boolean(night.lightsOutOnTime);
   night.reopenedAfterLightsOut = Boolean(night.reopenedAfterLightsOut);
   night.lightsOutAward = isObject(night.lightsOutAward)

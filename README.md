@@ -23,6 +23,15 @@ About 23,000 lines, and all of it ships as written.
 - Sections and tasks: add, rename (double-click or `E`), delete (with undo), reorder.
 - Reorder by dragging, with the ↑/↓ buttons, or with `Alt + ↑/↓` — tasks move between
   sections at the edges, so nothing needs a mouse.
+  All of that was dead for a while, on every surface at once, and the cause is worth
+  writing down: `export { expectShift as expectReorder }` renames a symbol **for importers**
+  and declares nothing in the module that wrote it. The eight `expectReorder()` calls in
+  `checklist.js` — both arrow buttons, both action sheets, `Alt + ↑/↓` on a task and on a
+  section, and both drag drops — therefore threw `ReferenceError` before the `moveTask` or
+  `moveSection` beside them ever ran. With no build step and no linter there was nothing to
+  catch it, and because the throw happens inside an event handler it reached the console and
+  nowhere else: the button simply did nothing. A `source` suite now parses every module for
+  exactly this, and for importing a name its source does not export.
 - On a phone every row action lives in a bottom sheet behind `⋯` — thumb-sized targets,
   and the task title gets the width instead of five buttons. Drag-and-drop is a pointer
   affordance; touch reordering goes through the sheet. The sheet's grip is a real handle:
@@ -235,13 +244,18 @@ it's the scroll.
   That measurement covered the body copy and missed the one element whose *colour* this
   state changes: the pacing chip's status word. A later sweep of it — solid probes of the
   label's own computed colour against the chip's own painted plate, twelve skies, four veil
-  combinations — found **2.55:1** at its worst. Most of that predated last call and failed
-  on an ordinary evening: at full strength `--good`, `--warn` and `--bad` all miss AA under
-  sleep-safe dim, so "On pace" was failing too. The label mixes its tone toward `--text`
-  now and drains further under dim, leaving the border and the plate to carry the status
-  colour at full strength. Re-measured the same way: **4.63:1 at worst across all six
-  states**, none below AA. Dimming costing contrast is a fact about the arithmetic; missing
-  it on the one word that says which state you are in was not.
+  combinations — found **2.55:1** at its worst, and the last-call chip reading *below* the
+  plain past-bedtime chip it is meant to outrank, because its tint raised the plate by more
+  than the desaturated ink gained. It mixes `--bad` toward `--text` now, and gives up the
+  tint and most of the remaining colour when sleep-safe dim is stacked on top; the border
+  keeps the status hue at full strength. Re-measured the same way: **4.63:1 at worst**,
+  none of the twelve below AA in any of the four combinations.
+  A control run against the other five pacing states turned up something larger and older,
+  which is **not** fixed: at full strength all three accents miss AA under sleep-safe dim,
+  so "On pace" measures 4.10-4.72:1 and "Past bedtime" 3.07-3.55:1 on an ordinary evening,
+  with no last call involved. That is a property of `brightness(0.66)` meeting a saturated
+  accent, it predates this feature, and changing how every evening looks is a separate
+  decision from fixing the state that introduced its own regression.
 - **And it says so in the morning, once.** After a night that ran past last call, one quiet
   line in the tonight panel: how long it ran, your average over the nights you actually
   ended, the trend — the count it divides by, never the size of the window it looked in. It opens
@@ -572,7 +586,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**357 tests, 18 suites, zero dependencies**, on Node's built-in runner. No install step:
+**360 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -589,6 +603,7 @@ They cover the pure modules — everything that can be reasoned about without a 
 | `lastcall` | the four stages, the decaying reward, and the two boundaries the record wraps at |
 | `reset` `storage` | what each reset part clears, migration, and old saves |
 | `duration` `timer` `insights` `interaction` | half-minute estimates, the card clock, the history stats, quick-add parsing |
+| `source` | what the module system accepts and the browser then throws on: an export alias called as a local binding, an import of a name its source never exported |
 
 Several exist because of a specific bug and say so in the test name — `a rain check is not
 a task you did`, `Clockwork needs three nights that really were consecutive`, `checking
@@ -661,7 +676,7 @@ js/render/sheet.js          the phone bottom sheet
 js/render/confirm.js        the app's own confirm and chooser dialogs
 js/render/add-task.js       the three-tap add flow and the number pad
 
-tests/                   18 suites, node --test, no dependencies
+tests/                   19 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
 ```
 

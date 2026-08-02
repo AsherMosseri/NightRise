@@ -357,15 +357,17 @@
    and the level chip — everything that makes this look like a game. The list
    and the clock stay exactly as legible as they were. The app stops being
    entertainment without stopping being useful. */
-/* Sleep-safe dim has already spent the contrast budget — brightness(0.66)
-   costs every coloured thing on the page about two stops, and the pacing chip's
-   status word is the smallest coloured text in the app. Measured across twelve
-   skies, --bad at the ordinary mix runs 4.24-4.42:1 under dim: under AA, and
-   under it before last call existed. So while dim is on the chip gives up its
-   fill and most of its ink colour. The border keeps the status hue at full
-   strength, which is what actually reads at this size. */
-.is-dim .pacing { --pace-mix: 25%; }
-.is-dim .pacing--lastcall { background: var(--panel-2); }
+/* Both veils at once, on the one chip last call restyles. Sleep-safe dim has
+   already spent the contrast budget — brightness(0.66) costs every coloured
+   thing about two stops — so stacking last call's own greying on top puts the
+   status word under AA even mixed. While dim is on this state gives up its
+   tinted fill and most of its remaining ink colour; the border carries it.
+   Scoped to .pacing--lastcall on purpose: the other five states are marginal
+   here too, and that is older and wider than last call. */
+.is-dim .pacing--lastcall {
+  --pace-mix: 25%;
+  background: var(--panel-2);
+}
 
 .is-lastcall #dim-veil {
   opacity: 1;

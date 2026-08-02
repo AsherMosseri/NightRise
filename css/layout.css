@@ -245,42 +245,41 @@
 .pacing__count { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 .pacing__bed { margin-left: auto; font-size: 12px; color: var(--muted); }
 .pacing__bottom { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 12.5px; }
+.pacing__label { font-weight: 600; }
 .pacing__work { color: var(--muted); }
-
-/* The status word — "On pace", "Past bedtime", "Well past" — is the one word on
-   this chip that says which state you are in, and at 12.5px/600 it is normal
-   text under WCAG, so 4.5:1 applies to it as painted.
-   At full strength the three accents do not clear that. Measured across all
-   twelve skies with the veil composited in: under sleep-safe dim the label ran
-   3.07-3.55:1 in --bad and 4.10-4.72:1 even in --good, and under last call's
-   veil its own state reached 2.55:1. Most of that predates last call and fails
-   on an ordinary evening; last call only made the worst case worst.
-   So the tone is mixed toward --text rather than used neat. The hue survives as
-   a tint, and the border and the plate go on carrying the status colour at full
-   strength — which is where a colour reads from on a chip this size anyway. */
-.pacing__label {
-  font-weight: 600;
-  color: color-mix(in srgb, var(--pace-tone, var(--text)) var(--pace-mix, 40%), var(--text));
-}
-.pacing--ahead, .pacing--clear { --pace-tone: var(--good); }
-.pacing--ahead, .pacing--clear { border-color: color-mix(in srgb, var(--good) 40%, transparent); }
-.pacing--tight { --pace-tone: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
-.pacing--over, .pacing--past { --pace-tone: var(--bad); }
+.pacing--ahead { border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+.pacing--ahead .pacing__label { color: var(--good); }
+.pacing--clear { border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+.pacing--clear .pacing__label { color: var(--good); }
+.pacing--tight { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.pacing--tight .pacing__label { color: var(--warn); }
 .pacing--over, .pacing--past { border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.pacing--over .pacing__label, .pacing--past .pacing__label { color: var(--bad); }
 /* Past last call, filled rather than merely outlined — every other state on
    this chip is a hairline on the same panel, so at a glance they read as one
    thing with a different accent. This one has to read as a different thing.
    Still --bad, because inventing a fifth status colour for the worst state
    would make it the only one nothing else in the app agrees with. */
 .pacing--lastcall {
-  --pace-tone: var(--bad);
   border-color: color-mix(in srgb, var(--bad) 60%, transparent);
   /* 13% was enough of a tint to lift the plate under the label by more than the
      desaturated ink gained, which is how this state came out below every other
      one it was meant to be louder than. The border at 60% carries the fill. */
   background: color-mix(in srgb, var(--bad) 8%, var(--panel-2));
 }
-.pacing--lastcall .pacing__label { font-weight: 700; }
+/* The one label this state's own veil paints over, and the only one changed
+   here. At 12.5px/700 it is normal text under WCAG, so 4.5:1 applies as
+   painted, and neat --bad under `brightness(0.90) saturate(0.42)` measured
+   2.55-4.45:1 across the twelve skies — worse than the plain past-bedtime chip
+   this is supposed to be louder than. Mixed toward --text the hue survives as a
+   tint while the border and the plate keep the status colour at full strength.
+   The other five states are deliberately untouched: they are marginal under
+   sleep-safe dim too, but that predates last call, is not this state's doing,
+   and changing how an ordinary evening looks is a separate decision. */
+.pacing--lastcall .pacing__label {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--bad) var(--pace-mix, 40%), var(--text));
+}
 
 /* quest — full card on desktop, one tappable line on a phone */
 .quest-compact { display: none; }

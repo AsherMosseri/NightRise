@@ -622,7 +622,19 @@ export function expectShift() {
   expectMove = true;
 }
 
-export { expectShift as expectReorder };
+/**
+ * The same thing under its older name, as a real binding.
+ *
+ * This was `export { expectShift as expectReorder }`, and an export alias is not
+ * a local binding: it renames the symbol for importers and declares nothing
+ * inside this module. So all eight `expectReorder()` calls in this file threw
+ * ReferenceError before the line beside them ever ran — and those eight are
+ * every way this app has of moving anything. Both arrow buttons, both action
+ * sheets, Alt+Arrow on a task and on a section header, and dropping either after
+ * a drag. Reordering was entirely dead, on every surface, and silent: the throw
+ * is inside an event handler, so it landed in the console and nowhere else.
+ */
+export const expectReorder = expectShift;
 
 function captureRects() {
   const map = new Map();

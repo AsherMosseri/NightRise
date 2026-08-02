@@ -270,41 +270,37 @@ test('the neutralising block is gone, and stays gone', () => {
 
 const LAYOUT = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
 
-test('the status word is never painted in a neat accent', () => {
-  // 12.5px at 600 is normal text under WCAG, so 4.5:1 applies to it as painted —
-  // and --good, --warn and --bad all miss that under sleep-safe dim, which was
-  // true on an ordinary evening long before last call existed. Measured across
-  // twelve skies the label ran 3.07-3.55:1 in --bad under dim and 2.55:1 under
-  // last call's veil. It is mixed toward --text now; the border and the plate
-  // carry the status colour at full strength.
-  const neat = [...LAYOUT.matchAll(/\.pacing[^{]*\.pacing__label[^{]*\{([^}]*)\}/g)]
-    .map((m) => m[1])
-    .filter((body) => /color:\s*var\(--(good|warn|bad)\)/.test(body));
-  assert.deepEqual(neat, [], 'a pacing label is taking an accent colour undiluted');
-
-  const label = LAYOUT.match(/\.pacing__label\s*\{([^}]*)\}/)?.[1] || '';
-  assert.match(label, /color-mix\([^)]*--pace-tone/, 'the label mixes its tone toward --text');
+test('the last-call status word is not painted in a neat accent', () => {
+  // 12.5px at 700 is normal text under WCAG, so 4.5:1 applies as painted — and
+  // neat --bad under this state's own `brightness(0.90) saturate(0.42)` veil
+  // measured 2.55-4.45:1 across the twelve skies, which put the loudest state
+  // below the plain past-bedtime chip it is meant to outrank. Mixed toward
+  // --text it clears AA in all four veil combinations at 4.63:1 worst.
+  const rule = LAYOUT.match(/\.pacing--lastcall \.pacing__label\s*\{([^}]*)\}/)?.[1];
+  assert.ok(rule, 'the last-call label has no rule of its own');
+  assert.match(rule, /color-mix\([^)]*var\(--bad\)[^)]*--pace-mix/,
+    'it has to mix --bad toward --text rather than take it neat');
+  assert.doesNotMatch(rule, /color:\s*var\(--bad\)\s*;/, 'and not also set it neat');
 });
 
-test('every pacing state hands the label a tone', () => {
-  // The mix falls back to --text with no tone set, which is legible but colourless.
-  // A state that forgets to set one loses its status colour silently.
-  const states = new Set([...LAYOUT.matchAll(/\.pacing--([a-z]+)/g)].map((m) => m[1]));
-  const toned = new Set();
-  for (const rule of LAYOUT.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-    if (!/--pace-tone\s*:/.test(rule[2])) continue;
-    for (const hit of rule[1].matchAll(/\.pacing--([a-z]+)/g)) toned.add(hit[1]);
-  }
-  for (const state of states) {
-    assert.ok(toned.has(state), `.pacing--${state} sets no --pace-tone`);
+test('the other five pacing states are left exactly as they were', () => {
+  // Deliberate scope. They are marginal under sleep-safe dim as well, but that
+  // predates last call and is not this state's doing — changing how an ordinary
+  // evening looks is a separate decision, not a side effect of this one.
+  for (const [state, tone] of [['ahead', 'good'], ['clear', 'good'], ['tight', 'warn'],
+    ['over', 'bad'], ['past', 'bad']]) {
+    const re = new RegExp(`\\.pacing--${state} \\.pacing__label[^{]*\\{[^}]*color:\\s*var\\(--${tone}\\)`);
+    assert.match(LAYOUT, re, `.pacing--${state} should still take --${tone} neat`);
   }
 });
 
-test('sleep-safe dim drains the chip further, because it has already spent the budget', () => {
-  assert.match(CSS, /\.is-dim \.pacing\s*\{[^}]*--pace-mix/,
-    'dim has to lower the mix or --bad stays under AA');
+test('both veils at once drain the last-call chip further', () => {
+  assert.match(CSS, /\.is-dim \.pacing--lastcall\s*\{[^}]*--pace-mix/,
+    'stacked on sleep-safe dim the mixed label is still under AA without this');
   assert.match(CSS, /\.is-dim \.pacing--lastcall\s*\{[^}]*background:\s*var\(--panel-2\)/,
-    'and drop the tinted fill, which was raising the plate under the label');
+    'and the tinted fill has to go, since it raises the plate under the label');
+  assert.doesNotMatch(CSS, /\.is-dim \.pacing\s*\{/,
+    'scoped to the last-call chip, not to every pacing state');
 });
 
 test('no dim escape list filters a toast that is already inside a filtered dialog', () => {

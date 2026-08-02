@@ -222,12 +222,23 @@ export function nightTarget(night) {
 export function settleNight(state) {
   const night = state.night;
   if (!night.paid) night.paid = { xp: 0, dust: 0 };
+  const carried = night.carried || { xp: 0, dust: 0 };
   const target = nightTarget(night);
-  const dXp = target.xp - night.paid.xp;
-  const dDust = target.dust - night.paid.dust;
+  // A date pays for its BEST run, not for the sum of its runs. `carried` is what
+  // an earlier run of this same date already put in the profile, so the floor
+  // here is what stops "Bank tonight and start fresh" from handing out a second
+  // budget for a date that has already been paid for — and taking the max
+  // rather than adding is what stops it clawing back the earlier run when the
+  // fresh night's face is still zero.
+  //
+  // On every ordinary night `carried` is zero and this is exactly the old
+  // arithmetic: target, and the difference from what the night has paid.
+  const want = { xp: Math.max(target.xp, carried.xp), dust: Math.max(target.dust, carried.dust) };
+  const dXp = want.xp - night.paid.xp;
+  const dDust = want.dust - night.paid.dust;
   if (dXp > 0 || dDust > 0) grantXp(state, Math.max(0, dXp), Math.max(0, dDust));
   if (dXp < 0 || dDust < 0) revokeGrant(state, Math.max(0, -dXp), Math.max(0, -dDust));
-  night.paid = target;
+  night.paid = want;
   return { xp: dXp, dust: dDust };
 }
 

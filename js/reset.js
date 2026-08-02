@@ -89,7 +89,12 @@ function clearTonight(state) {
   // face behind it — not a faucet, since it does not grow, but residue the
   // "clearing tonight hands back what it paid" promise does not allow.
   settleNight(state);
-  state.night.paid = { xp: 0, dust: 0 };
+  // Down to what an earlier run of this date already paid, not to zero. After
+  // "Bank tonight and start fresh" that number belongs to the run in your
+  // history and is not tonight's to hand back — and zeroing it here would let
+  // the next check-off pay the whole night a second time, which is the faucet
+  // this reset exists to prevent.
+  state.night.paid = { ...(state.night.carried || { xp: 0, dust: 0 }) };
   state.night.combo = 1;
   state.night.maxCombo = 1;
   state.night.lastDoneAt = 0;
@@ -172,6 +177,11 @@ const APPLY = {
     // stardust is the dust half of the ledger, which settleNight will hand over
     // when the checkmarks are cleared.
     state.night.paid = { xp: 0, dust: state.night.paid?.dust || 0 };
+    // The earlier run's XP goes with it, for the same reason. settleNight takes
+    // the max of the target and what the date already paid, so leaving a carried
+    // XP figure standing against a profile just zeroed would hand every bit of
+    // it straight back on the next check-off.
+    state.night.carried = { xp: 0, dust: state.night.carried?.dust || 0 };
   },
 
   /**

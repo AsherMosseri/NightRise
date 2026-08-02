@@ -252,6 +252,20 @@ it's the scroll.
   it is said out loud where the change is made: *"Tonight is already running against
   9:45 PM, so this takes effect tomorrow."* The history entry stamps the target the night
   was actually judged against, not the setting as it stands afterwards.
+  **"Bank tonight and start fresh" was the last door out of that**, and closing it turned up
+  something larger. A fresh night object got a fresh *everything*: a fresh bedtime lock, and
+  a fresh nightly budget — because the taper's ceiling was tracked on the night object rather
+  than on the date. So re-checking the same list paid again, at **+157 XP and ~28 stardust a
+  lap, with no limit and no throttle**; 1,519 laps bought the entire 43,130-stardust market.
+  The real-time guard that catches clock-tampering does not cover it, deliberately — its own
+  comment says *"bank tonight and start fresh does not advance the date"*.
+  A date now pays for its **best** run rather than the sum of its runs. The fresh night
+  carries what the date has already paid as a floor, and `settleNight` takes the *maximum* of
+  that floor and what the night's records are worth. The maximum matters: the obvious version
+  of this fix — carry the total forward and subtract — corrects the profile downward by a
+  whole night the moment the fresh night's face is zero, clawing back what you had genuinely
+  earned. A test fails on that version specifically. A real new date still gets a real budget,
+  so the 4am rollover is untouched.
 - **Last call: a second line, later than bedtime.** Every consequence in here used to be a
   binary switch thrown at bedtime, with no notion of how far past you were. The reward for
   stopping was the clearest case — `if (minutesEarly <= 0) return { xp: 15, dust: 3 }` —
@@ -640,7 +654,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**370 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
+**377 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

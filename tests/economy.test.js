@@ -18,6 +18,7 @@ import {
 import { lightsOutReward } from '../js/render/goodnight.js';
 import { equipItem } from '../js/shop.js';
 import { worthOf } from '../js/render/cards.js';
+import { applyReset } from '../js/reset.js';
 
 function reset() {
   replaceState(createInitialState(new Date(2026, 6, 29, 22, 0)));
@@ -708,4 +709,116 @@ test('no sequence of actions leaves you holding what you gave back', () => {
   // row. The three momentum rungs are the only ones a single night can reach,
   // they total 150, and the number must not grow with the length of the run.
   assert.equal(worstDust, 150, `a random night left ${worstDust} stardust behind`);
+});
+
+/* ------------------------------------ a date is the budget, not a night object */
+
+/** Every task in the list, through the real payment path. */
+function checkEverything(state) {
+  for (const id of Object.keys(state.template.tasks)) {
+    applyTaskCompletion(state, state.template.tasks[id]);
+  }
+}
+
+test('banking and starting fresh does not hand the same date a second budget', () => {
+  // The taper's ceiling used to live on the night OBJECT, and this button builds
+  // a new one — so re-checking the same list paid again, at +157 XP and ~28
+  // stardust a lap, unthrottled. 1,519 laps bought the entire market. The
+  // real-time guard does not cover it on purpose: its own comment says "bank
+  // tonight and start fresh does not advance the date".
+  const state = reset();
+  const key = state.night.key;
+  checkEverything(state);
+  const afterOne = { xp: state.profile.xp, dust: state.profile.stardust };
+  assert.ok(afterOne.xp > 0);
+
+  forceNewNight(state, key);
+  checkEverything(state);
+  const afterTwo = { xp: state.profile.xp, dust: state.profile.stardust };
+  assert.equal(afterTwo.xp, afterOne.xp, 'the same date paid its XP twice');
+
+  // And it stays flat, rather than merely growing more slowly.
+  for (let lap = 0; lap < 20; lap += 1) {
+    forceNewNight(state, key);
+    checkEverything(state);
+  }
+  assert.equal(state.profile.xp, afterOne.xp, 'twenty more laps minted XP');
+  assert.equal(state.profile.stardust, afterTwo.dust, 'twenty more laps minted stardust');
+});
+
+test('a genuinely new date still gets a budget of its own', () => {
+  // The fix must not turn the 4am rollover into a night that pays nothing.
+  const state = reset();
+  checkEverything(state);
+  const one = state.profile.xp;
+  forceNewNight(state, '2099-01-01');
+  checkEverything(state);
+  assert.ok(state.profile.xp > one, 'a new date earned nothing');
+});
+
+test('a fresh start cannot claw back the run it just banked', () => {
+  // The trap in the obvious version of this fix: carry the paid total forward
+  // and the fresh night's face is zero, so the very first settle "corrects" the
+  // profile down by a whole night you had legitimately earned.
+  const state = reset();
+  const key = state.night.key;
+  checkEverything(state);
+  const earned = state.profile.xp;
+  forceNewNight(state, key);
+  assert.equal(state.profile.xp, earned, 'banking took the night back');
+  // And a single check-off on the fresh night must not either.
+  applyTaskCompletion(state, Object.values(state.template.tasks)[0]);
+  assert.equal(state.profile.xp, earned, 'the first check-off of a fresh run moved the balance');
+});
+
+test('un-ticking inside a night still refunds exactly, carried or not', () => {
+  const state = reset();
+  const key = state.night.key;
+  const first = Object.values(state.template.tasks)[0];
+  // An ordinary night: the behaviour nothing here may change.
+  const before = state.profile.xp;
+  applyTaskCompletion(state, first);
+  assert.ok(state.profile.xp > before);
+  revokeTaskCompletion(state, first.id);
+  assert.equal(state.profile.xp, before, 'a plain un-tick did not refund');
+
+  // And after a fresh start, an un-tick refunds down to what the date already
+  // paid and no further — the banked run is not tonight's to give back.
+  checkEverything(state);
+  const earned = state.profile.xp;
+  forceNewNight(state, key);
+  applyTaskCompletion(state, first);
+  revokeTaskCompletion(state, first.id);
+  assert.equal(state.profile.xp, earned, 'un-ticking ate into the banked run');
+});
+
+test('clearing tonight after a fresh start does not re-arm the whole night', () => {
+  // clearTonight sets `paid` back to the floor rather than to zero. Zeroing it
+  // would let the next check-off pay the entire night a second time, which is
+  // the faucet that reset exists to prevent.
+  const state = reset();
+  const key = state.night.key;
+  checkEverything(state);
+  const earned = state.profile.xp;
+  forceNewNight(state, key);
+  applyReset(state, ['checks']);
+  checkEverything(state);
+  assert.equal(state.profile.xp, earned, 'clear-then-recheck paid the date twice');
+});
+
+test('a fresh night keeps the target the evening was already judged against', () => {
+  // Same date, same clock, so the same line. Otherwise this button was the last
+  // way to move the bedtime out from under a night in progress and collect an
+  // on-time star for it — the one record in this app you cannot buy.
+  const state = reset();
+  const key = state.night.key;
+  checkEverything(state);
+  assert.equal(state.night.bedtime, '23:30', 'the night locked its target');
+  forceNewNight(state, key);
+  assert.equal(state.night.bedtime, '23:30', 'and a fresh list does not unlock it');
+  assert.equal(state.night.lastCall, 60);
+
+  // A real new date does start clean.
+  forceNewNight(state, '2099-01-01');
+  assert.equal(state.night.bedtime, null);
 });

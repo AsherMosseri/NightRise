@@ -72,6 +72,14 @@ export function createNight(key) {
     // night's contribution is a function of the face it holds, and this is the
     // running total so `settleNight` knows what the difference is.
     paid: { xp: 0, dust: 0 },
+    // What EARLIER runs of this same date already put in the profile. Zero on
+    // every ordinary night; set only by "Bank tonight and start fresh", which
+    // builds a new night object for a date that has already been paid for.
+    // Without it the taper's ceiling belonged to the night OBJECT rather than
+    // to the date, so that button handed out a fresh budget on every press and
+    // re-checking the same list paid again — measured at +157 XP and ~28
+    // stardust a lap, with no limit and no throttle.
+    carried: { xp: 0, dust: 0 },
     // The targets tonight is judged against, fixed the first time the night
     // costs you something (a task started, a task finished, an envelope opened).
     // null until then, meaning "whatever the setting says right now".

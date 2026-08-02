@@ -457,8 +457,31 @@ export function effectiveLightsOutStreak(state, now = new Date()) {
  */
 export function forceNewNight(state, key, now = new Date()) {
   const stats = computeStats(state);
+  const previous = state.night;
   const result = bankNight(state, stats);
-  state.night = createNight(key || nightKeyOf(now));
+  const nextKey = key || nightKeyOf(now);
+  const fresh = createNight(nextKey);
+  if (nextKey === previous.key) {
+    // Same date, so the same date's budget and the same date's targets. This
+    // button gives you a clean list; it does not give you a second evening.
+    //
+    // Carried, and `paid` set to match it, so the first settle of the fresh
+    // night is a no-op rather than a refund of the run that was just banked.
+    // Without this the taper started over and re-checking the same list paid
+    // again — 1,519 laps bought the entire 43,130-stardust market, with no
+    // throttle, because the real-time guard deliberately only covers the 4am
+    // rollover ("bank tonight and start fresh does not advance the date").
+    fresh.carried = { ...(previous.paid || { xp: 0, dust: 0 }) };
+    fresh.paid = { ...fresh.carried };
+    // And the bedtime it was already being judged against. A fresh night object
+    // is not a fresh evening: the clock did not move, so neither does the line.
+    // Otherwise this was the one remaining way to move the target out from
+    // under a night in progress and collect an on-time star for it — the one
+    // record in this app that cannot be bought.
+    fresh.bedtime = previous.bedtime;
+    fresh.lastCall = previous.lastCall;
+  }
+  state.night = fresh;
   return result;
 }
 

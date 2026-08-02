@@ -161,6 +161,12 @@ function normalizeNight(raw, template, now) {
   night.maxCombo = Math.max(Number(night.maxCombo) || 1, night.combo);
   night.lastDoneAt = Number(night.lastDoneAt) || 0;
   night.lastMinutes = Math.max(0, Number(night.lastMinutes) || 0);
+  // What this date already paid on an earlier run. A hostile or truncated value
+  // has to come back as zero rather than as NaN: it is a floor on what the night
+  // may pay, and a NaN floor makes every comparison false and every payout zero.
+  night.carried = isObject(night.carried)
+    ? { xp: Math.max(0, Number(night.carried.xp) || 0), dust: Math.max(0, Number(night.carried.dust) || 0) }
+    : { xp: 0, dust: 0 };
   night.lightsOutAt = Number(night.lightsOutAt) || null;
   // Tonight's locked targets. `null` means the night has not started costing
   // anything yet and the live setting still applies, so anything unparseable

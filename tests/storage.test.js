@@ -214,3 +214,22 @@ test('the stardust rebalance does not confiscate what a save had banked', () => 
   for (let i = 0; i < 5; i += 1) current = normalizeState(current);
   assert.equal(current.profile.stardust, 700, 'reloading five times must not inflate it');
 });
+
+test('a hostile carried figure cannot become the night’s floor', () => {
+  // `carried` is a floor on what the night may pay. NaN makes every comparison
+  // against it false, which would silently zero the night's payouts; a negative
+  // or a string would be worse. It comes back as zero or not at all.
+  for (const bad of [NaN, -500, '9999', null, 'lots', [], { xp: 'x', dust: NaN }]) {
+    const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+    state.night.carried = bad;
+    const loaded = normalizeState(JSON.parse(JSON.stringify(state)));
+    assert.equal(typeof loaded.night.carried.xp, 'number');
+    assert.ok(Number.isFinite(loaded.night.carried.xp), `${JSON.stringify(bad)} left a non-finite floor`);
+    assert.ok(loaded.night.carried.xp >= 0, `${JSON.stringify(bad)} left a negative floor`);
+    assert.ok(Number.isFinite(loaded.night.carried.dust) && loaded.night.carried.dust >= 0);
+  }
+  // A real one survives intact.
+  const good = createInitialState(new Date(2026, 6, 29, 22, 0));
+  good.night.carried = { xp: 157, dust: 81 };
+  assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(good))).night.carried, { xp: 157, dust: 81 });
+});

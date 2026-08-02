@@ -143,7 +143,7 @@ function priceTag(cost) {
 /**
  * What the card shows you.
  *
- * Skies, sounds, trails and type have hand-written CSS swatches. The five newer
+ * Skies, sounds, trails and type have hand-written CSS swatches. The six newer
  * categories are drawn from the SAME data the real renderer reads, so a preview
  * cannot promise something the app then does not do — the rule this project
  * already applies to what a task says it pays.
@@ -169,6 +169,36 @@ function skinPreview(item) {
       }));
     }
     return svg('svg', { class: 'swatch swatch--drawn', viewBox: '0 0 100 56', 'aria-hidden': 'true' }, ...parts);
+  }
+
+  if (item.kind === 'horizon') {
+    if (!item.points?.length) return h('div', { class: 'swatch swatch--drawn', 'aria-hidden': 'true' });
+    // The same points and the same band the canvas uses, at swatch scale, so the
+    // card cannot promise a skyline the sky then draws differently. The glow is
+    // here for the same reason it is there: it is the part you can actually see.
+    const H = 56;
+    const W = 100;
+    const bandTop = H * (1 - item.band * 2.6); // the band is a fraction of a tall
+    const path = `M0 ${H} `                     // screen; the swatch is a wide one
+      + item.points.map(([x, y]) => `L${(x * W).toFixed(1)} ${(bandTop + y * (H - bandTop)).toFixed(1)}`).join(' ')
+      + ` L${W} ${H} Z`;
+    const parts = [];
+    if (item.glow) {
+      const id = `hz-${item.id}`;
+      parts.push(svg('defs', {}, svg('linearGradient', { id, x1: '0', y1: '0', x2: '0', y2: '1' },
+        svg('stop', { offset: '0', 'stop-color': item.glow.color, 'stop-opacity': '0' }),
+        svg('stop', { offset: '1', 'stop-color': item.glow.color, 'stop-opacity': String(item.glow.alpha ?? 0.28) }))));
+      parts.push(svg('rect', { x: 0, y: bandTop - H * (item.glow.height || 0.3) * 2.6, width: W, height: H, fill: `url(#${id})` }));
+    }
+    parts.push(svg('path', { d: path, fill: item.ink || 'var(--sky-1)' }));
+    // Stretched, not letterboxed. Every other swatch here is a centred motif and
+    // the default xMidYMid is right for those; a horizon is the one thing that
+    // has to reach both edges, and meet-fitting a 100-wide viewBox into a card
+    // three times that wide drew the skyline as a stamp in the middle third.
+    return svg('svg', {
+      class: 'swatch swatch--drawn', viewBox: '0 0 100 56',
+      preserveAspectRatio: 'none', 'aria-hidden': 'true',
+    }, ...parts);
   }
 
   if (item.kind === 'weather') {
@@ -320,6 +350,7 @@ VIEWS.shop = () => {
   const shelf = (bucket) => allItems().filter((item) => item.bucket === bucket);
   const tabs = [
     ['themes', 'Skies', shelf('themes')],
+    ['horizons', 'Horizons', shelf('horizons')],
     ['weather', 'Weather', shelf('weather')],
     ['moons', 'Moons', shelf('moons')],
     ['companions', 'Companions', shelf('companions')],

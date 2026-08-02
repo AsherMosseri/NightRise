@@ -54,6 +54,7 @@ const colors = {
   moonShadow: '#1b2140',
   trail: '#bcd0ff',
   glow: '#5f79d8',
+  horizon: '#05070f',
 };
 
 function readColors() {
@@ -67,6 +68,9 @@ function readColors() {
   colors.moonShadow = get('--moon-shadow', colors.moonShadow);
   colors.trail = get('--trail', colors.trail);
   colors.glow = get('--glow', colors.glow);
+  // Falls back to the darkest tone of whatever sky is equipped, so a horizon
+  // that names no ink of its own still belongs to the night it stands in.
+  colors.horizon = get('--horizon', get('--sky-1', colors.horizon));
 }
 
 function buildStars() {
@@ -302,6 +306,63 @@ function drawMoon(time) {
  * exactly one frame and a layer that fades in over ten seconds would render as
  * an empty sky forever.
  */
+/* ------------------------------------------------------------- horizon */
+
+let horizonSpec = null;
+
+/** A horizon skin, or null for open sky — which is what the app has always drawn. */
+export function setHorizon(spec) {
+  horizonSpec = spec && spec.points?.length ? spec : null;
+}
+
+/** '#rrggbb' plus an alpha, or a sky property when the skin defers to the theme. */
+function skinColor(value, fallback) {
+  if (!value) return fallback;
+  if (value === 'accent') return colors.accent;
+  if (value === 'glow') return colors.glow;
+  if (value === 'star') return colors.star;
+  return value;
+}
+
+/**
+ * The lit sky the horizon stands against, drawn before the stars so they sit in
+ * it rather than on it.
+ *
+ * This is the layer that makes the shelf work at all. The silhouette itself is
+ * darker than the panels covering it and cannot be seen through them; a band of
+ * light can, because a translucent dark panel over something brighter still
+ * reads brighter. Measured through the real list, not assumed.
+ */
+function drawHorizonGlow() {
+  const glow = horizonSpec?.glow;
+  if (!glow) return;
+  const reach = height * (horizonSpec.band + (glow.height || 0.3));
+  const top = height - reach;
+  const tint = skinColor(glow.color, colors.accent);
+  const grad = ctx.createLinearGradient(0, top, 0, height);
+  grad.addColorStop(0, `${tint}00`);
+  grad.addColorStop(1, `${tint}${Math.round(clamp(glow.alpha ?? 0.28, 0, 1) * 255).toString(16).padStart(2, '0')}`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, top, width, reach);
+}
+
+/**
+ * The edge itself, over everything in the sky so it occludes what is behind it —
+ * which is the point of a silhouette, and why it cannot be drawn with the glow.
+ */
+function drawHorizonInk() {
+  if (!horizonSpec) return;
+  const band = height * horizonSpec.band;
+  const top = height - band;
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  for (const [x, y] of horizonSpec.points) ctx.lineTo(x * width, top + y * band);
+  ctx.lineTo(width, height);
+  ctx.closePath();
+  ctx.fillStyle = skinColor(horizonSpec.ink, colors.horizon);
+  ctx.fill();
+}
+
 export function setWeather(spec) {
   weatherSpec = spec && spec.count > 0 ? spec : null;
   weatherParticles = [];
@@ -872,11 +933,15 @@ function drawFrame(time) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
+  drawHorizonGlow();
   drawStars(time);
   drawConstellations(time);
   drawNightStars(time);
   drawMoon(time);
   drawMeteors();
+  // After everything in the sky and before everything in the air: a hill hides
+  // the stars behind it, and rain falls in front of the hill.
+  drawHorizonInk();
   drawWeather();
   drawRibbons();
   drawRings();

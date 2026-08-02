@@ -125,6 +125,7 @@ export function createProfile() {
       moons: ['classic'],
       sounds: ['chime'],
       trails: ['none'],
+      horizons: ['open'],
       marks: ['check'],
       envelopes: ['plain'],
       fonts: ['sans'],
@@ -132,6 +133,7 @@ export function createProfile() {
     },
     equipped: {
       theme: 'midnight',
+      horizon: 'open',
       weather: 'clear',
       moon: 'classic',
       sounds: 'chime',

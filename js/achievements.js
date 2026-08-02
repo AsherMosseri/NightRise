@@ -29,7 +29,7 @@ import { CONSTELLATIONS } from './constellations.js';
 // so reaching back into it for allItems() would be an import cycle — and one
 // that throws, because these are `const` and would be read inside their own
 // temporal dead zone. The data lives in skins.js precisely so both can have it.
-import { THEMES, SOUND_PACKS, TRAILS, FONTS, WEATHER, MOONS, MARKS, ENVELOPES } from './skins.js';
+import * as SKINS from './skins.js';
 import { COMPANIONS } from './companion.js';
 
 /** Stardust for reaching a tier, paid once per tier ever. */
@@ -49,10 +49,16 @@ function inventorySize(profile) {
  * profile measured five unlocks it had never bought and was handed two
  * achievement tiers for opening the app. Every free default is one the app gave
  * you, whatever the market grows to.
+ *
+ * And then it was a hand-typed list of the eight catalogs, which is the same bug
+ * one level up: opening a ninth shelf left its free default uncounted, so a fresh
+ * profile was handed a Collector rung again for owning something it was given.
+ * Every array skins.js exports is a catalog and nothing else is, so the list is
+ * read off the module rather than repeated here — a new shelf cannot be missed.
  */
 const CATALOG = [
-  ...THEMES, ...WEATHER, ...MOONS, ...SOUND_PACKS,
-  ...TRAILS, ...MARKS, ...ENVELOPES, ...FONTS, ...COMPANIONS,
+  ...Object.values(SKINS).filter(Array.isArray).flat(),
+  ...COMPANIONS,
 ];
 const FREE_UNLOCKS = CATALOG.filter((item) => !item.cost).length;
 

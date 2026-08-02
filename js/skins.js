@@ -1,6 +1,6 @@
-/* The five appearance categories that are pure data: what the sky stands on,
+/* The six appearance categories that are pure data: what the sky stands on,
    what falls through it, which moon hangs in it, the mark you leave on a task,
-   and the envelope you open every night.
+   the envelope you open every night, and the typeface all of it is set in.
 
    Data only — this module imports nothing, so every renderer can import it
    without a cycle. Each category's first entry is free and is exactly what the
@@ -100,6 +100,115 @@ export const FONTS = [
     cost: 390,
     desc: 'Narrow and matter-of-fact, like a departure board.',
     stack: '"Avenir Next Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", system-ui, sans-serif',
+  },
+];
+
+/**
+ * What the sky stands on: a dark edge along the bottom, and the lit sky behind it.
+ *
+ * This shelf was built once and cut before it stocked, and the reason is the
+ * whole design of the version that replaced it. A horizon is a dark silhouette
+ * along the bottom edge; the bottom edge is where the task list always is; the
+ * panels are dark. A dark shape behind a dark panel is nothing at all, and
+ * screenshots at 390x844 showed exactly nothing — not in the list, not in One
+ * Card, not on the goodnight screen. Weather survived the same test only because
+ * it is *light* and covers the whole canvas.
+ *
+ * So the silhouette is not the thing you see. `glow` is: a band of lit sky
+ * rising off the horizon, which is what the sky actually does at dusk and after
+ * a city goes to bed. Light on dark reads through a translucent panel, and the
+ * dark shape is then legible as the edge cut into it. Every entry here is
+ * measured against the real layout with the list on top of it, and nothing ships
+ * that cannot be seen through the panels.
+ *
+ * `points` are [x, y] with x from 0 to 1 across the width and y from 0 (top of
+ * the band) to 1 (the very bottom). x is non-decreasing — repeated x values are
+ * how a rooftop gets a vertical wall. Colours may be a hex or 'accent' / 'glow'
+ * to take the equipped sky's own property, same rule as weather.
+ */
+export const HORIZONS = [
+  {
+    id: 'open',
+    name: 'Open Sky',
+    cost: 0,
+    desc: 'Nothing in the way, all the way down.',
+    band: 0,
+    points: [],
+    glow: null,
+  },
+  {
+    id: 'rooftops',
+    name: 'Rooftops',
+    cost: 460,
+    desc: 'The low blocks across the road, and the sodium haze behind them.',
+    band: 0.13,
+    ink: '#05070d',
+    glow: { color: '#ff9d4d', height: 0.34, alpha: 0.62 },
+    points: [
+      [0, 0.55], [0.06, 0.55], [0.06, 0.30], [0.14, 0.30], [0.14, 0.62], [0.22, 0.62],
+      [0.22, 0.18], [0.29, 0.18], [0.29, 0.48], [0.38, 0.48], [0.38, 0.66], [0.46, 0.66],
+      [0.46, 0.26], [0.55, 0.26], [0.55, 0.52], [0.63, 0.52], [0.63, 0.10], [0.70, 0.10],
+      [0.70, 0.44], [0.79, 0.44], [0.79, 0.70], [0.87, 0.70], [0.87, 0.34], [0.94, 0.34],
+      [0.94, 0.58], [1, 0.58],
+    ],
+  },
+  {
+    id: 'pines',
+    name: 'Treeline',
+    cost: 640,
+    desc: 'Conifers against the last of the light, somewhere with no streetlamps.',
+    band: 0.15,
+    ink: '#04080a',
+    glow: { color: '#7fb0ff', height: 0.30, alpha: 0.56 },
+    points: [
+      [0, 0.78], [0.04, 0.30], [0.08, 0.74], [0.12, 0.20], [0.17, 0.72], [0.22, 0.42],
+      [0.26, 0.76], [0.31, 0.16], [0.36, 0.70], [0.41, 0.46], [0.45, 0.74], [0.50, 0.24],
+      [0.55, 0.72], [0.60, 0.38], [0.64, 0.76], [0.69, 0.18], [0.74, 0.68], [0.78, 0.48],
+      [0.83, 0.74], [0.88, 0.26], [0.93, 0.72], [0.97, 0.44], [1, 0.70],
+    ],
+  },
+  {
+    id: 'hills',
+    name: 'Low Hills',
+    cost: 830,
+    desc: 'Long soft ground with the glow of somewhere else just over it.',
+    band: 0.12,
+    ink: '#060810',
+    glow: { color: '#c9a8ff', height: 0.38, alpha: 0.52 },
+    points: [
+      [0, 0.64], [0.12, 0.50], [0.25, 0.58], [0.38, 0.38], [0.52, 0.52],
+      [0.65, 0.34], [0.78, 0.50], [0.90, 0.42], [1, 0.56],
+    ],
+  },
+  {
+    id: 'ridge',
+    name: 'The Ridge',
+    cost: 1090,
+    desc: 'Mountains with cold air coming off them and nothing living up there.',
+    band: 0.19,
+    ink: '#03050c',
+    glow: { color: '#9dc4ff', height: 0.28, alpha: 0.58 },
+    points: [
+      [0, 0.82], [0.08, 0.50], [0.16, 0.66], [0.26, 0.18], [0.34, 0.46], [0.44, 0.30],
+      [0.52, 0.60], [0.62, 0.08], [0.72, 0.42], [0.80, 0.28], [0.88, 0.56], [0.94, 0.38],
+      [1, 0.62],
+    ],
+  },
+  {
+    id: 'dockside',
+    name: 'Dockside',
+    cost: 1340,
+    desc: 'Flat water, gantry cranes, and the yard lights left on all night.',
+    band: 0.16,
+    ink: '#04070c',
+    glow: { color: '#ffcf87', height: 0.32, alpha: 0.54 },
+    points: [
+      [0, 0.74], [0.10, 0.74], [0.10, 0.32], [0.13, 0.32], [0.13, 0.74],
+      [0.28, 0.74], [0.28, 0.18], [0.32, 0.18], [0.32, 0.46], [0.35, 0.46], [0.35, 0.74],
+      [0.52, 0.74], [0.52, 0.28], [0.56, 0.28], [0.56, 0.74],
+      [0.70, 0.74], [0.70, 0.14], [0.74, 0.14], [0.74, 0.50], [0.77, 0.50], [0.77, 0.74],
+      [1, 0.74],
+    ],
   },
 ];
 
@@ -429,6 +538,7 @@ export const ENVELOPES = [
 
 const BY_ID = (list) => (id) => list.find((entry) => entry.id === id) || list[0];
 
+export const horizonById = BY_ID(HORIZONS);
 export const weatherById = BY_ID(WEATHER);
 export const moonById = BY_ID(MOONS);
 export const markById = BY_ID(MARKS);

@@ -22,9 +22,9 @@ import { initToasts, toast, celebrate } from './toast.js';
 import {
   initSky, setMoonFill, setTrail, setConstellations, setNightStars, shootingStar,
   emitTrailAt, celebrateBurst, refreshTheme, setReducedMotion,
-  setWeather, setMoonSkin,
+  setWeather, setMoonSkin, setHorizon,
 } from './sky.js';
-import { weatherById, moonById } from './skins.js';
+import { horizonById, weatherById, moonById } from './skins.js';
 import { completedConstellations, progressFor } from './constellations.js';
 import { onTimeNights } from './insights.js';
 import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
@@ -75,9 +75,10 @@ function applyCosmetics() {
 
   refreshTheme();
   setTrail(equipped.trail);
-  // The three skins the canvas draws. Each resolves through its catalog, so an
+  // The four skins the canvas draws. Each resolves through its catalog, so an
   // id from a save the app no longer recognises lands on the free default
   // rather than an empty sky.
+  setHorizon(horizonById(equipped.horizon));
   setWeather(weatherById(equipped.weather));
   setMoonSkin(moonById(equipped.moon));
   setReducedMotion(reducedMotionActive(state));
@@ -682,6 +683,10 @@ function boot() {
     setNightKey: (key) => { update((s) => { s.night.key = key; }); renderAll(); },
     addStardust: (n) => { update((s) => { s.profile.stardust += n; }); },
     addXp: (n) => { update((s) => { s.profile.xp += n; }); renderAll(); },
+    // Theme, horizon, weather, moon, trail and typeface all arrive through
+    // here, and renderAll does not call it — so a harness that sets an equipped
+    // id and re-renders measures the sky it started with.
+    applyCosmetics: () => { applyCosmetics(); renderAll(); },
     openModal,
     closeModal,
   };

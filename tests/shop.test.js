@@ -184,7 +184,7 @@ test('a rerolled quest is still a pure function of the night', () => {
 test('the whole market costs what the README says it costs', () => {
   // Quoted in prose and used to pace every sink. Measured, not remembered.
   const total = allItems().reduce((sum, item) => sum + (item.cost || 0), 0);
-  assert.equal(total, 38770, 'the market total moved');
+  assert.equal(total, 43130, 'the market total moved');
 });
 
 test('a starting profile owns nothing it has not paid for', () => {
@@ -545,4 +545,51 @@ test('the market card labels itself with the reason it cannot be bought', () => 
   assert.equal(canBuy(state, dear).reason, '322 more stardust');
   state.profile.level = 1;
   assert.equal(canBuy(state, { ...dear, reqLevel: 11 }).reason, 'Reach level 11');
+});
+
+/* ------------------------------------------------------------- horizons */
+
+test('every horizon the market sells is one the sky can draw', () => {
+  for (const item of allItems().filter((i) => i.bucket === 'horizons')) {
+    assert.ok(Number.isFinite(item.band) && item.band >= 0 && item.band <= 0.3,
+      `${item.id}: band ${item.band} is not a sane fraction of the height`);
+    assert.ok(Array.isArray(item.points), `${item.id} has no points`);
+    if (!item.points.length) continue;
+    assert.equal(item.points[0][0], 0, `${item.id} does not start at the left edge`);
+    assert.equal(item.points.at(-1)[0], 1, `${item.id} does not reach the right edge`);
+    let last = -1;
+    for (const [x, y] of item.points) {
+      // Non-decreasing, not strictly: a repeated x is how a rooftop or a crane
+      // gets a vertical wall, and forbidding it would forbid the skyline.
+      assert.ok(x >= last, `${item.id}: x goes ${last} then ${x}`);
+      assert.ok(x >= 0 && x <= 1, `${item.id}: x ${x} is off the canvas`);
+      assert.ok(y >= 0 && y <= 1, `${item.id}: y ${y} is outside its own band`);
+      last = x;
+    }
+  }
+});
+
+test('a horizon you pay for is one you can see', () => {
+  // The whole reason this shelf was cut the first time. A silhouette is dark,
+  // the panels over it are dark, and dark on dark is nothing: measured through
+  // the real list at 393x852 the shape alone moves the painted pixels by under
+  // one part in 255. What carries it is the lit sky behind — light through a
+  // translucent panel still reads lighter. Measured with the glow: Δ30-46 in the
+  // gutter beside the panels, Δ0.6-6 through them, and no change at all to the
+  // task titles' contrast. So a paid horizon without a glow is one nobody can
+  // see, and this is the rule that says so.
+  for (const item of allItems().filter((i) => i.bucket === 'horizons' && i.cost > 0)) {
+    assert.ok(item.glow, `${item.id} is a silhouette with no lit sky behind it`);
+    assert.ok(item.glow.alpha >= 0.4,
+      `${item.id}: glow alpha ${item.glow.alpha} does not survive a panel at 0.55`);
+    assert.match(item.glow.color, /^#[0-9a-f]{6}$/i, `${item.id}: glow needs a real colour`);
+    assert.ok(item.ink, `${item.id} has no silhouette ink`);
+  }
+});
+
+test('the free horizon is the sky the app has always drawn', () => {
+  const free = allItems().find((i) => i.bucket === 'horizons' && !i.cost);
+  assert.equal(free.id, 'open', 'the id a save from the cut version would still carry');
+  assert.equal(free.points.length, 0, 'nothing in the way');
+  assert.equal(free.glow, null);
 });

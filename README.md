@@ -359,6 +359,24 @@ it's the scroll.
   the stylesheet and holds every sky to the whole contract, to its own swatch, and to
   4.5:1 for body *and* secondary text. Secondary too, rather than taking the large-text
   exemption, because "47m of tasks left" is small and it is 11pm.
+- **Horizons** — five skylines along the bottom edge: rooftops, a treeline, low hills, a
+  mountain ridge, dockside cranes. This shelf was designed once, built, and **cut before it
+  stocked**, and the second attempt is a direct answer to why. A horizon is a dark
+  silhouette; the bottom edge is where the task list always is; the panels are dark. Dark
+  behind dark is nothing, and screenshots at 390×844 showed exactly that — not in the list,
+  not in One Card, not on the goodnight screen. Weather passed the same test only because
+  it is *light* and covers the whole canvas.
+  So the silhouette is not the thing you see. Each horizon carries a **band of lit sky**
+  rising off it — which is what a real sky does at dusk and over a city after midnight —
+  and light behind a translucent panel still reads lighter, where a darker shape cannot
+  read at all. The shape is then legible as the edge cut into that light.
+  Measured as painted at 393×852 with a full list on top, against open sky, across six
+  skies: **Δ30–46 per channel in the gutters beside the panels**, where a horizon is
+  actually looked at, and Δ0.6–6 *through* a panel — present as a tint, never competing
+  with the list. Task-title contrast is **unchanged** to two decimal places, which is the
+  trade that had to not happen: buying scenery must not cost you the thing you came for.
+  A test refuses to let a paid horizon ship without a glow, because that is the whole
+  difference between this shelf and the one that was cut.
 - **Weather** — rain, snow, a firefly field and northern lights, drawn as one particle
   layer over the sky. Every sky used to be only a recolour, so two of them differed in
   hue and nothing else; weather is what makes them differ in *motion*. A Meteor Shower was
@@ -424,7 +442,7 @@ it's the scroll.
   carrying near-black label text, dimmed to 45%. Measured as painted, across all twelve
   skies, that was **1.02–1.43:1** — the label telling you *why* you could not buy the thing
   was the least readable pixel on the card and simultaneously the loudest, on nearly every
-  card at once, because you cannot afford most of a 38,770-stardust market on most nights.
+  card at once, because you cannot afford most of a 43,130-stardust market on most nights.
   One helper builds all four now, and the unaffordable state is its own quiet style:
   **6.4–7.5:1**, sleep-safe mode included. The supplies shelf also said its shortfall only
   in a `title`, which a phone has no way to show — so the button read "Buy" and did nothing.
@@ -596,7 +614,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**361 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
+**364 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

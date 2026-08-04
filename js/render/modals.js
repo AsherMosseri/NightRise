@@ -22,7 +22,7 @@ import {
 import { still, growTo } from './motion.js';
 import {
   shiftKey, keyToDate, formatShortDate, formatNightLabel, parseClock, formatClockLabel,
-  LAST_CALL_CHOICES, formatLastCall, lastCallCapped,
+  LAST_CALL_CHOICES, BROWSE_BUDGET_CHOICES, formatLastCall, lastCallCapped,
 } from '../time.js';
 import { serializeState, parseImport, clearStorage, exportedAtOf } from '../storage.js';
 import { createInitialState } from '../model.js';
@@ -56,6 +56,8 @@ export function initModals(node) {
   // The close event is queued, not synchronous: if the dialog has already been
   // reopened by the time it lands, the new view must survive it.
   node.addEventListener('close', () => {
+    // Escape and the backdrop close natively and never go through closeModal.
+    settleBrowsing();
     if (!node.open) currentView = null;
     // Escape and the backdrop close the dialog natively, never going through
     // closeModal — so the sky stayed paused for the rest of the session. The
@@ -65,6 +67,32 @@ export function initModals(node) {
 }
 
 const VIEWS = {};
+
+/* The four panels the curfew, last call and the nightly budget all act on. */
+export const BROWSING_VIEWS = new Set(['shop', 'starmap', 'history', 'insights']);
+
+/** Which panel is open, so the ticker can shut one that has run out of night. */
+export function openView() {
+  return currentView;
+}
+
+/* When the open browsing panel was opened. Null whenever nothing is being timed. */
+let browsingSince = null;
+
+/**
+ * Add however long the panel has been open to tonight's browsing clock.
+ *
+ * Called from every way a panel can stop being looked at — the close button,
+ * Escape, the backdrop, a swipe, and the app being backgrounded. Missing one
+ * would not lose a little time, it would lose ALL of it: the stamp is cleared
+ * on the next open, so an unsettled session simply never happened.
+ */
+export function settleBrowsing() {
+  if (browsingSince === null) return;
+  const spent = Math.max(0, Date.now() - browsingSince);
+  browsingSince = null;
+  if (spent > 0) update((s) => { s.night.browsedMs = (s.night.browsedMs || 0) + spent; }, { silent: true });
+}
 
 export function openModal(name) {
   if (!dialog || !VIEWS[name]) return;
@@ -87,6 +115,10 @@ export function openModal(name) {
   // did, and it is the bigger surface.
   document.body.classList.add('has-modal');
   setSkyPaused(true);
+  // Settle first: opening a second browsing panel straight from the first is a
+  // close the app never sees.
+  settleBrowsing();
+  if (BROWSING_VIEWS.has(name)) browsingSince = Date.now();
 }
 
 let closing = null;
@@ -98,6 +130,7 @@ function cancelClose() {
 }
 
 export function closeModal() {
+  settleBrowsing();
   currentView = null;
   document.body.classList.remove('has-modal');
   setSkyPaused(false);
@@ -1176,6 +1209,15 @@ VIEWS.settings = () => {
       h('span', { class: 'switch__label' }, label, hint ? h('span', { class: 'muted small' }, hint) : null));
   };
 
+  const browseBudget = choiceRow('Browsing budget', BROWSE_BUDGET_CHOICES.map((minutes) => [
+    minutes,
+    minutes === 0 ? 'Off' : `${minutes} min`,
+  ]), settings.browseBudget, (value) => {
+    update((s) => { s.profile.settings.browseBudget = value; });
+    emit('setting', { key: 'browseBudget', value });
+    refreshModal();
+  });
+
   return {
     title: 'Settings',
     body: h('div', { class: 'settings' },
@@ -1207,6 +1249,13 @@ VIEWS.settings = () => {
       field('Target bedtime', bedtime, 'Drives the countdown and the on-pace reading.'
         + (bedtimeMovesTomorrow(state) ? tomorrowNote(formatClockLabel(state.night.bedtime)) : '')),
       field('Last call', lastCall, lastCallHint(state, settings)),
+      field('Browsing budget', browseBudget, settings.browseBudget
+        ? `${settings.browseBudget} minutes of shop, star map, history and insights a night,`
+          + ` spent whenever you like. The curfew is a time; this is a quantity — an evening`
+          + ` lost to the market at nine o'clock never crossed the curfew at all. It resets at 4am,`
+          + ` and it is counted only while a panel is actually open.`
+        : 'Off. The curfew and last call are the only limits, and neither has anything to say'
+          + ' about an hour in the shop at nine.'),
       field('Motion', motion, 'The sky, the FLIP animations and the pointer trail.'),
       h('div', { class: 'field' },
         toggle('dim', 'Sleep-safe dim', 'Warms and dims the whole page for late nights.'),

@@ -6,11 +6,14 @@ import { getState, subscribe, update, on, hydrateState } from './state.js';
 import { addSection, addTask, setSetting } from './actions.js';
 import { computeStats, rolloverIfNeeded, tonightBedtime, tonightLastCall } from './night.js';
 import {
-  nightKeyOf, formatNightLabel, formatClockLabel, lateStage, panelGate, CURFEW_LEAD_MINUTES,
+  nightKeyOf, formatNightLabel, formatClockLabel, lateStage, panelGate, browseGate,
+  minutesUntilBedtime, CURFEW_LEAD_MINUTES,
 } from './time.js';
 import { initChecklist, renderChecklist, floatXp } from './render/checklist.js';
 import { initHeader, renderHeader, renderTonight } from './render/header.js';
-import { initModals, openModal, closeModal } from './render/modals.js';
+import {
+  initModals, openModal, closeModal, openView, settleBrowsing, BROWSING_VIEWS,
+} from './render/modals.js';
 import { initSheet, openSheet } from './render/sheet.js';
 import { openAddTask, openAddSection } from './render/add-task.js';
 import { initGoodnight, dismissGoodnight, isGoodnightOpen } from './render/goodnight.js';
@@ -28,7 +31,7 @@ import { horizonById, weatherById, moonById } from './skins.js';
 import { completedConstellations, progressFor } from './constellations.js';
 import { onTimeNights } from './insights.js';
 import { initKeys, parseQuickAdd, isTypingTarget } from './keys.js';
-import { titleForLevel } from './game.js';
+import { titleForLevel, lockTonightTargets } from './game.js';
 import { checkAchievements } from './achievements.js';
 import { playEnvelopeOpen } from './render/envelope-open.js';
 import { playFinale } from './render/finale.js';
@@ -46,6 +49,9 @@ import { initOptical, applyOpticalNudge } from './optical.js';
 import { initUpdates, applyUpdate } from './updates.js';
 
 const TOPBAR_ICON_SIZE = 18;
+
+/** Tonight's browsing allowance in ms, or 0 when the setting is off. */
+const budgetMs = (state) => Math.max(0, Number(state.profile.settings.browseBudget) || 0) * 60000;
 
 const motionQuery = typeof window.matchMedia === 'function'
   ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -294,6 +300,17 @@ function wireEffects() {
  * painted and cannot escape anything.
  */
 function syncLateStage() {
+  // Fix tonight's targets once the target itself has gone by, whether or not the
+  // night has cost you anything yet. The three action-shaped callers of
+  // lockTonightTargets all require you to DO something first, so opening the app
+  // at half past midnight having touched nothing left the bedtime editable —
+  // and editing it then is the whole thing the lock exists to stop. Silent,
+  // because this runs inside a render and inside the store's own notify.
+  update((s) => {
+    if (s.night.bedtime !== null && s.night.bedtime !== undefined) return;
+    const left = minutesUntilBedtime(s.night.key, s.profile.settings.bedtime);
+    if (left !== null && left < 0) lockTonightTargets(s);
+  }, { silent: true });
   const state = getState();
   const bedtime = tonightBedtime(state);
   const lastCall = tonightLastCall(state);
@@ -447,9 +464,21 @@ function boot() {
     const bedtime = tonightBedtime(state);
     const lastCall = tonightLastCall(state);
     const stage = lateStage(state.night.key, bedtime, lastCall);
-    const gate = BROWSING.has(name) ? panelGate(stage, curfew) : 'open';
+    const gate = BROWSING.has(name)
+      ? browseGate(stage, curfew, state.night.browsedMs || 0, budgetMs(state))
+      : 'open';
     if (gate === 'open') {
       openModal(name);
+      return;
+    }
+    if (gate === 'spent') {
+      openSheet({
+        title: 'That is tonight’s browsing',
+        subtitle: `${state.profile.settings.browseBudget} minutes of shop, star map, history`
+          + ` and insights a night. A curfew is a time; this is a quantity, and an evening`
+          + ` lost to the market at nine never crossed the curfew at all.`,
+        items: [{ icon: 'moon', label: 'Back to the list', hint: 'It resets at 4am', onClick: () => {} }],
+      });
       return;
     }
     // Past last call the escape hatch goes. Before it, "just this once" is the
@@ -626,9 +655,47 @@ function boot() {
   // line the clock crosses while nobody touches the app, so it is read here
   // rather than only on a render — otherwise the night goes hard whenever you
   // next happen to tap something, which could be an hour later.
+  /**
+   * Shut a browsing panel that has run out of night while you were inside it.
+   *
+   * openPanel checks the gate on the tap and nothing checked it again, so the
+   * shop opened at 23:29 stayed open until you closed it — which is precisely
+   * the evening the curfew exists to end. Here rather than in syncLateStage
+   * because closing a dialog from inside a render is how re-entrancy bugs start;
+   * the ticker and the return-to-foreground are enough.
+   */
+  const enforceOpenPanel = () => {
+    const view = openView();
+    if (!view || !BROWSING_VIEWS.has(view)) return;
+    const state = getState();
+    // Settle first, or the minutes spent in the panel still open are not yet on
+    // the clock this is about to read.
+    settleBrowsing();
+    const gate = browseGate(
+      lateStage(state.night.key, tonightBedtime(state), tonightLastCall(state)),
+      state.profile.settings.curfew,
+      getState().night.browsedMs || 0,
+      budgetMs(state),
+    );
+    if (gate === 'open' || gate === 'soft') return;
+    closeModal();
+    openSheet(gate === 'spent'
+      ? {
+        title: 'That is tonight’s browsing',
+        subtitle: 'The night’s budget ran out while you were in there. It resets at 4am.',
+        items: [{ icon: 'moon', label: 'Back to the list', onClick: () => {} }],
+      }
+      : {
+        title: 'That is closed now',
+        subtitle: 'Last call arrived while you were in there. It will all still be here in the morning.',
+        items: [{ icon: 'moon', label: 'Back to the list', onClick: () => {} }],
+      });
+  };
+
   setInterval(() => {
     if (!checkRollover()) renderTonight();
     syncLateStage();
+    enforceOpenPanel();
   }, 30000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -636,6 +703,9 @@ function boot() {
       // pause is the whole design of that timer, not a nicety — a clock that
       // keeps running while you are elsewhere is a guilt machine.
       pauseCardTimer();
+      // The browsing clock stops with everything else. A phone in a pocket with
+      // the shop open must not spend the night's budget.
+      settleBrowsing();
       // Commit before the OS can suspend us; a lost check-off is unforgivable.
       flushPersist();
     } else {

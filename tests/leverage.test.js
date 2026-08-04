@@ -11,6 +11,9 @@ import { buyStar, progressFor, CONSTELLATIONS } from '../js/constellations.js';
 import { applyReset } from '../js/reset.js';
 import { normalizeState } from '../js/storage.js';
 import { bedtimeAlarmIcs, ALARM_LEAD_MINUTES } from '../js/alarm.js';
+import { browseGate, minutesUntilBedtime, BROWSE_BUDGET_CHOICES } from '../js/time.js';
+import { lockTonightTargets } from '../js/game.js';
+import { forceNewNight, tonightBedtime } from '../js/night.js';
 
 const FULL = { total: 12, counted: 12, done: 12 };
 const NIGHT = { xp: 157, dust: 81 };
@@ -149,4 +152,65 @@ test('the file cannot be broken by what goes into it', () => {
   for (const line of bedtimeAlarmIcs('23:30').split('\r\n')) {
     assert.ok(line.length <= 75, `unfolded line of ${line.length} octets: ${line.slice(0, 40)}…`);
   }
+});
+
+/* -------------------------------------- the gate, while the panel is open */
+
+test('a browsing budget is a quantity, and the curfew is a time', () => {
+  const TEN = 10 * 60000;
+  // Inside the budget the old gate is untouched, at every stage.
+  assert.equal(browseGate('clear', true, 0, TEN), 'open');
+  assert.equal(browseGate('curfew', true, 0, TEN), 'soft');
+  assert.equal(browseGate('lastcall', true, 0, TEN), 'shut');
+  // Spent, and it is shut whatever the clock says — this is the evening the
+  // curfew has no opinion about: an hour in the market at nine o'clock.
+  assert.equal(browseGate('clear', true, TEN, TEN), 'spent');
+  assert.equal(browseGate('clear', false, TEN, TEN), 'spent', 'and the curfew toggle is not its off switch');
+  // Last call still outranks it, so the copy never says "budget" when the real
+  // reason is the hour.
+  assert.equal(browseGate('lastcall', true, TEN, TEN), 'shut');
+  // Off is off.
+  assert.equal(browseGate('clear', true, 99 * TEN, 0), 'open');
+});
+
+test('the browsing clock and its budget survive a hostile save', () => {
+  for (const bad of [NaN, -1, '600000', null, {}, Infinity]) {
+    const state = createInitialState(new Date(2026, 7, 3, 22, 0));
+    state.night.browsedMs = bad;
+    const ms = normalizeState(JSON.parse(JSON.stringify(state))).night.browsedMs;
+    assert.ok(Number.isFinite(ms) && ms >= 0, `${JSON.stringify(bad)} left ${ms}`);
+  }
+  for (const bad of [7, -5, '10', null, 'lots']) {
+    const state = createInitialState(new Date(2026, 7, 3, 22, 0));
+    state.profile.settings.browseBudget = bad;
+    const value = normalizeState(JSON.parse(JSON.stringify(state))).profile.settings.browseBudget;
+    assert.ok(BROWSE_BUDGET_CHOICES.includes(value), `${JSON.stringify(bad)} survived as ${value}`);
+  }
+});
+
+test('the night’s browsing clock starts at zero and rolls over with the night', () => {
+  const state = createInitialState(new Date(2026, 7, 3, 22, 0));
+  assert.equal(state.night.browsedMs, 0);
+  state.night.browsedMs = 9 * 60000;
+  forceNewNight(state, '2099-01-01');
+  assert.equal(state.night.browsedMs, 0, 'a new night is a new allowance');
+});
+
+test('the target locks on the clock, not only on the first thing you tap', () => {
+  // lockTonightTargets has three action-shaped callers — start, finish, envelope.
+  // Open the app at 00:45 having touched nothing and the bedtime was still
+  // editable, which is exactly the state the lock exists for.
+  const state = createInitialState(new Date(2026, 7, 3, 20, 0));
+  state.night.key = '2026-08-03';
+  state.profile.settings.bedtime = '23:30';
+  assert.equal(state.night.bedtime, null, 'nothing has happened yet');
+
+  // What syncLateStage does once the target has gone by.
+  const past = minutesUntilBedtime(state.night.key, state.profile.settings.bedtime,
+    new Date(2026, 7, 4, 0, 45));
+  assert.ok(past < 0);
+  lockTonightTargets(state);
+  assert.equal(state.night.bedtime, '23:30');
+  state.profile.settings.bedtime = '01:00';
+  assert.equal(tonightBedtime(state), '23:30', 'tonight is still judged against the line it ran on');
 });

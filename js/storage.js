@@ -6,7 +6,7 @@ import {
   SCHEMA_VERSION, STORAGE_KEY, createInitialState, createNight, createProfile,
   createSection, emptyTemplate, DEFAULT_MINUTES, clampTitle, PRICE_REBASE,
 } from './model.js';
-import { nightKeyOf, parseClock, LAST_CALL_CHOICES } from './time.js';
+import { nightKeyOf, parseClock, LAST_CALL_CHOICES, BROWSE_BUDGET_CHOICES } from './time.js';
 import { ACHIEVEMENTS, migrateBadges } from './achievements.js';
 import { CONSTELLATIONS } from './constellations.js';
 
@@ -164,6 +164,9 @@ function normalizeNight(raw, template, now) {
   // What this date already paid on an earlier run. A hostile or truncated value
   // has to come back as zero rather than as NaN: it is a floor on what the night
   // may pay, and a NaN floor makes every comparison false and every payout zero.
+  // Tonight's browsing clock. Negative or NaN would hand back an unlimited
+  // evening, which is the one thing this number exists to prevent.
+  night.browsedMs = Math.max(0, Number(night.browsedMs) || 0);
   night.carried = isObject(night.carried)
     ? { xp: Math.max(0, Number(night.carried.xp) || 0), dust: Math.max(0, Number(night.carried.dust) || 0) }
     : { xp: 0, dust: 0 };
@@ -342,6 +345,10 @@ export function normalizeState(raw, now = new Date()) {
   // Number('') and Number([]) are all 0 — which IS one of the choices, meaning
   // "off" — so a save with a null in it silently turned the whole feature off
   // and looked like a deliberate setting rather than a fallback.
+  const budget = profile.settings.browseBudget;
+  profile.settings.browseBudget = typeof budget === 'number' && BROWSE_BUDGET_CHOICES.includes(Math.round(budget))
+    ? Math.round(budget)
+    : fresh.settings.browseBudget;
   const call = profile.settings.lastCall;
   profile.settings.lastCall = typeof call === 'number' && LAST_CALL_CHOICES.includes(Math.round(call))
     ? Math.round(call)

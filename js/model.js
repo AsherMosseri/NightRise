@@ -1,7 +1,7 @@
 /* Shapes, factories and the starter night. */
 
 import { uid } from './util.js';
-import { nightKeyOf, LAST_CALL_DEFAULT } from './time.js';
+import { nightKeyOf, LAST_CALL_DEFAULT, BROWSE_BUDGET_DEFAULT } from './time.js';
 import { rollQuest } from './quests.js';
 
 /**
@@ -80,6 +80,10 @@ export function createNight(key) {
     // re-checking the same list paid again — measured at +157 XP and ~28
     // stardust a lap, with no limit and no throttle.
     carried: { xp: 0, dust: 0 },
+    // Milliseconds spent inside the shop, star map, history or insights tonight.
+    // The curfew is a time; this is a quantity, and an evening lost to the
+    // market at nine o'clock never crossed the curfew at all.
+    browsedMs: 0,
     // The targets tonight is judged against, fixed the first time the night
     // costs you something (a task started, a task finished, an envelope opened).
     // null until then, meaning "whatever the setting says right now".
@@ -183,6 +187,8 @@ export function createProfile() {
       dim: false,
       muted: true,
       curfew: true,
+      // Minutes of shop, star map, history and insights per night. 0 is off.
+      browseBudget: BROWSE_BUDGET_DEFAULT,
       autoTimer: false,
       motion: 'auto',
       hideCompleted: false,

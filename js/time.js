@@ -144,6 +144,10 @@ export function inCurfew(key, bedtime, now = new Date()) {
 export const LAST_CALL_DEFAULT = 60;
 export const LAST_CALL_CHOICES = [0, 30, 60, 90, 120];
 
+/** Minutes of browsing a night. Ten is about two unhurried looks at the market. */
+export const BROWSE_BUDGET_DEFAULT = 10;
+export const BROWSE_BUDGET_CHOICES = [0, 5, 10, 20];
+
 /** The instant a night key stops being the current night: 4am the morning after. */
 export function nightEndInstant(key) {
   const base = keyToDate(key);
@@ -232,6 +236,24 @@ export function panelGate(stage, curfewEnabled = true) {
   if (stage === 'lastcall') return 'shut';
   if (!curfewEnabled) return 'open';
   return stage === 'curfew' || stage === 'past' ? 'soft' : 'open';
+}
+
+/**
+ * The same gate, plus the night's browsing budget.
+ *
+ * A curfew is a TIME and this is a QUANTITY, and they fail differently. The
+ * curfew says nothing at all about opening the shop at eight and still being in
+ * it at eleven — which is the shape of the evening this app exists to prevent,
+ * and the one it had no opinion on. Ten minutes of market a night, spent
+ * whenever you like, and then it is shut whatever the clock says.
+ *
+ * `budgetMs` of 0 turns the budget off and leaves panelGate exactly as it was.
+ */
+export function browseGate(stage, curfewEnabled, spentMs = 0, budgetMs = 0) {
+  const gate = panelGate(stage, curfewEnabled);
+  if (gate === 'shut') return 'shut';
+  if (budgetMs > 0 && spentMs >= budgetMs) return 'spent';
+  return gate;
 }
 
 export function lateStage(key, bedtime, lastCall = LAST_CALL_DEFAULT, now = new Date()) {

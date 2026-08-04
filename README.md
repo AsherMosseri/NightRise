@@ -298,6 +298,25 @@ it's the scroll.
   phone fires it nightly, offline, forever. Floating local time, so it does not wander when
   you travel, and a stable `UID` so re-adding after changing your bedtime replaces the event
   instead of leaving two alarms disagreeing about when to sleep.
+- **The gate is checked while a panel is open, not only when it is opened.** `openPanel`
+  asked once, on the tap, and nothing asked again — so the shop opened at 23:29 stayed open
+  until you chose to close it, which is precisely the evening the curfew exists to end. The
+  30-second ticker and the return-to-foreground now shut a browsing panel that has run out
+  of night, with the same sheet the tap would have shown. Deliberately not in the render
+  path: closing a dialog from inside a render is how re-entrancy bugs start.
+- **A browsing budget, because a curfew is a time and this is a quantity.** Ten minutes of
+  shop, star map, history and insights a night, spent whenever you like, then shut whatever
+  the clock says. The curfew has never had anything to say about opening the market at nine
+  and still being in it at eleven — which is the same evening by a different route. Counted
+  only while a panel is actually open, settled on every way one can close (the button,
+  Escape, the backdrop, a swipe, backgrounding the app), and reset with the night at 4am.
+  0 turns it off. Last call still outranks it, so the copy never blames the budget when the
+  real reason is the hour.
+- **The target locks on the clock, not only on the first thing you tap.** The three callers
+  of `lockTonightTargets` are all actions — start a task, finish one, open the envelope — so
+  opening the app at half past midnight having touched nothing left the bedtime editable,
+  which is the exact state the lock exists for. `syncLateStage` now locks it once the target
+  has gone by, on the tick and on every return to the app.
 - **Last call: a second line, later than bedtime.** Every consequence in here used to be a
   binary switch thrown at bedtime, with no notion of how far past you were. The reward for
   stopping was the clearest case — `if (minutesEarly <= 0) return { xp: 15, dust: 3 }` —
@@ -686,7 +705,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**388 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
+**392 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

@@ -286,8 +286,18 @@ it's the scroll.
   star now also costs **one night you actually went to bed on time**, minted at Lights out and
   spendable nowhere else. There are 152 stars, so a finished sky is 152 on-time nights: a
   season of sleeping well, and the one thing in the app that no amount of checking things off
-  at 1am can buy. Two are seeded so the map is not a locked door on your first night, and the
-  buy button says *"Needs a night on time"* rather than sitting there doing nothing.
+  at 1am can buy. The buy button says *"Needs a night on time"* rather than sitting there
+  doing nothing.
+  Nothing is handed out. It shipped seeded at 2 — reasoning that the map must not be a locked
+  door on your first night, which was never true, since a star costs stardust as well and a
+  first night has none of that either. What the seed actually did was give every **existing**
+  save two nights it had not slept, because a missing field is filled from the factory during
+  the profile merge: a save with one on-time night in six read *"2 nights in hand"*. A
+  currency whose entire point is that it can only be earned by sleeping must never arrive any
+  other way. A save from before this existed is credited the on-time nights already on its
+  record instead — one night on the record is one night in hand — and stars lit before the
+  mechanic are not billed for retroactively, because they cost stardust under the rules of the
+  day and charging them now would empty a map somebody had already built.
 - **A bedtime alarm your phone will fire with the app closed.** The honest limit of everything
   else here is that a static web app cannot reach you when it is shut — and being shut is the
   failure mode. You are not late because the app failed to persuade you; you are late because
@@ -705,7 +715,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**392 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
+**393 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

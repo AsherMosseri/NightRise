@@ -266,6 +266,18 @@ export function normalizeState(raw, now = new Date()) {
   // Nights slept on time, spendable on the sky. Never negative, never NaN — it
   // is a gate on the one thing that cannot otherwise be bought.
   profile.starlight = Math.max(0, Math.round(Number(profile.starlight) || 0));
+  // 4 → 5: starlight, credited from the nights already on the record.
+  //
+  // This currency arrived after most saves already had a history, and the only
+  // honest opening balance is the one the history supports: a night you went to
+  // bed on time is a night you went to bed on time, whether or not the app had
+  // invented a name for it yet. Stars lit before this existed are NOT charged
+  // for retroactively — they cost stardust under the rules of the day, and
+  // billing them now would empty a map somebody had already built.
+  if (from < 5) {
+    const past = isObject(raw.history) ? raw.history : {};
+    profile.starlight = Object.values(past).filter((entry) => entry && entry.onTime).length;
+  }
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
   // Derived, never trusted. A save claiming level 40 against 100 XP showed 40

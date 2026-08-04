@@ -15,7 +15,7 @@ import { rollQuest } from './quests.js';
  * the migration scales the balance by the same factor: what you saved still
  * buys what it always bought, and only what you earn from here is slower.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** How much dearer everything got, and therefore how much a banked balance grows. */
 export const PRICE_REBASE = 2.2;
@@ -113,9 +113,17 @@ export function createProfile() {
     stardust: 0,
     // Nights you went to bed on time, spendable only on the star map. Stardust
     // is earned by working through a list, which is time-blind; this is the one
-    // currency that can only be earned by sleeping. Seeded at 2 so the map is
-    // something you can touch on your first night rather than a locked door.
-    starlight: 2,
+    // currency that can only be earned by sleeping.
+    //
+    // Zero, and no seed. It shipped seeded at 2 on the reasoning that the map
+    // must not be a locked door on your first night — which was never true,
+    // because a star costs stardust as well and a first night has none of that
+    // either. What the seed actually did was hand every EXISTING save two nights
+    // it had not slept: the profile merge fills a missing field from the factory,
+    // so a save with one on-time night in six read "2 nights in hand". A
+    // currency whose whole point is that it can only be earned by sleeping must
+    // never be handed out, least of all silently.
+    starlight: 0,
     streak: 0,
     bestStreak: 0,
     nightsLogged: 0,

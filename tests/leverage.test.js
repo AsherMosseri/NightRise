@@ -64,11 +64,12 @@ test('the sky can only be bought with nights, not with stardust', () => {
   const state = createInitialState(new Date(2026, 7, 3, 22, 0));
   state.profile.stardust = 1e6;
   const id = CONSTELLATIONS[0].id;
-  const seeded = state.profile.starlight;
-  assert.ok(seeded > 0, 'the map must not be a locked door on night one');
+  // Nothing is handed out. A currency that can only be earned by sleeping must
+  // never arrive any other way, and it shipped for an hour seeded at 2 — which
+  // the profile merge then handed to every existing save as well, so a save with
+  // one on-time night in six read "2 nights in hand".
+  assert.equal(state.profile.starlight, 0, 'a new profile has slept no nights');
 
-  for (let i = 0; i < seeded; i += 1) assert.ok(buyStar(state, id), 'a seeded night should buy a star');
-  assert.equal(state.profile.starlight, 0);
   // All the money in the world and no nights: the sky stops.
   assert.equal(buyStar(state, id), null, 'stardust alone bought a star');
   assert.ok(state.profile.stardust > 900000, 'and it must not have taken the dust anyway');
@@ -76,6 +77,32 @@ test('the sky can only be bought with nights, not with stardust', () => {
   state.profile.starlight = 1;
   assert.ok(buyStar(state, id), 'one night, one star');
   assert.equal(state.profile.starlight, 0);
+  assert.equal(buyStar(state, id), null, 'and then it stops again');
+});
+
+test('an existing save is credited the on-time nights it already slept', () => {
+  // Starlight arrived after most saves had a history. The only honest opening
+  // balance is the one the record supports.
+  const state = createInitialState(new Date(2026, 7, 3, 10, 0));
+  state.version = 4;
+  delete state.profile.starlight;
+  const days = ['2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'];
+  days.forEach((key, i) => {
+    state.history[key] = { key, onTime: i === 2, lightsOutAt: Date.now(), pct: 80 };
+  });
+  const loaded = normalizeState(JSON.parse(JSON.stringify(state)));
+  assert.equal(loaded.profile.starlight, 1, 'one on-time night in six is one night in hand');
+
+  const none = JSON.parse(JSON.stringify(state));
+  Object.values(none.history).forEach((entry) => { entry.onTime = false; });
+  assert.equal(normalizeState(none).profile.starlight, 0);
+
+  // And it is a migration, not a recount: once the save is current, a balance
+  // that has been spent down stays spent.
+  const current = JSON.parse(JSON.stringify(state));
+  current.version = 5;
+  current.profile.starlight = 0;
+  assert.equal(normalizeState(current).profile.starlight, 0, 'the migration re-ran and refunded a spent night');
 });
 
 test('a starlight is minted by stopping on time and handed back with the night', () => {

@@ -329,7 +329,10 @@ test('stopping on a night with nothing on the list pays the floor', () => {
   const empty = { total: 0, done: 0 };
   const real = { total: 6, done: 6 };
   assert.deepEqual(lightsOutReward(90, empty), { xp: 15, dust: 3 });
-  assert.ok(lightsOutReward(90, real).xp > 100, 'a night you worked through still pays properly');
+  // The third argument is what the night itself earned — this reward is a
+  // share of it, so a test that omits it measures the flat base and nothing else.
+  assert.ok(lightsOutReward(90, real, { xp: 157, dust: 81 }).xp > 100,
+    'a night you worked through still pays properly');
 });
 
 test('each companion keeps its own feeding', () => {
@@ -612,7 +615,7 @@ test('a settled night pays what the README says a settled night pays', () => {
   paced();
   claimQuest();
   update((s) => {
-    const reward = lightsOutReward(45, computeStats(s));
+    const reward = lightsOutReward(45, computeStats(s), s.night.paid);
     s.profile.stardust += reward.dust;
   });
   const paid = getState().profile.stardust;

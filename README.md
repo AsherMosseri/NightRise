@@ -266,6 +266,38 @@ it's the scroll.
   whole night the moment the fresh night's face is zero, clawing back what you had genuinely
   earned. A test fails on that version specifically. A real new date still gets a real budget,
   so the 4am rollover is untouched.
+- **The reward for stopping is a share of the night, not a flat bonus.** Measured against
+  the old curve, stopping ninety minutes late cost **13 XP and 3 stardust** — about 2% of a
+  night — while stopping an hour *early* paid 116 against 26. The whole gradient sat between
+  "early" and "on time"; between "on time" and "late" there was almost nothing. The app paid
+  generously for virtue and barely noticed vice, which is backwards for the one number that
+  is entirely about when you stopped.
+  A flat bonus cannot be fixed by tuning, either: hold the on-time value still and widening
+  the gap means pushing the late value toward zero, and a reward that decays to nothing
+  removes the last reason to stop at 3am. So both ends now scale with what the night itself
+  earned — a bigger night has more to lose by running long, which is both the fair reading
+  and the one with teeth. On a 157-XP night: **122 XP ninety minutes early, 59 on the minute,
+  23 ninety late.** The gap is 36 XP, 23% of the night, against 8% before. The money came out
+  of the early tail rather than being printed: total earnings on an on-time night rise 6%,
+  and the four properties the curve has always had — continuous at zero, monotonic, capped at
+  ninety minutes early, never zero — each still have a test.
+- **Starlight: the sky runs on sleep, the market runs on work.** Stardust is earned by
+  finishing a list, which is time-blind — you can earn it at one in the morning. Lighting a
+  star now also costs **one night you actually went to bed on time**, minted at Lights out and
+  spendable nowhere else. There are 152 stars, so a finished sky is 152 on-time nights: a
+  season of sleeping well, and the one thing in the app that no amount of checking things off
+  at 1am can buy. Two are seeded so the map is not a locked door on your first night, and the
+  buy button says *"Needs a night on time"* rather than sitting there doing nothing.
+- **A bedtime alarm your phone will fire with the app closed.** The honest limit of everything
+  else here is that a static web app cannot reach you when it is shut — and being shut is the
+  failure mode. You are not late because the app failed to persuade you; you are late because
+  you never opened it. Web Push would fix that and needs a server, which would end the
+  no-accounts promise. A **calendar event** does it with none: Settings generates an `.ics`
+  with a daily `RRULE` and two alarms — one thirty minutes out, which is the only moment the
+  information can still change anything, and one at the time itself. You add it once and the
+  phone fires it nightly, offline, forever. Floating local time, so it does not wander when
+  you travel, and a stable `UID` so re-adding after changing your bedtime replaces the event
+  instead of leaving two alarms disagreeing about when to sleep.
 - **Last call: a second line, later than bedtime.** Every consequence in here used to be a
   binary switch thrown at bedtime, with no notion of how far past you were. The reward for
   stopping was the clearest case — `if (minutesEarly <= 0) return { xp: 15, dust: 3 }` —
@@ -654,7 +686,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**377 tests, 19 suites, zero dependencies**, on Node's built-in runner. No install step:
+**388 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -671,6 +703,7 @@ They cover the pure modules — everything that can be reasoned about without a 
 | `lastcall` | the four stages, the decaying reward, and the two boundaries the record wraps at |
 | `reset` `storage` | what each reset part clears, migration, and old saves |
 | `duration` `timer` `insights` `interaction` | half-minute estimates, the card clock, the history stats, quick-add parsing |
+| `leverage` | the reward spread, starlight, and the calendar alarm |
 | `source` | what the module system accepts and the browser then throws on: an export alias called as a local binding, an import of a name its source never exported |
 
 Several exist because of a specific bug and say so in the test name — `a rain check is not
@@ -744,7 +777,7 @@ js/render/sheet.js          the phone bottom sheet
 js/render/confirm.js        the app's own confirm and chooser dialogs
 js/render/add-task.js       the three-tap add flow and the number pad
 
-tests/                   19 suites, node --test, no dependencies
+tests/                   20 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
 ```
 

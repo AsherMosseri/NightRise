@@ -260,6 +260,9 @@ export function normalizeState(raw, now = new Date()) {
         profile.inventory.envelopes.map((id) => RENAMED[id] || id)));
     }
   }
+  // Nights slept on time, spendable on the sky. Never negative, never NaN — it
+  // is a gate on the one thing that cannot otherwise be bought.
+  profile.starlight = Math.max(0, Math.round(Number(profile.starlight) || 0));
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);
   // Derived, never trusted. A save claiming level 40 against 100 XP showed 40

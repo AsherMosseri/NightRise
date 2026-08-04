@@ -107,6 +107,11 @@ export function createProfile() {
     level: 1,
     maxLevelRewarded: 1, // level-up stardust is paid once per level, ever
     stardust: 0,
+    // Nights you went to bed on time, spendable only on the star map. Stardust
+    // is earned by working through a list, which is time-blind; this is the one
+    // currency that can only be earned by sleeping. Seeded at 2 so the map is
+    // something you can touch on your first night rather than a locked door.
+    starlight: 2,
     streak: 0,
     bestStreak: 0,
     nightsLogged: 0,

@@ -281,10 +281,18 @@ export function totalRemainingCost(state, id) {
  * `complete` flips exactly once, on the last star of the drawn figure, so the
  * completion celebration still fires at the moment it always did.
  */
+/** A star costs one night you actually went to bed on time, as well as the dust. */
+export const STARLIGHT_PER_STAR = 1;
+
 export function buyStar(state, id) {
   const info = progressFor(state, id);
   if (!info.def || info.nextCost === null) return null;
   if (state.profile.stardust < info.nextCost) return null;
+  // The market runs on work; the sky runs on sleep. 152 stars is 152 on-time
+  // nights, which is the point: this is the one thing in the app that no amount
+  // of checking things off at 1am can buy.
+  if ((state.profile.starlight || 0) < STARLIGHT_PER_STAR) return null;
+  state.profile.starlight -= STARLIGHT_PER_STAR;
   state.profile.stardust -= info.nextCost;
   const entry = state.profile.constellations[id] || { lit: 0, complete: false, deep: 0 };
   const wasComplete = info.complete;

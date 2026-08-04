@@ -126,6 +126,9 @@ test('there is no cliff at the join between the tiers', () => {
   const state = createInitialState(new Date('2026-03-10T21:00:00Z'));
   const c = CONSTELLATIONS[0];
   state.profile.stardust = 1e6;
+  // A star costs a night on time as well as the dust; these tests are about the
+  // cost ladder and the figures, not about that gate.
+  state.profile.starlight = 1e6;
   for (let i = 0; i < brightCount(c); i += 1) assert.ok(buyStar(state, c.id));
   assert.equal(progressFor(state, c.id).nextCost, starCost(c.base, brightCount(c)));
 });
@@ -134,6 +137,9 @@ test('a fully bought figure goes quiet rather than inventing more stars', () => 
   const state = createInitialState(new Date('2026-03-10T21:00:00Z'));
   const c = CONSTELLATIONS[0];
   state.profile.stardust = 1e6;
+  // A star costs a night on time as well as the dust; these tests are about the
+  // cost ladder and the figures, not about that gate.
+  state.profile.starlight = 1e6;
   let bought = 0;
   while (buyStar(state, c.id)) {
     bought += 1;
@@ -148,6 +154,9 @@ test('completion fires exactly once, on the last bright star', () => {
   const state = createInitialState(new Date('2026-03-10T21:00:00Z'));
   const c = CONSTELLATIONS[0];
   state.profile.stardust = 1e6;
+  // A star costs a night on time as well as the dust; these tests are about the
+  // cost ladder and the figures, not about that gate.
+  state.profile.starlight = 1e6;
   const completions = [];
   const deepStars = [];
   for (let i = 0; i < brightCount(c) + faintCount(c); i += 1) {
@@ -166,6 +175,9 @@ test('depth is counted apart from completion', () => {
   const state = createInitialState(new Date('2026-03-10T21:00:00Z'));
   const c = CONSTELLATIONS[0];
   state.profile.stardust = 1e6;
+  // A star costs a night on time as well as the dust; these tests are about the
+  // cost ladder and the figures, not about that gate.
+  state.profile.starlight = 1e6;
   for (let i = 0; i < brightCount(c) + 3; i += 1) buyStar(state, c.id);
   const info = progressFor(state, c.id);
   assert.equal(info.complete, true);

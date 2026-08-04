@@ -56,10 +56,31 @@ export function initGoodnight(node) {
    stop at all, which inverts the entire feature — at 3am this app still has to
    be arguing FOR going to bed, and an app that pays nothing for it is arguing
    for staying up. */
-const ON_TIME = { xp: 26, dust: 6 };
-const FLOOR = { xp: 8, dust: 2 };
+const ON_TIME = { xp: 12, dust: 3 };
+const FLOOR = { xp: 3, dust: 1 };
 const LATE_TAU = 70;
 const EARLY_CAP_MINUTES = 90;
+/**
+ * The part of this reward that follows the night's own earnings.
+ *
+ * The flat version did not bite. Measured against the real curve: stopping
+ * ninety minutes late cost 13 XP and 3 stardust against stopping on the minute
+ * — about 2% of a night — while stopping an hour EARLY paid 116 against 26.
+ * The whole gradient sat between "early" and "on time"; between "on time" and
+ * "late" there was nothing. The app paid generously for virtue and barely
+ * noticed vice, which is the wrong way round for the one number that is
+ * supposed to be about when you stopped.
+ *
+ * A flat bonus cannot be made to bite, either: holding the on-time value fixed
+ * and widening the gap means pushing the late value toward zero, and a reward
+ * that decays to nothing removes the last reason to stop at 3am. So the reward
+ * scales with what the night actually earned. A big night has more to lose by
+ * running long, which is both the fair reading and the one with teeth.
+ */
+const SHARE = { onTimeXp: 0.30, floorXp: 0.04, onTimeDust: 0.10, floorDust: 0.015 };
+/* Paid down from 1.5 and 0.35: the money moved from the early tail to the
+   on-time/late spread rather than being printed. */
+const EARLY_PER_MIN = { xp: 0.7, dust: 0.15 };
 
 /**
  * Reward stopping early: the whole point is that you are in bed, not here.
@@ -78,7 +99,7 @@ const EARLY_CAP_MINUTES = 90;
  *  - bounded above by the ninety-minute earliness cap;
  *  - bounded below by FLOOR, and never zero.
  */
-export function lightsOutReward(minutesEarly, stats) {
+export function lightsOutReward(minutesEarly, stats, earned = { xp: 0, dust: 0 }) {
   // A night with nothing on the list gets the floor. The formula scales with
   // how early you stopped and how much you did, so an empty night paid its
   // maximum — 128 XP and 38 stardust for opening the app and holding a button.
@@ -120,8 +141,16 @@ export function lightsOutReward(minutesEarly, stats) {
   // the two halves without a step.
   const late = Math.max(0, -minutesEarly);
   const decay = Math.exp(-late / LATE_TAU);
-  const xp = FLOOR.xp + (ON_TIME.xp - FLOOR.xp) * decay + capped * 1.5;
-  const dust = FLOOR.dust + (ON_TIME.dust - FLOOR.dust) * decay + capped * 0.35;
+  // Both ends scale with the night, so the SPREAD does too — which is the only
+  // thing that makes stopping late cost anything worth noticing.
+  const nightXp = Math.max(0, Number(earned?.xp) || 0);
+  const nightDust = Math.max(0, Number(earned?.dust) || 0);
+  const topXp = ON_TIME.xp + SHARE.onTimeXp * nightXp;
+  const botXp = FLOOR.xp + SHARE.floorXp * nightXp;
+  const topDust = ON_TIME.dust + SHARE.onTimeDust * nightDust;
+  const botDust = FLOOR.dust + SHARE.floorDust * nightDust;
+  const xp = botXp + (topXp - botXp) * decay + capped * EARLY_PER_MIN.xp;
+  const dust = botDust + (topDust - botDust) * decay + capped * EARLY_PER_MIN.dust;
   // And still capped where it was. Stopping ninety minutes early with nothing on
   // the list paid 128 XP once — ten tasks' worth for holding a button.
   return {
@@ -165,7 +194,8 @@ export function lightsOut() {
     const onTime = minutesLeft === null ? true : minutesLeft >= 0;
     const reward = state.night.lightsOutAt || state.profile.lastLightsOutKey === state.night.key
       ? null
-      : lightsOutReward(minutesLeft ?? 0, stats);
+      // What the night earned is what this reward is a share of.
+      : lightsOutReward(minutesLeft ?? 0, stats, state.night.paid);
 
     // Once per date, not once per night object. "Bank tonight and start fresh"
     // hands back a clean night with `lightsOutAt` cleared, so without this the
@@ -185,7 +215,12 @@ export function lightsOut() {
       // nulls lightsOutAt and promises in its own hint to return the XP and
       // stardust — and the amounts were thrown away, so there was nothing to
       // return and the reward could then be collected a second time.
-      state.night.lightsOutAward = { xp: reward.xp, dust: reward.dust };
+      // One starlight per night you actually stopped in time. It is the only
+      // way the star map grows, it cannot be bought, and it is guarded by the
+      // same once-per-date key as the reward beside it. Recorded on the award so
+      // that handing the night back hands this back too.
+      if (onTime) state.profile.starlight = (state.profile.starlight || 0) + 1;
+      state.night.lightsOutAward = { xp: reward.xp, dust: reward.dust, starlight: onTime ? 1 : 0 };
     } else if (!state.night.lightsOutAt) {
       // Already paid for tonight; still record that you stopped.
       state.night.lightsOutAt = now;

@@ -102,8 +102,6 @@ function clearTonight(state) {
   state.night.celebrated = false;
   if (state.night.lightsOutAward) {
     revokeGrant(state, state.night.lightsOutAward.xp, state.night.lightsOutAward.dust);
-    // The night it bought goes back with the money it paid.
-    state.profile.starlight = Math.max(0, (state.profile.starlight || 0) - (state.night.lightsOutAward.starlight || 0));
     state.night.lightsOutAward = null;
     // The key goes back only with the money. It is the once-per-date guard, and
     // clearing it unconditionally opened the exact hole it exists to close:

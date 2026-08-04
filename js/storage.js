@@ -219,6 +219,12 @@ export function normalizeState(raw, now = new Date()) {
   const profile = mergeDefaults(createProfile(), raw.profile);
   profile.xp = Math.max(0, Number(profile.xp) || 0);
   profile.stardust = Math.max(0, Math.round(Number(profile.stardust) || 0));
+  // A second currency that gated the star map shipped for about an hour and was
+  // reverted — the reward it was trying to create already existed, and gating a
+  // sink is the wrong way to reward sleeping anyway. Nothing reads the field now,
+  // but `mergeDefaults` keeps whatever a save already carries, so it would ride
+  // along in every export forever. Dropped here, where saves are cleaned.
+  delete profile.starlight;
 
   // 1 → 2: the stardust rebalance.
   //
@@ -262,21 +268,6 @@ export function normalizeState(raw, now = new Date()) {
       profile.inventory.envelopes = Array.from(new Set(
         profile.inventory.envelopes.map((id) => RENAMED[id] || id)));
     }
-  }
-  // Nights slept on time, spendable on the sky. Never negative, never NaN — it
-  // is a gate on the one thing that cannot otherwise be bought.
-  profile.starlight = Math.max(0, Math.round(Number(profile.starlight) || 0));
-  // 4 → 5: starlight, credited from the nights already on the record.
-  //
-  // This currency arrived after most saves already had a history, and the only
-  // honest opening balance is the one the history supports: a night you went to
-  // bed on time is a night you went to bed on time, whether or not the app had
-  // invented a name for it yet. Stars lit before this existed are NOT charged
-  // for retroactively — they cost stardust under the rules of the day, and
-  // billing them now would empty a map somebody had already built.
-  if (from < 5) {
-    const past = isObject(raw.history) ? raw.history : {};
-    profile.starlight = Object.values(past).filter((entry) => entry && entry.onTime).length;
   }
   profile.streak = Math.max(0, Number(profile.streak) || 0);
   profile.bestStreak = Math.max(profile.streak, Number(profile.bestStreak) || 0);

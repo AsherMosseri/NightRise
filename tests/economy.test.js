@@ -587,6 +587,8 @@ test('a settled night pays what the README says a settled night pays', () => {
   // That number is the whole argument for the rebalance, so it is measured here
   // rather than remembered: eighteen rows, all ticked, quest claimed, lights out
   // on time, on a profile too high for a level-up to inflate the total.
+  // `tools/economy-sim.mjs` prints the same night alongside the sink totals; if
+  // this fails, run it and update the README from what it says.
   const state = reset();
   state.template = emptyTemplate();
   const section = createSection('S');
@@ -619,8 +621,8 @@ test('a settled night pays what the README says a settled night pays', () => {
     s.profile.stardust += reward.dust;
   });
   const paid = getState().profile.stardust;
-  assert.ok(paid >= 120 && paid <= 145,
-    `a settled eighteen-row night paid ${paid} stardust; the README says about 131`);
+  assert.ok(paid >= 145 && paid <= 170,
+    `a settled eighteen-row night paid ${paid} stardust; the README says about 157`);
 });
 
 test('stopping early pays the same whether your list was short or long', () => {

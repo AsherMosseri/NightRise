@@ -76,8 +76,18 @@ const EARLY_CAP_MINUTES = 90;
  * that decays to nothing removes the last reason to stop at 3am. So the reward
  * scales with what the night actually earned. A big night has more to lose by
  * running long, which is both the fair reading and the one with teeth.
+ *
+ * The dust share is deliberately the large one. Stardust is what buys things, so
+ * it is the half you can feel, and this is the app's whole answer to "why go to
+ * bed on time" — it makes the good night RICHER rather than making the bad night
+ * poorer or blocking anything. The version this replaced tried the other way
+ * round: a second currency that gated the star map behind on-time nights. At a
+ * real rate of one on-time night a week that stranded 840 stardust a week with
+ * nowhere to go and put the map 2.9 years away, which is not a gate, it is a
+ * wall — and it converted a reward into a restriction, which is the one thing
+ * this app's voice has never done.
  */
-const SHARE = { onTimeXp: 0.30, floorXp: 0.04, onTimeDust: 0.10, floorDust: 0.015 };
+const SHARE = { onTimeXp: 0.30, floorXp: 0.04, onTimeDust: 0.50, floorDust: 0.03 };
 /* Paid down from 1.5 and 0.35: the money moved from the early tail to the
    on-time/late spread rather than being printed. */
 const EARLY_PER_MIN = { xp: 0.7, dust: 0.15 };
@@ -215,12 +225,7 @@ export function lightsOut() {
       // nulls lightsOutAt and promises in its own hint to return the XP and
       // stardust — and the amounts were thrown away, so there was nothing to
       // return and the reward could then be collected a second time.
-      // One starlight per night you actually stopped in time. It is the only
-      // way the star map grows, it cannot be bought, and it is guarded by the
-      // same once-per-date key as the reward beside it. Recorded on the award so
-      // that handing the night back hands this back too.
-      if (onTime) state.profile.starlight = (state.profile.starlight || 0) + 1;
-      state.night.lightsOutAward = { xp: reward.xp, dust: reward.dust, starlight: onTime ? 1 : 0 };
+      state.night.lightsOutAward = { xp: reward.xp, dust: reward.dust };
     } else if (!state.night.lightsOutAt) {
       // Already paid for tonight; still record that you stopped.
       state.night.lightsOutAt = now;

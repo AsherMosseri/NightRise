@@ -176,16 +176,23 @@ About 23,000 lines, and all of it ships as written.
   unlocks no longer leaves you holding the freezes and rain checks it refunded. **Nobody
   loses savings over it** — the migration multiplies the balance you already had, so a
   jar of dust buys exactly what it bought the day before the change.
-- What that buys, simulated through the real action layer rather than estimated — and it
-  depends on your list more than on how many rows it has. An eighteen-row night of
-  eight-minute tasks pays about **200 stardust early on**, settling to **131**. The same
-  eighteen rows totalling twenty-five minutes pays **88 at ×1 momentum and 267 at ×2.5**,
+- What that buys, **measured rather than remembered**: every figure here comes out of
+  `tools/economy-sim.mjs`, which drives the real action layer and prints them. It is
+  committed because these numbers had drifted twice — once when the market was filled out
+  and once when the reward for stopping started scaling with the night — and both times
+  the prose went on quoting the old figure, because the figure lived only in a chat log.
+  Run it after anything that touches income or prices.
+- Income depends on your list more than on how many rows it has. An eighteen-row night of
+  eight-minute tasks pays **497 stardust on night one**, settling to **157** once the
+  level-ups and momentum rungs are behind you. The same eighteen rows totalling
+  twenty-five minutes pays **141**, and **85** if you hammer through them without pacing,
   because a one-minute task is worth 11 XP and 11/8 rounds to one stardust. Short lists
   live at the coarse end of that division, and momentum is what lifts them off it.
-- The nights-to-afford figures below are from the eight-minute list, so read them as the
-  middle of a range rather than a promise: a companion's last tier on night 3, all twenty
-  constellation shapes on night 136, the whole market on **night 234**, everything there
-  is on night 981. The market was night 60 before it was filled out.
+- The nights-to-afford figures are counted along the opening curve of the eight-minute
+  list, so read them as the middle of a range rather than a promise: all twenty
+  constellation shapes on night **131**, the whole market on night **252**, both together
+  on night **395**, and everything there is — the faint depth tier included — on night
+  **933**. The market was night 60 before it was filled out.
 
 **The night cycle**
 - A night rolls over at **4am**, so anything you tick off at 1am still counts for the
@@ -278,26 +285,22 @@ it's the scroll.
   earned — a bigger night has more to lose by running long, which is both the fair reading
   and the one with teeth. On a 157-XP night: **122 XP ninety minutes early, 59 on the minute,
   23 ninety late.** The gap is 36 XP, 23% of the night, against 8% before. The money came out
-  of the early tail rather than being printed: total earnings on an on-time night rise 6%,
-  and the four properties the curve has always had — continuous at zero, monotonic, capped at
-  ninety minutes early, never zero — each still have a test.
-- **Starlight: the sky runs on sleep, the market runs on work.** Stardust is earned by
-  finishing a list, which is time-blind — you can earn it at one in the morning. Lighting a
-  star now also costs **one night you actually went to bed on time**, minted at Lights out and
-  spendable nowhere else. There are 152 stars, so a finished sky is 152 on-time nights: a
-  season of sleeping well, and the one thing in the app that no amount of checking things off
-  at 1am can buy. The buy button says *"Needs a night on time"* rather than sitting there
-  doing nothing.
-  Nothing is handed out. It shipped seeded at 2 — reasoning that the map must not be a locked
-  door on your first night, which was never true, since a star costs stardust as well and a
-  first night has none of that either. What the seed actually did was give every **existing**
-  save two nights it had not slept, because a missing field is filled from the factory during
-  the profile merge: a save with one on-time night in six read *"2 nights in hand"*. A
-  currency whose entire point is that it can only be earned by sleeping must never arrive any
-  other way. A save from before this existed is credited the on-time nights already on its
-  record instead — one night on the record is one night in hand — and stars lit before the
-  mechanic are not billed for retroactively, because they cost stardust under the rules of the
-  day and charging them now would empty a map somebody had already built.
+  of the early tail rather than being printed. The four properties the curve has always had
+  — continuous at zero, monotonic, capped at ninety minutes early, never zero — each still
+  have a test, and the dust side of the same curve is the bullet below.
+- **Sleeping on time makes you richer; it does not unlock a door.** This shipped the wrong
+  way round for an hour and is worth writing down. The first version was *Starlight*: a
+  second currency, minted only by stopping on time, that a star cost **in addition** to its
+  stardust. It was wrong twice over. It was redundant — `onTimeNights()` already puts one
+  star in the sky per on-time night, for free, so the reward existed and had simply been
+  duplicated — and it converted a reward into a restriction, which is how you arrive at a
+  week of savings with nothing to spend them on. The pull has to sit on the earning side.
+  So the gate is gone and the **dust share of the lights-out reward carries it instead**:
+  the on-time end went from 10% of the night's stardust to **50%**. On a night that earned
+  81 dust, stopping on time pays **44** and stopping ninety minutes late pays **15** — a
+  29-dust swing, over a third of everything the night made, decided by nothing but when
+  you stopped. Earlier still beats on time, so the incentive does not flatten out at the
+  line. Nothing is gated, nothing is taken away, and a good week is simply worth more.
 - **A bedtime alarm your phone will fire with the app closed.** The honest limit of everything
   else here is that a static web app cannot reach you when it is shut — and being shut is the
   failure mode. You are not late because the app failed to persuade you; you are late because
@@ -715,7 +718,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**393 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
+**391 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -732,7 +735,7 @@ They cover the pure modules — everything that can be reasoned about without a 
 | `lastcall` | the four stages, the decaying reward, and the two boundaries the record wraps at |
 | `reset` `storage` | what each reset part clears, migration, and old saves |
 | `duration` `timer` `insights` `interaction` | half-minute estimates, the card clock, the history stats, quick-add parsing |
-| `leverage` | the reward spread, starlight, and the calendar alarm |
+| `leverage` | the reward spread, what stopping on time is worth, and the calendar alarm |
 | `source` | what the module system accepts and the browser then throws on: an export alias called as a local binding, an import of a name its source never exported |
 
 Several exist because of a specific bug and say so in the test name — `a rain check is not

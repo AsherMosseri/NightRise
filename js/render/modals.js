@@ -8,9 +8,7 @@ import {
   canBuy, owns, isEquipped, purchase, equipItem, buyConsumable,
   feedCompanion, renameCompanion, unequipCompanion,
 } from '../shop.js';
-import {
-  CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost, STARLIGHT_PER_STAR,
-} from '../constellations.js';
+import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost } from '../constellations.js';
 import { FEED_COST, TIER_NAMES, feedsToNextTier, companionSvg } from '../companion.js';
 import { levelFromXp, titleForLevel, titleLadder, HIDDEN_TITLE } from '../game.js';
 import { achievementBoard, totalTiers, checkAchievements } from '../achievements.js';
@@ -516,12 +514,7 @@ VIEWS.starmap = () => {
 
   const cards = CONSTELLATIONS.map((def) => {
     const info = progressFor(state, def.id);
-    // Both currencies. A star costs stardust AND one night you went to bed on
-    // time, and a button that looks pressable and silently does nothing is the
-    // fault this shelf's own supplies tab already has a test about.
-    const hasDust = info.nextCost !== null && state.profile.stardust >= info.nextCost;
-    const hasNight = (state.profile.starlight || 0) >= STARLIGHT_PER_STAR;
-    const affordable = hasDust && hasNight;
+    const affordable = info.nextCost !== null && state.profile.stardust >= info.nextCost;
     return h('article', { class: `constellation ${info.complete ? 'is-complete' : ''}`.trim() },
       constellationPreview(def, info.lit, info.deep),
       h('div', { class: 'constellation__body' },
@@ -575,11 +568,7 @@ VIEWS.starmap = () => {
                 }
                 refreshModal();
               },
-            }, !hasNight
-              ? 'Needs a night on time'
-              : info.complete
-                ? `A fainter star · ${info.nextCost} stardust`
-                : `Light a star · ${info.nextCost} stardust`),
+            }, info.complete ? `A fainter star · ${info.nextCost} stardust` : `Light a star · ${info.nextCost} stardust`),
             // "to finish" means the figure. Past that there is no finish line to
             // quote, so it says what is actually left instead of inventing one.
             h('span', { class: 'muted small' }, info.complete
@@ -595,13 +584,6 @@ VIEWS.starmap = () => {
         + `then keep going into its fainter stars, which are real too. `,
         h('strong', {}, `${summary.done}/${summary.total} complete · ${summary.litStars}/${summary.totalStars} stars lit`
           + (summary.deepStars ? ` · ${summary.deepStars} faint` : '') + '.')),
-      // The balance that actually gates this panel, and the one sentence that
-      // says where it comes from. Stardust you can earn at one in the morning;
-      // this you cannot earn at all except by going to bed on time.
-      h('p', { class: 'modal__lead' },
-        h('strong', {}, `${plural(state.profile.starlight || 0, 'night', 'nights')} in hand.`),
-        ' Every star costs one night you went to bed on time, as well as the stardust.'
-        + ' It is the only thing here that finishing a list cannot buy.'),
       h('div', { class: 'constellations' }, ...cards)),
   };
 };

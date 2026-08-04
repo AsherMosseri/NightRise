@@ -1,6 +1,6 @@
 /* The three things built to move what time this person actually sleeps: a
-   reward whose spread is worth noticing, a currency only sleeping can mint, and
-   an alarm the phone fires when the app is closed. */
+   reward whose spread is worth noticing, a night that pays better for ending on
+   time, and an alarm the phone fires when the app is closed. */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import { createInitialState } from '../js/model.js';
 import { lightsOutReward } from '../js/render/goodnight.js';
 import { buyStar, progressFor, CONSTELLATIONS } from '../js/constellations.js';
-import { applyReset } from '../js/reset.js';
 import { normalizeState } from '../js/storage.js';
 import { bedtimeAlarmIcs, ALARM_LEAD_MINUTES } from '../js/alarm.js';
 import { browseGate, minutesUntilBedtime, BROWSE_BUDGET_CHOICES } from '../js/time.js';
@@ -58,82 +57,47 @@ test('the four properties the curve has always had still hold', () => {
   assert.ok(at(-720) > 0, 'twelve hours late still has to be worth stopping');
 });
 
-/* -------------------------------------------------------------- starlight */
+/* ------------------------------------------- sleeping on time pays, not gates */
 
-test('the sky can only be bought with nights, not with stardust', () => {
+test('going to bed on time makes you richer rather than unlocking a door', () => {
+  // The version of this that shipped for an hour was a second currency: a star
+  // cost stardust AND a night slept on time. It was the wrong shape twice over.
+  // It was redundant — the app already puts one star in the sky per on-time
+  // night, for free, from onTimeNights() — and it converted a reward into a
+  // restriction, which is how you end up with a week of savings and nothing to
+  // spend them on. The pull has to be on the earning side.
+  const onTime = lightsOutReward(0, FULL, NIGHT);
+  const late = lightsOutReward(-90, FULL, NIGHT);
+  const gained = onTime.dust - late.dust;
+  // A third of the night's whole dust income rides on when you stopped. Stated
+  // as a fraction rather than a number so the assertion survives a rebalance of
+  // what a night earns — the point is the share, not the figure.
+  assert.ok(gained / NIGHT.dust >= 0.3,
+    `stopping on time is only worth ${gained} extra dust on a ${NIGHT.dust} night`);
+  // And earlier still beats on time, so the incentive does not stop at the line.
+  assert.ok(lightsOutReward(60, FULL, NIGHT).dust > onTime.dust, 'an hour early pays no better than on the minute');
+});
+
+test('the sky is bought with stardust and nothing else', () => {
+  // Guard against re-introducing a gate. A fresh profile with the money buys a
+  // star on its first night, having slept nothing at all.
   const state = createInitialState(new Date(2026, 7, 3, 22, 0));
   state.profile.stardust = 1e6;
   const id = CONSTELLATIONS[0].id;
-  // Nothing is handed out. A currency that can only be earned by sleeping must
-  // never arrive any other way, and it shipped for an hour seeded at 2 — which
-  // the profile merge then handed to every existing save as well, so a save with
-  // one on-time night in six read "2 nights in hand".
-  assert.equal(state.profile.starlight, 0, 'a new profile has slept no nights');
-
-  // All the money in the world and no nights: the sky stops.
-  assert.equal(buyStar(state, id), null, 'stardust alone bought a star');
-  assert.ok(state.profile.stardust > 900000, 'and it must not have taken the dust anyway');
-
-  state.profile.starlight = 1;
-  assert.ok(buyStar(state, id), 'one night, one star');
-  assert.equal(state.profile.starlight, 0);
-  assert.equal(buyStar(state, id), null, 'and then it stops again');
-});
-
-test('an existing save is credited the on-time nights it already slept', () => {
-  // Starlight arrived after most saves had a history. The only honest opening
-  // balance is the one the record supports.
-  const state = createInitialState(new Date(2026, 7, 3, 10, 0));
-  state.version = 4;
-  delete state.profile.starlight;
-  const days = ['2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'];
-  days.forEach((key, i) => {
-    state.history[key] = { key, onTime: i === 2, lightsOutAt: Date.now(), pct: 80 };
-  });
-  const loaded = normalizeState(JSON.parse(JSON.stringify(state)));
-  assert.equal(loaded.profile.starlight, 1, 'one on-time night in six is one night in hand');
-
-  const none = JSON.parse(JSON.stringify(state));
-  Object.values(none.history).forEach((entry) => { entry.onTime = false; });
-  assert.equal(normalizeState(none).profile.starlight, 0);
-
-  // And it is a migration, not a recount: once the save is current, a balance
-  // that has been spent down stays spent.
-  const current = JSON.parse(JSON.stringify(state));
-  current.version = 5;
-  current.profile.starlight = 0;
-  assert.equal(normalizeState(current).profile.starlight, 0, 'the migration re-ran and refunded a spent night');
-});
-
-test('a starlight is minted by stopping on time and handed back with the night', () => {
-  const state = createInitialState(new Date(2026, 7, 3, 22, 0));
-  const before = state.profile.starlight;
-  // The shape lightsOut() writes when the stop was on time.
-  state.night.lightsOutAt = Date.now();
-  state.night.lightsOutAward = { xp: 40, dust: 9, starlight: 1 };
-  state.profile.starlight = before + 1;
-  state.profile.lastLightsOutKey = state.night.key;
-
-  applyReset(state, ['checks']);
-  assert.equal(state.profile.starlight, before, 'clearing the night kept the night it bought');
-});
-
-test('starlight survives a reload and cannot be forged by a hostile save', () => {
-  for (const [bad, want] of [[NaN, 0], [-5, 0], ['12', 12], [null, 0], [{}, 0], [3.7, 4]]) {
-    const state = createInitialState(new Date(2026, 7, 3, 22, 0));
-    state.profile.starlight = bad;
-    const loaded = normalizeState(JSON.parse(JSON.stringify(state)));
-    assert.equal(loaded.profile.starlight, want, `${JSON.stringify(bad)} came back wrong`);
-  }
+  const bought = buyStar(state, id);
+  assert.ok(bought, 'a paid-for star was refused');
+  assert.equal(state.profile.stardust, 1e6 - bought.spent, 'the only price is dust');
+  assert.ok(buyStar(state, id), 'and it does not stop after one');
 });
 
 test('the whole sky is a season of sleeping well', () => {
-  // 152 stars, one night each. This is the point of the mechanic: it is the one
-  // thing in the app that no amount of checking things off at 1am can buy.
+  // 152 stars. The sky fills from two directions at once: one star per on-time
+  // night for free, and the constellations you light with dust — and the dust
+  // itself comes faster on the nights you stopped on time.
   const stars = CONSTELLATIONS.reduce((n, c) => n + c.stars.length, 0);
   assert.ok(stars > 100, `only ${stars} stars — not enough of a season to matter`);
   const state = createInitialState(new Date(2026, 7, 3, 22, 0));
-  assert.ok(progressFor(state, CONSTELLATIONS[0].id).nextCost > 0, 'stars still cost dust as well');
+  assert.ok(progressFor(state, CONSTELLATIONS[0].id).nextCost > 0, 'stars stopped costing anything');
 });
 
 /* ------------------------------------------------------------ the alarm */

@@ -133,7 +133,6 @@ test('depth sits beyond completion and never moves what completion means', () =>
   const state = createInitialState();
   const def = CONSTELLATIONS[0];
   state.profile.stardust = 1e6;
-  state.profile.starlight = 1e6; // a star costs a night on time too
 
   let bought = 0;
   for (;;) {
@@ -162,7 +161,6 @@ test('the cost ladder does not jump at the join between the tiers', () => {
   const def = CONSTELLATIONS[0];
   const state = createInitialState();
   state.profile.stardust = 1e6;
-  state.profile.starlight = 1e6; // a star costs a night on time too
   const costs = [];
   for (;;) {
     const info = progressFor(state, def.id);

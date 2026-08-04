@@ -111,19 +111,6 @@ export function createProfile() {
     level: 1,
     maxLevelRewarded: 1, // level-up stardust is paid once per level, ever
     stardust: 0,
-    // Nights you went to bed on time, spendable only on the star map. Stardust
-    // is earned by working through a list, which is time-blind; this is the one
-    // currency that can only be earned by sleeping.
-    //
-    // Zero, and no seed. It shipped seeded at 2 on the reasoning that the map
-    // must not be a locked door on your first night — which was never true,
-    // because a star costs stardust as well and a first night has none of that
-    // either. What the seed actually did was hand every EXISTING save two nights
-    // it had not slept: the profile merge fills a missing field from the factory,
-    // so a save with one on-time night in six read "2 nights in hand". A
-    // currency whose whole point is that it can only be earned by sleeping must
-    // never be handed out, least of all silently.
-    starlight: 0,
     streak: 0,
     bestStreak: 0,
     nightsLogged: 0,

@@ -85,7 +85,6 @@ test('buying stars completes a constellation and only then', () => {
   const state = createInitialState();
   const def = CONSTELLATIONS[0];
   state.profile.stardust = 100000;
-  state.profile.starlight = 100000; // a star costs a night on time too
 
   for (let i = 0; i < def.stars.length; i += 1) {
     const result = buyStar(state, def.id);

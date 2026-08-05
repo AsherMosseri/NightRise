@@ -742,7 +742,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**397 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
+**399 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

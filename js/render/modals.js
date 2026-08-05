@@ -190,12 +190,56 @@ function priceTag(cost) {
  * packs that share a timbre look related, and a pack added later gets a colour
  * without anybody choosing one for it.
  */
-const SOUND_TINTS = {
-  sine: 'var(--accent)',
-  triangle: 'var(--good)',
-  square: 'var(--warn)',
-  sawtooth: 'var(--accent-2)',
-};
+/**
+ * Waveform colour by pitch, low to high.
+ *
+ * It was by oscillator type, which sounded like the more meaningful choice and
+ * was not: five of the eight packs are sine, so the shelf came out as five
+ * identical blue cards. Pitch is the thing the descriptions actually name — a
+ * chirp, a low bell, barely a note — and it is the thing that differs.
+ */
+const SOUND_TINTS = [
+  [260, 'var(--accent-2)'],
+  [900, 'var(--accent)'],
+  [2000, 'var(--good)'],
+  [Infinity, 'var(--warn)'],
+];
+
+export const soundTint = (hz) => SOUND_TINTS.find(([top]) => hz < top)[1];
+
+/* The amplitude envelope `tone()` actually schedules: a 12ms linear attack to
+   `gain`, then an exponential ramp down to silence at `dur`. Drawn from the
+   same numbers the oscillator is given, so the picture rises and falls when the
+   sound does. */
+const ATTACK = 0.012;
+
+function toneAmpAt(t, tone) {
+  const u = t - tone.delay;
+  if (u < 0 || u > tone.dur) return 0;
+  if (u < ATTACK) return tone.gain * (u / ATTACK);
+  const span = Math.max(0.001, tone.dur - ATTACK);
+  return tone.gain * ((0.0001 / tone.gain) ** ((u - ATTACK) / span));
+}
+
+/** Where the pitch has got to, following `sweepTo` when there is one. */
+function toneFreqAt(t, tone) {
+  if (!tone.sweepTo) return tone.freq;
+  const u = clamp((t - tone.delay) / Math.max(0.001, tone.dur), 0, 1);
+  return tone.freq * ((tone.sweepTo / tone.freq) ** u);
+}
+
+/** The mix at one instant: total amplitude, and the pitch it is centred on. */
+export function soundAt(t, tones) {
+  let amp = 0;
+  let weighted = 0;
+  for (const tone of tones) {
+    const a = toneAmpAt(t, tone);
+    if (a <= 0) continue;
+    amp += a;
+    weighted += a * Math.log(toneFreqAt(t, tone));
+  }
+  return { amp, hz: amp > 0 ? Math.exp(weighted / amp) : 0 };
+}
 
 /**
  * The longest check sound on the shelf, so every card can be drawn on the same
@@ -211,6 +255,23 @@ const SOUND_TINTS = {
 const SOUND_SPAN = Math.max(0.3, ...allItems()
   .filter((item) => item.bucket === 'sounds')
   .flatMap((item) => packTones(item.id).map((t) => t.delay + t.dur)));
+
+/**
+ * The loudest instant on the shelf, so the cards share a vertical scale too.
+ *
+ * Peak, not loudest single gain: two tones overlapping are louder than either,
+ * and Chime's opening is exactly that. Without one scale for all of them the
+ * quiet pack and the loud pack draw the same tall bars, and Temple Bell's whole
+ * pitch — the one to have on when somebody else is asleep — goes missing.
+ */
+const SOUND_PEAK = Math.max(0.02, ...allItems()
+  .filter((item) => item.bucket === 'sounds')
+  .map((item) => {
+    const tones = packTones(item.id);
+    let peak = 0;
+    for (let i = 0; i <= 400; i += 1) peak = Math.max(peak, soundAt((i / 400) * SOUND_SPAN, tones).amp);
+    return peak;
+  }));
 
 function skinPreview(item) {
   if (item.kind === 'moon') {
@@ -308,33 +369,68 @@ function skinPreview(item) {
     // real call rather than described a second time — see js/audio.js.
     const tones = packTones(item.id);
     if (!tones.length) return h('div', { class: 'swatch swatch--drawn', 'aria-hidden': 'true' });
-    const W = 300;                                   // wide, like the box — see the trail note
-    // Log pitch: an octave is a constant step, which is what the ear does and
-    // what keeps a 4200Hz chirp from flattening everything else to the floor.
-    const pitch = (f) => {
-      const lo = Math.log(140);
-      const norm = (Math.log(Math.max(140, Math.min(4400, f))) - lo) / (Math.log(4400) - lo);
-      return 8 + norm * 38;
-    };
-    // Square-rooted time. A linear shared axis is honest and unreadable — the
-    // shortest pack is a twelfth of the longest, which draws as a smudge in the
-    // corner. The root keeps the ordering and the sense that one is much longer
-    // than the other, at a size you can still see.
-    const axis = (t) => 6 + Math.sqrt(Math.min(1, t / SOUND_SPAN)) * (W - 14);
+    /* One bar field over the whole mix, not a run of bars per tone.
+       Per-tone runs were the first version and they were a barcode: two tones
+       a few milliseconds apart drew two independent rows of identical sticks at
+       slightly different offsets, so they collided instead of adding — the
+       ragged doubling down Chime, the mush on Wind Chime, green interfering
+       with blue on Kalimba. And every bar in a run was the same height with a
+       flat top, so nothing rose or fell and none of it looked like sound.
+       Summing the envelope at each instant fixes both: overlaps add, and the
+       attack and decay draw themselves. */
+    const W = 300;
+    const MID = 28;
+    const REACH = 24;                                // half-height at full scale
+    const BARS = 48;
+    const BAR = 3.6;
+    // Decibels, not amplitude. The exponential ramp `tone()` schedules is down
+    // to 4% of peak by the midpoint, so a linear scale draws every sound as a
+    // spike and a flat line. Loudness is logarithmic and so is every waveform
+    // display ever built; a 42dB window puts the taper where the ear puts it.
+    const WINDOW = 42;
+    const scale = (amp) => (amp <= 0 ? 0
+      : clamp((20 * Math.log10(amp / SOUND_PEAK) + WINDOW) / WINDOW, 0, 1));
+    // Cube-rooted time. A shared linear axis is honest and unreadable — the
+    // shortest pack is a twelfth of the longest and draws as a smudge in the
+    // corner — but a square root overcorrected the other way: Pulse reached 30%
+    // of the card and Chime 46%, so five of the eight were a small shape at the
+    // left with two thirds of empty timeline after it. At a cube root nothing
+    // uses less than 43% and the longest still fills the box, so the ordering
+    // survives and the cards stop looking unfinished.
+    // Peak per bucket, not one sample per bar. A point sample aliases: the cube
+    // root stretches the opening and compresses the end, so Crickets' first
+    // chirp landed across six bars and its second and third — 30ms each, out in
+    // the compressed part — caught one sample apiece and drew as bare sticks
+    // beside a full taper. Taking the loudest instant inside each bar's own
+    // slice of time is what a waveform display does, and nothing narrow can
+    // fall between two bars any more.
     const bars = [];
-    for (const t of tones) {
-      const x0 = axis(t.delay);
-      const x1 = axis(t.delay + t.dur);
-      const height = pitch(t.freq);
-      // Gain runs 0.025 to 0.12 across the packs; map it to something visible
-      // at the quiet end, because Temple Bell being faint is the point of it.
-      const opacity = Math.min(1, 0.45 + t.gain * 4.5);
-      for (let x = x0; x < Math.max(x0 + 6, x1); x += 11) {
-        bars.push(svg('rect', {
-          x: Math.min(x, W - 8), y: 28 - height / 2, width: 6, height,
-          rx: 3, fill: SOUND_TINTS[t.type] || 'var(--accent)', opacity,
-        }));
+    const at = (u) => u * u * u * SOUND_SPAN;
+    for (let i = 0; i < BARS; i += 1) {
+      const u = i / (BARS - 1);
+      const t0 = at(Math.max(0, u - 0.5 / (BARS - 1)));
+      const t1 = at(Math.min(1, u + 0.5 / (BARS - 1)));
+      let amp = 0;
+      let hz = 0;
+      for (let k = 0; k <= 6; k += 1) {
+        const sample = soundAt(t0 + ((t1 - t0) * k) / 6, tones);
+        if (sample.amp > amp) { amp = sample.amp; hz = sample.hz; }
       }
+      const height = scale(amp) * REACH;
+      const x = 5 + u * (W - 10 - BAR);
+      if (height < 0.75) {
+        // The rest of the timeline, so a short sound reads as short rather than
+        // as a card somebody forgot to finish.
+        bars.push(svg('rect', {
+          x, y: MID - 0.5, width: BAR, height: 1, rx: 0.5,
+          fill: 'var(--border-strong)', opacity: 0.5,
+        }));
+        continue;
+      }
+      bars.push(svg('rect', {
+        x, y: MID - height, width: BAR, height: height * 2, rx: BAR / 2,
+        fill: soundTint(hz),
+      }));
     }
     return svg('svg', { class: 'swatch swatch--drawn', viewBox: `0 0 ${W} 56`, 'aria-hidden': 'true' }, ...bars);
   }

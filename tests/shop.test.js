@@ -12,6 +12,7 @@ import {
 import { WEATHER, MOONS, MARKS, ENVELOPES } from '../js/skins.js';
 import { packTones } from '../js/audio.js';
 import { markIconName } from '../js/dom.js';
+import { soundAt, soundTint } from '../js/render/modals.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS, trailSpec } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
@@ -761,4 +762,56 @@ test('what the far shelf shows before you get there', () => {
       `the lock on ${item.id} says its name`);
     assert.match(check.reason, new RegExp(`^${item.reqNights} more nights on time$`));
   }
+});
+
+test('a sound card draws a waveform, not a barcode', () => {
+  // The first version drew a run of identical bars per tone. Two tones a few
+  // milliseconds apart therefore drew two rows of sticks at slightly different
+  // offsets and collided instead of adding, and every bar in a run was the same
+  // height with a flat top — so nothing rose, nothing fell, and none of it
+  // looked like sound. The card samples the mixed envelope now, so these are
+  // properties of the picture and not just of the audio.
+  for (const pack of SOUND_PACKS) {
+    const tones = packTones(pack.id);
+    const span = Math.max(...tones.map((t) => t.delay + t.dur));
+    const at = (u) => soundAt(u * span, tones).amp;
+    const curve = Array.from({ length: 60 }, (_, i) => at(i / 59));
+
+    const peak = Math.max(...curve);
+    assert.ok(peak > 0, `${pack.id} draws silence`);
+    // It rises. A tone that is already at full amplitude in the first sample
+    // has no attack to draw and the card opens on a wall.
+    assert.ok(curve[0] < peak * 0.5, `${pack.id} starts at full height`);
+    // And it falls, all the way. The tail is what makes a long sound look long.
+    assert.ok(curve[curve.length - 1] < peak * 0.05, `${pack.id} never decays`);
+    // Overlapping tones add rather than fight. Asserted where they actually
+    // overlap rather than at the global peak — the attack is 12ms long and a
+    // sixty-sample grid steps past it, so a peak comparison measures the grid.
+    for (let i = 0; i < 240; i += 1) {
+      const t = (i / 239) * span;
+      const each = tones.map((tone) => soundAt(t, [tone]).amp).filter((a) => a > 0);
+      if (each.length < 2) continue;
+      const mixed = soundAt(t, tones).amp;
+      assert.ok(mixed > Math.max(...each),
+        `${pack.id} is quieter with both tones than with one`);
+      break;
+    }
+  }
+
+  // A pack whose tones sweep changes pitch across the card, which is what makes
+  // Synth's colour move while Temple Bell's does not.
+  const synth = packTones('synth');
+  const start = soundAt(0.02, synth).hz;
+  const end = soundAt(0.14, synth).hz;
+  assert.ok(end > start * 1.5, 'a swept tone draws at one pitch the whole way');
+});
+
+test('the pitch a sound is drawn in is the pitch it is played at', () => {
+  // Colour was by oscillator type, which read as one thing and meant another:
+  // five of the eight packs are sine, so five cards came out the same blue.
+  const tintOf = (id) => soundTint(packTones(id)[0].freq);
+  assert.notEqual(tintOf('crickets'), tintOf('bell'), 'a 4200Hz chirp and a 196Hz bell drew alike');
+  assert.equal(tintOf('pulse'), tintOf('bell'), 'two low packs should sit in the same band');
+  const bands = new Set(SOUND_PACKS.map((p) => tintOf(p.id)));
+  assert.ok(bands.size >= 3, `the whole shelf draws in ${bands.size} colours`);
 });

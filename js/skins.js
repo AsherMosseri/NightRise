@@ -24,6 +24,14 @@ export const THEMES = [
   { id: 'thunderhead', name: 'Thunderhead', cost: 1280, desc: 'Weather coming in, lit from somewhere behind.' },
   { id: 'lantern', name: 'Paper Lantern', cost: 1420, desc: 'Warm light through paper, close and small.' },
   { id: 'abyss', name: 'Abyss', cost: 1680, desc: 'Almost nothing at all. The stars have it to themselves.' },
+  {
+    id: 'home',
+    name: 'Home',
+    cost: 5200,
+    shelf: 'far',
+    reqNights: 120,
+    desc: 'Your own room with the lamp still on. The last thing on the shelf, and the warmest.',
+  },
 ];
 
 export const SOUND_PACKS = [
@@ -34,6 +42,14 @@ export const SOUND_PACKS = [
   { id: 'kalimba', name: 'Kalimba', cost: 690, desc: 'A thumb piano, short and woody.' },
   { id: 'bell', name: 'Temple Bell', cost: 810, desc: 'Low and long, for when somebody else is already asleep.' },
   { id: 'pulse', name: 'Pulse', cost: 900, desc: 'Barely a note. Something happened, and nothing more than that.' },
+  {
+    id: 'musicbox',
+    name: 'Music Box',
+    cost: 3200,
+    shelf: 'far',
+    reqNights: 60,
+    desc: 'Two notes off a cylinder, high and thin and a very long way away.',
+  },
 ];
 
 export const TRAILS = [
@@ -44,6 +60,14 @@ export const TRAILS = [
   { id: 'embers', name: 'Embers', cost: 720, desc: 'Warm sparks that lift and go out.' },
   { id: 'moondust', name: 'Moondust', cost: 840, desc: 'Pale grains that fall slowly and take their time.' },
   { id: 'ripple', name: 'Ripple', cost: 950, desc: 'A quiet ring, the way water answers a dropped stone.' },
+  {
+    id: 'lamplight',
+    name: 'Lamplight',
+    cost: 1200,
+    shelf: 'far',
+    reqNights: 7,
+    desc: 'Slow warm motes that hang about long after you have gone.',
+  },
 ];
 
 /**
@@ -210,6 +234,24 @@ export const HORIZONS = [
       [1, 0.74],
     ],
   },
+  /* Far Shelf. `shelf: 'far'` moves it to its own tab, `reqNights` is the
+     number of nights ended on time before it is even named. See js/shop.js. */
+  {
+    id: 'sea',
+    name: 'The Sea',
+    cost: 2000,
+    shelf: 'far',
+    reqNights: 25,
+    desc: 'Flat to the edge of everything, with the moon laying its road across it.',
+    band: 0.1,
+    ink: '#03060c',
+    // The tallest, softest glow on the shelf and the only one that is not a
+    // town: a sea horizon has no lights of its own, only what the sky gives back.
+    glow: { color: '#aebfe8', height: 0.46, alpha: 0.4 },
+    // Dead flat on purpose. Every other horizon is a silhouette; this one is a
+    // line, and the whole of its character is in the band and the glow above it.
+    points: [[0, 0.5], [1, 0.5]],
+  },
 ];
 
 /**
@@ -298,6 +340,30 @@ export const WEATHER = [
     opacity: 0.16,
     wobble: 0,
     spawn: 'upper',
+  },
+  /* Far Shelf. `shelf: 'far'` moves it to its own tab, `reqNights` is the
+     number of nights ended on time before it is even named. See js/shop.js. */
+  {
+    id: 'seafog',
+    name: 'Sea Fog',
+    cost: 2600,
+    shelf: 'far',
+    reqNights: 40,
+    desc: 'Low banks that drift in off nothing and take the bottom of the sky with them.',
+    // Eight, which is the frame budget for bands — each one is a gradient, and
+    // this runs at 60fps beside the starfield. Bigger and softer instead of more.
+    count: 8,
+    shape: 'band',
+    // Barely moving. Fog does not fall, it arrives, and a band with any real vy
+    // reads as a curtain being pulled down rather than as weather sitting still.
+    vx: 0.04,
+    vy: 0.004,
+    size: 44,
+    sizeJitter: 22,
+    color: 'glow',
+    opacity: 0.13,
+    wobble: 0,
+    spawn: 'lower',
   },
 ];
 
@@ -405,6 +471,30 @@ export const MOONS = [
     // Brighter instead of bigger — the ring is the only reason to buy this.
     ring: { alpha: 0.34, dash: '', scale: 1.35 },
   },
+  /* Far Shelf. `shelf: 'far'` moves it to its own tab, `reqNights` is the
+     number of nights ended on time before it is even named. See js/shop.js. */
+  {
+    id: 'ancient',
+    name: 'Ancient',
+    cost: 1600,
+    shelf: 'far',
+    reqNights: 14,
+    desc: 'Four and a half billion years of being hit by things, and none of it healed.',
+    disc: '#cfc7b6',
+    shadow: '#171a28',
+    glow: '#6f7794',
+    // The one moon whose craters are meant to be seen rather than implied. 0.25
+    // is three times the house figure and the ceiling a test holds it to: the
+    // craters darken the lit face, and past a quarter they start eating the
+    // completion fill that is the whole reason the moon is on screen.
+    craterAlpha: 0.25,
+    craters: [
+      [0.3, -0.42, 0.2], [-0.3, -0.3, 0.15], [0.05, -0.02, 0.26], [0.46, 0.2, 0.12],
+      [-0.44, 0.18, 0.11], [0.2, 0.46, 0.16], [-0.12, 0.56, 0.09], [0.56, -0.12, 0.08],
+      [-0.5, -0.02, 0.07],
+    ],
+    ring: null,
+  },
 ];
 
 /**
@@ -455,6 +545,20 @@ export const MARKS = [
     path: 'M12 3.5c.6 3.2 4.5 4.6 4.5 8.6a4.5 4.5 0 0 1-9 0c0-1.7.8-2.8 1.8-3.8.5 1 1.2 1.6 2 1.9-.4-2.4-.1-4.6.7-6.7z',
     // Measured with getBBox and a 200-sample path centroid, not estimated.
     box: [7.5, 3.5, 9, 13.1, 11.95, 10.61],
+  },
+  /* Far Shelf. `shelf: 'far'` moves it to its own tab, `reqNights` is the
+     number of nights ended on time before it is even named. See js/shop.js. */
+  {
+    id: 'doubletick',
+    name: 'Double Tick',
+    cost: 900,
+    shelf: 'far',
+    reqNights: 3,
+    desc: 'Twice over: the thing is done, and so are you.',
+    path: 'M2.5 12.6l3.7 3.7 6.4-7.8M10.4 16.3l1.4 1.4L21.5 6.6',
+    // getBBox on the two strokes together, then a 200-sample centroid across
+    // both — a glyph made of two marks is not centred by centring either one.
+    box: [2.5, 6.6, 19, 11.1, 11.68, 12.02],
   },
 ];
 
@@ -533,6 +637,30 @@ export const ENVELOPES = [
     flap: '#2b2935',
     seal: '#8c949f',
     sealPath: 'M12 5.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
+  },
+  /* Far Shelf. `shelf: 'far'` moves it to its own tab, `reqNights` is the
+     number of nights ended on time before it is even named. See js/shop.js. */
+  {
+    id: 'gilt',
+    name: 'Gilt',
+    cost: 4000,
+    shelf: 'far',
+    reqNights: 85,
+    desc: 'Oxblood card, gold leaf, and a seal pressed while the wax was still soft.',
+    // This one started out as cream vellum, which is the obvious thing to make
+    // the most expensive envelope out of and was wrong on a measurement: the
+    // envelope opens itself full-screen, 300x146 at z-index 62, at the moment
+    // you finish — so pale paper is a lit rectangle held up to your face at
+    // eleven at night. Every envelope here is under 0.04 luminance for that
+    // reason and this one is 0.0045. Gold does the work instead.
+    paper: '#150c0d',
+    note: '#1f1214',
+    ink: '#f4e2b8',
+    // 1.16 against the paper — the flap is drawn flat on the shop card, and
+    // under about 1.15 there is visibly no flap there at all.
+    flap: '#33191b',
+    seal: '#dcb968',
+    sealPath: 'M12 4.2l2.1 4.6 5 .5-3.7 3.5 1 4.9-4.4-2.5-4.4 2.5 1-4.9L4.9 9.3l5-.5z',
   },
 ];
 

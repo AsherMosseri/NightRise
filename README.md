@@ -190,9 +190,10 @@ About 23,000 lines, and all of it ships as written.
   live at the coarse end of that division, and momentum is what lifts them off it.
 - The nights-to-afford figures are counted along the opening curve of the eight-minute
   list, so read them as the middle of a range rather than a promise: all twenty
-  constellation shapes on night **131**, the whole market on night **252**, both together
-  on night **395**, and everything there is — the faint depth tier included — on night
-  **933**. The market was night 60 before it was filled out.
+  constellation shapes on night **132**, the whole market on night **253**, both together
+  on night **397**, and everything there is — the faint depth tier included — on night
+  **935**. The market was night 60 before it was filled out. The Far Shelf's 20,700 is
+  not in those numbers, because saving cannot bring it any closer.
 
 **The night cycle**
 - A night rolls over at **4am**, so anything you tick off at 1am still counts for the
@@ -288,6 +289,29 @@ it's the scroll.
   of the early tail rather than being printed. The four properties the curve has always had
   — continuous at zero, monotonic, capped at ninety minutes early, never zero — each still
   have a test, and the dust side of the same curve is the bullet below.
+- **The Far Shelf: a ladder that levels stopped being.** Levelling had quietly stopped
+  meaning anything, and the code said so out loud — *"levels come far too fast to gate
+  anything"*. Measured: 37 of the market's 67 items carry a level gate, the gates are 10
+  through 14, **the highest gate anywhere in the app was 14, and level 14 arrives on night
+  23.** After that a level-up unlocked nothing at all; the titles run out at 25 (night 92)
+  and by night 400 you are level 46 with twenty inert levels behind you. There was no
+  *"opens at 30"* and nothing to wonder about.
+  So there is a tenth shelf, with eight things on it, opening at **3, 7, 14, 25, 40, 60,
+  85 and 120 nights slept on time**. A sealed rung shows what sort of thing it is and what
+  it will cost and writes its name as `· · ·` — the same way the title ladder has always
+  shown a rank you have not reached — so there is something to save for and something to
+  find out. Reaching it reveals an ordinary item: a moon equips into the moon slot, a
+  trail into the trail slot, nothing is a parallel inventory.
+  **Nights, not XP**, and that is the whole design. XP comes from ticking tasks, which is
+  time-blind: a long list farmed at one in the morning pays what the same list pays at
+  nine. Putting something worth wanting behind level 40 would create pressure to pad the
+  list and grind it late, which is the app arguing against itself. A rung measured in
+  nights slept on time cannot be rushed, cannot be farmed and cannot be bought — and it is
+  not the Starlight mistake below in a new coat, because nothing existing is locked up:
+  the star map, the market and every sink that was open stay open, and this is eight new
+  things arriving on a schedule. Far Shelf items carry no level gate either, since one
+  derived from their price would tag every rung "Reach level 14" — a barrier that expired
+  on night 23 — while the real barrier sat months out.
 - **Sleeping on time makes you richer; it does not unlock a door.** This shipped the wrong
   way round for an hour and is worth writing down. The first version was *Starlight*: a
   second currency, minted only by stopping on time, that a star cost **in addition** to its
@@ -718,7 +742,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**391 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
+**397 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"
@@ -811,6 +835,7 @@ js/render/add-task.js       the three-tap add flow and the number pad
 
 tests/                   20 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
+tools/economy-sim.mjs    every stardust figure quoted above, measured
 ```
 
 Icons are one set: every glyph is measured once, then centred and scaled to a common

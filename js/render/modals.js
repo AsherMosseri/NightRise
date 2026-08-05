@@ -5,7 +5,7 @@ import { h, svg, icon, replace, withFocus, downloadText, rovingGroup } from '../
 import { getState, update, replaceState, emit } from '../state.js';
 import {
   CONSUMABLES, allItems, supplyBlocker,
-  canBuy, owns, isEquipped, purchase, equipItem, buyConsumable,
+  canBuy, owns, isEquipped, purchase, equipItem, buyConsumable, nightsOnTime,
   feedCompanion, renameCompanion, unequipCompanion,
 } from '../shop.js';
 import { CONSTELLATIONS, progressFor, buyStar, collectionSummary, totalRemainingCost } from '../constellations.js';
@@ -414,10 +414,46 @@ function spendClass(affordable, { small = true } = {}) {
     .filter(Boolean).join(' ');
 }
 
+/** What a sealed card admits to being, so the wait has a shape. */
+const SEALED_KIND = {
+  themes: 'A sky.',
+  horizons: 'A horizon.',
+  weather: 'Weather.',
+  moons: 'A moon.',
+  marks: 'A mark for the checkbox.',
+  envelopes: 'An envelope.',
+  sounds: 'A sound pack.',
+  trails: 'A pointer trail.',
+  fonts: 'A typeface.',
+};
+
+/**
+ * A Far Shelf card you have not reached yet.
+ *
+ * The rung is shown and the thing is not. You can see how far off it is, what
+ * sort of thing it is and what it will cost, so it is something to save for and
+ * something to sleep for — and you cannot see which one it is, because the
+ * point of a shelf that opens on its own schedule is that there is something
+ * still to find out. `· · ·` is the app's own way of writing this: the title
+ * ladder in Settings has shown unearned names that way from the start.
+ */
+function sealedCard(item, check) {
+  return h('article', { class: 'card card--sealed' },
+    h('div', { class: 'card__head' },
+      h('h3', {}, HIDDEN_TITLE),
+      priceTag(item.cost)),
+    h('div', { class: 'swatch swatch--sealed', 'aria-hidden': 'true' }),
+    h('p', { class: 'card__desc' }, SEALED_KIND[item.bucket] || 'Something.'),
+    h('div', { class: 'card__foot' },
+      h('span', { class: 'card__lock' }, `Opens on night ${item.reqNights} on time`),
+      h('button', { type: 'button', class: 'btn btn--sm', disabled: true }, check.reason)));
+}
+
 function shopCard(state, item, { onPreview } = {}) {
   const ownedAlready = owns(state, item);
   const equipped = isEquipped(state, item);
   const check = canBuy(state, item);
+  if (check.sealed) return sealedCard(item, check);
   const locked = Boolean(item.reqLevel && state.profile.level < item.reqLevel);
 
   return h('article', {
@@ -500,7 +536,13 @@ VIEWS.shop = () => {
   // Built from allItems() so a category added to the catalog cannot be left out
   // of the market it is sold in — the tabs used to hand-map each list, which is
   // one more place to forget.
-  const shelf = (bucket) => allItems().filter((item) => item.bucket === bucket);
+  // Far Shelf items live in their ordinary buckets — a moon is a moon, it
+  // equips into the moon slot and is owned in `inventory.moons` — but they are
+  // shown together, because a ladder you have to go and find on nine separate
+  // shelves is not a ladder you can see.
+  const shelf = (bucket) => allItems().filter((item) => item.bucket === bucket && item.shelf !== 'far');
+  const far = allItems().filter((item) => item.shelf === 'far')
+    .sort((a, b) => a.reqNights - b.reqNights);
   const tabs = [
     ['themes', 'Skies', shelf('themes')],
     ['horizons', 'Horizons', shelf('horizons')],
@@ -512,6 +554,7 @@ VIEWS.shop = () => {
     ['sounds', 'Sounds', shelf('sounds')],
     ['trails', 'Trails', shelf('trails')],
     ['fonts', 'Type', shelf('fonts')],
+    ['far', 'Far Shelf', far],
     ['supplies', 'Supplies', null],
   ];
   const active = tabs.find(([id]) => id === shopTab) || tabs[0];
@@ -572,9 +615,13 @@ VIEWS.shop = () => {
           }, poor ? `${item.cost - state.profile.stardust} more stardust` : 'Buy')));
     }));
   } else {
-    const onPreview = active[0] === 'sounds' ? (item) => previewPack(item.id) : null;
+    // Per item, not per tab. The Far Shelf mixes shelves, and the sound pack on
+    // it had no Preview button while every other pack in the market had one.
+    const onPreview = (item) => (item.bucket === 'sounds' ? previewPack(item.id) : null);
     content = h('div', { class: 'cards' },
-      ...active[2].map((item) => shopCard(state, item, { onPreview })));
+      ...active[2].map((item) => shopCard(state, item, {
+        onPreview: item.bucket === 'sounds' ? onPreview : null,
+      })));
   }
   content.id = PANEL_ID;
   content.setAttribute('role', 'tabpanel');
@@ -584,9 +631,14 @@ VIEWS.shop = () => {
   return {
     title: 'Night Market',
     body: h('div', { class: 'shop' },
-      h('p', { class: 'modal__lead' },
-        'Stardust is earned alongside XP — spending it never costs you a level. ',
-        h('strong', {}, `${formatNumber(state.profile.stardust)} in hand.`)),
+      active[0] === 'far'
+        ? h('p', { class: 'modal__lead' },
+          'This shelf opens by nights you actually went to bed on time — never by XP, '
+          + 'and never by stardust. ',
+          h('strong', {}, `${plural(nightsOnTime(state), 'night', 'nights')} on time so far.`))
+        : h('p', { class: 'modal__lead' },
+          'Stardust is earned alongside XP — spending it never costs you a level. ',
+          h('strong', {}, `${formatNumber(state.profile.stardust)} in hand.`)),
       tabBar,
       content,
       active[0] === 'companions' ? companionPanel(state) : null),

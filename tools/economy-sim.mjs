@@ -106,7 +106,16 @@ function nightsFor(total, curve) {
   return Infinity;
 }
 
-const marketTotal = allItems().reduce((sum, item) => sum + (item.cost || 0), 0);
+const marketTotal = allItems()
+  .filter((item) => item.shelf !== 'far')
+  .reduce((sum, item) => sum + (item.cost || 0), 0);
+// The Far Shelf is priced in stardust but paced in nights, so it is counted
+// apart: no amount of saving brings the next rung any closer.
+const farTotal = allItems()
+  .filter((item) => item.shelf === 'far')
+  .reduce((sum, item) => sum + (item.cost || 0), 0);
+const farRungs = allItems().filter((item) => item.shelf === 'far')
+  .map((item) => item.reqNights).sort((a, b) => a - b);
 const skyTotal = CONSTELLATIONS.reduce(
   (sum, c) => sum + c.stars.reduce((n, _, i) => n + starCost(c.base, i), 0), 0);
 const depthTotal = CONSTELLATIONS.reduce(
@@ -129,6 +138,8 @@ const lines = [
   ['  night 20', curve[19]],
   ['What there is to buy'],
   ['  the whole market', marketTotal],
+  ['  the Far Shelf', farTotal],
+  ['  its rungs, in nights on time', farRungs.join(' ')],
   ['  all twenty constellation shapes', skyTotal],
   ['  one pass through the faint depth tier', depthTotal],
   ['Nights to afford, counted along the opening curve'],

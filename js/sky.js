@@ -601,6 +601,9 @@ const TRAIL_SPECS = {
   embers: { per: 2, decay: 0.028, r: 0.8, jitter: 1.2, drift: { up: 0.35, spread: 0.45 }, flicker: true, tint: '#ff9d5c' },
   moondust: { per: 1, decay: 0.008, r: 0.8, jitter: 0.9, drift: { up: -0.06, spread: 0.12 }, flicker: false, tint: 'moon' },
   ripple: { per: 3, decay: 0.06, r: 2.2, jitter: 1.4, drift: null, flicker: false, tint: 'accent' },
+  // Far Shelf. The longest-lived trail here by a factor of four, which is the
+  // whole of it: everything else is a stroke you draw, this one stays behind.
+  lamplight: { per: 1, decay: 0.004, r: 1.8, jitter: 1.5, drift: { up: 0.08, spread: 0.16 }, flicker: true, tint: '#ffcf8a' },
 };
 
 /** Which trails this renderer can actually draw — the shop is tested against it. */

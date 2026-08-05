@@ -137,6 +137,16 @@ const SHARED = {
   star: () => tone({ freq: 1400, dur: 0.5, gain: 0.05, sweepTo: 2100 }),
 };
 
+/* Far Shelf. Very high, very short, very quiet — a comb tooth off a cylinder,
+   heard through the lid. The only pack whose check is quieter than its uncheck,
+   because a music box does not announce anything. */
+PACKS.musicbox = {
+  check: () => { tone({ freq: 2093, dur: 0.9, gain: 0.035, filter: 4200 }); tone({ freq: 3136, dur: 0.5, gain: 0.014, delay: 0.03, filter: 5200 }); },
+  uncheck: () => tone({ freq: 1568, dur: 0.4, gain: 0.04, filter: 3200 }),
+  level: () => [2093, 2349, 2637, 3136].forEach((f, i) => tone({ freq: f, dur: 1.1, gain: 0.03, delay: i * 0.16, filter: 4600 })),
+  complete: () => [1568, 2093, 2637, 3136, 4186].forEach((f, i) => tone({ freq: f, dur: 1.4, gain: 0.028, delay: i * 0.2, filter: 5200 })),
+};
+
 export function play(event) {
   if (muted) return;
   const audio = context();

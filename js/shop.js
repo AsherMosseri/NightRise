@@ -6,6 +6,7 @@ import { computeStats } from './night.js';
 import { COMPANIONS, FEED_COST, TIER_FEEDS, tierForFeeds } from './companion.js';
 import { MOMENTUM_MIN_GAP_MS } from './game.js';
 import { rollQuest } from './quests.js';
+import { onTimeNights } from './insights.js';
 import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, HORIZONS, WEATHER, MOONS, MARKS, ENVELOPES,
 } from './skins.js';
@@ -111,7 +112,11 @@ function byPrice(a, b) {
 export function allItems() {
   const items = [];
   const tag = (item, kind, bucket) => {
-    const level = gateFor(item.cost || 0);
+    // Far Shelf items are never level-gated. Their gate is `reqNights`, and two
+    // gates on one card is two things to satisfy and one of them a lie — the
+    // level always arrives first, so the card would name a barrier that had
+    // already gone while the real one sat months away.
+    const level = item.shelf === 'far' ? 0 : gateFor(item.cost || 0);
     return { ...item, kind, bucket, ...(level ? { reqLevel: level } : {}) };
   };
   for (const [bucket, kind, list] of KIND_BY_LIST) {
@@ -144,8 +149,34 @@ export function isEquipped(state, item) {
   return state.profile.equipped[item.kind] === item.id;
 }
 
+/**
+ * How many nights on the record ended on time — the Far Shelf's only currency.
+ *
+ * Levels stopped being a pacing mechanism a long time ago and the code said so:
+ * "levels come far too fast to gate anything". The highest gate in the app was
+ * 14, which arrives on night 23, and after that a level-up unlocked nothing
+ * anywhere. So the deep ladder is measured in the one number this app exists to
+ * move instead.
+ *
+ * XP would have been the obvious thing to extend and the wrong one. XP comes
+ * from ticking tasks, which is time-blind — a long list farmed at one in the
+ * morning pays exactly what the same list paid at nine. Putting something worth
+ * wanting behind level 40 creates pressure to pad the list and grind it late,
+ * which is the app arguing against itself. A rung measured in nights slept on
+ * time cannot be rushed, cannot be farmed and cannot be bought.
+ */
+export function nightsOnTime(state) {
+  return onTimeNights(state).length;
+}
+
 export function canBuy(state, item) {
   if (owns(state, item)) return { ok: false, reason: 'owned' };
+  if (item.reqNights) {
+    const have = nightsOnTime(state);
+    if (have < item.reqNights) {
+      return { ok: false, reason: `${item.reqNights - have} more nights on time`, sealed: true };
+    }
+  }
   if (item.reqLevel && state.profile.level < item.reqLevel) {
     return { ok: false, reason: `Reach level ${item.reqLevel}` };
   }

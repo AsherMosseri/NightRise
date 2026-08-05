@@ -290,6 +290,34 @@
   --trail: #ffb894;
 }
 
+/* Far Shelf, 120 nights on time. Every other sky here is the outdoors seen
+   from a window; this one is the room the window is in — lamp on, curtains
+   shut, nothing left to do. Warm greys and a low amber, kept dark enough that
+   it is still a night theme: --sky-3 is #241d1c, four points lighter than
+   Lantern's, and the plate contrasts are measured against it. */
+[data-theme="home"] {
+  --sky-1: #0d0a09;
+  --sky-2: #181312;
+  --sky-3: #241d1c;
+  --bg-base: radial-gradient(120% 90% at 50% 0%, var(--sky-3) 0%, var(--sky-2) 46%, var(--sky-1) 100%);
+  --text: #f4ece1;
+  --muted: #b3a496;
+  --accent: #e0a86a;
+  --accent-2: #c98f7d;
+  --glow: #6b4c33;
+  --panel: rgba(38, 30, 27, 0.6);
+  --panel-2: rgba(48, 38, 34, 0.55);
+  --panel-hover: rgba(66, 52, 46, 0.6);
+  --panel-solid: #1b1513;
+  --border: rgba(210, 180, 150, 0.16);
+  --border-strong: rgba(210, 180, 150, 0.34);
+  --sky-star: #fbf1e2;
+  --sky-star-dim: #9c8974;
+  --moon: #f7e6c8;
+  --moon-shadow: #17100e;
+  --trail: #e8c79a;
+}
+
 [data-theme="abyss"] {
   --sky-1: #010204;
   --sky-2: #04080f;
@@ -473,6 +501,7 @@
 .swatch--theme.swatch--thunderhead { background: linear-gradient(135deg, #b4c4e6, #262d3f 60%, #06070b); }
 .swatch--theme.swatch--lantern { background: linear-gradient(135deg, #ffab86, #3f1d2c 62%, #0d0608); }
 .swatch--theme.swatch--abyss { background: linear-gradient(135deg, #7f92b8, #0a1120 58%, #010204); }
+.swatch--theme.swatch--home { background: linear-gradient(135deg, #e0a86a, #241d1c 58%, #0d0a09); }
 
 
 .swatch--trail-none { background: var(--panel-2); }

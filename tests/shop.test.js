@@ -15,7 +15,7 @@ import { markIconName } from '../js/dom.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS, trailSpec } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
-import { equipItem, buyConsumable, canBuy, gateFor } from '../js/shop.js';
+import { equipItem, buyConsumable, canBuy, gateFor, purchase } from '../js/shop.js';
 import { MOMENTUM_MIN_GAP_MS } from '../js/game.js';
 import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
@@ -234,9 +234,15 @@ test('a rerolled quest is still a pure function of the night', () => {
 });
 
 test('the whole market costs what the README says it costs', () => {
-  // Quoted in prose and used to pace every sink. Measured, not remembered.
-  const total = allItems().reduce((sum, item) => sum + (item.cost || 0), 0);
-  assert.equal(total, 43130, 'the market total moved');
+  // Quoted in prose and used to pace every sink. Measured, not remembered, and
+  // `tools/economy-sim.mjs` prints both of these beside the nights-to-afford
+  // figures — if this fails, run it and update the README from what it says.
+  const open = allItems().filter((i) => i.shelf !== 'far');
+  assert.equal(open.reduce((sum, item) => sum + (item.cost || 0), 0), 43130,
+    'the market total moved');
+  const far = allItems().filter((i) => i.shelf === 'far');
+  assert.equal(far.reduce((sum, item) => sum + (item.cost || 0), 0), 20700,
+    'the Far Shelf total moved');
 });
 
 test('a starting profile owns nothing it has not paid for', () => {
@@ -419,8 +425,14 @@ test('every shelf reads cheapest first', () => {
 test('there is no price a night could fall into with nothing to buy', () => {
   // A gap between consecutive prices much larger than a night's earnings is a
   // stretch where the market has nothing to offer. A settled night pays about
-  // 131, so any gap under that is invisible.
-  const costs = [...allItems(), ...CONSUMABLES].map((i) => i.cost || 0)
+  // 157, so any gap under that is invisible.
+  //
+  // The Far Shelf is deliberately not in here. Its prices are a second ladder
+  // climbed on a different currency, and a gap in it is not a gap you can save
+  // your way across — the whole point is that stardust cannot bring the next
+  // rung any closer.
+  const costs = [...allItems().filter((i) => i.shelf !== 'far'), ...CONSUMABLES]
+    .map((i) => i.cost || 0)
     .filter(Boolean).sort((a, b) => a - b);
   let worst = 0;
   for (let i = 1; i < costs.length; i += 1) worst = Math.max(worst, costs[i] - costs[i - 1]);
@@ -457,6 +469,13 @@ test('the gates are derived from price, not typed one by one', () => {
   // Typed numbers drift away from a curve nobody re-measures, which is how the
   // first set stopped binding. Same price, same gate, everywhere.
   for (const item of allItems()) {
+    // Except the Far Shelf, which carries no level gate at all. Deriving one
+    // from its price would tag every rung "Reach level 14" — a barrier that
+    // arrives on night 23, printed on a card whose real barrier is months out.
+    if (item.shelf === 'far') {
+      assert.equal(item.reqLevel, undefined, `${item.id} picked up a level gate`);
+      continue;
+    }
     assert.equal(item.reqLevel || 0, gateFor(item.cost || 0), `${item.id} does not match its band`);
   }
   assert.equal(gateFor(0), 0, 'a free default is never gated');
@@ -644,4 +663,102 @@ test('the free horizon is the sky the app has always drawn', () => {
   assert.equal(free.id, 'open', 'the id a save from the cut version would still carry');
   assert.equal(free.points.length, 0, 'nothing in the way');
   assert.equal(free.glow, null);
+});
+
+/* --------------------------------------------------------------- far shelf */
+
+test('the far shelf opens on nights slept, and nothing else opens it', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  const far = allItems().filter((i) => i.shelf === 'far').sort((a, b) => a.reqNights - b.reqNights);
+  assert.ok(far.length >= 6, 'a ladder needs rungs');
+  const first = far[0];
+
+  // All the money and all the levels in the world, and no nights.
+  state.profile.stardust = 1_000_000;
+  state.profile.xp = 5_000_000;
+  state.profile.level = 99;
+  const broke = canBuy(state, first);
+  assert.equal(broke.ok, false, 'stardust and levels bought a far shelf item');
+  assert.equal(broke.sealed, true, 'and the card was not sealed, so it gave itself away');
+  assert.match(broke.reason, /nights on time/);
+
+  // Nights, and it opens.
+  for (let i = 0; i < first.reqNights; i += 1) {
+    const key = `2026-06-${String(i + 1).padStart(2, '0')}`;
+    state.history[key] = { key, onTime: true, pct: 90, lightsOutAt: 0 };
+  }
+  assert.equal(canBuy(state, first).ok, true, 'the nights are on the record and it is still shut');
+
+  // Nights that were not on time do not count, however many there are.
+  const late = createInitialState(new Date(2026, 6, 29, 22, 0));
+  late.profile.stardust = 1_000_000;
+  for (let i = 0; i < 200; i += 1) {
+    const key = `2026-01-${String((i % 28) + 1).padStart(2, '0')}-${i}`;
+    late.history[key] = { key, onTime: false, pct: 100, lightsOutAt: 0 };
+  }
+  assert.equal(canBuy(late, first).ok, false, 'two hundred late nights opened the shelf');
+});
+
+test('the far shelf is a ladder, not a heap', () => {
+  const far = allItems().filter((i) => i.shelf === 'far').sort((a, b) => a.reqNights - b.reqNights);
+  let previousNights = 0;
+  let previousCost = 0;
+  for (const item of far) {
+    assert.ok(Number.isInteger(item.reqNights) && item.reqNights > 0, `${item.id} has no rung`);
+    assert.ok(item.reqNights > previousNights, `${item.id} shares a rung with the one below it`);
+    // Dearer as it goes deeper. A cheap item behind a distant rung is a rung
+    // you walk past, and the shelf stops being somewhere you are going.
+    assert.ok(item.cost > previousCost, `${item.id} costs less than the rung below it`);
+    previousNights = item.reqNights;
+    previousCost = item.cost;
+  }
+  // The first rung has to be reachable from where a real person is standing,
+  // and the last has to be a season away or it is not worth hiding.
+  assert.ok(far[0].reqNights <= 7, `the first rung is ${far[0].reqNights} nights out`);
+  assert.ok(far[far.length - 1].reqNights >= 100, 'nothing here is actually far');
+});
+
+test('a far shelf item is an ordinary item once you have it', () => {
+  // It equips into the slot its kind names and is owned in the bucket its
+  // bucket names — the shelf is a display, not a parallel inventory.
+  const fresh = createProfile();
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 1_000_000;
+  for (let i = 0; i < 200; i += 1) {
+    const key = `2026-02-${String(i + 1).padStart(3, '0')}`;
+    state.history[key] = { key, onTime: true, pct: 100, lightsOutAt: 0 };
+  }
+  replaceState(state);
+
+  for (const item of allItems().filter((i) => i.shelf === 'far')) {
+    assert.ok(Object.prototype.hasOwnProperty.call(fresh.inventory, item.bucket),
+      `${item.id} wants inventory.${item.bucket}, which does not exist`);
+    assert.ok(Object.prototype.hasOwnProperty.call(fresh.equipped, item.kind),
+      `${item.id} wants equipped.${item.kind}, which does not exist`);
+    assert.ok(!fresh.inventory[item.bucket].includes(item.id), `${item.id} is handed out for free`);
+
+    assert.ok(purchase(item.id, item.bucket), `${item.id} could not be bought with the nights in hand`);
+    assert.ok(getState().profile.inventory[item.bucket].includes(item.id),
+      `${item.id} was paid for and is not in inventory.${item.bucket}`);
+    // Buying equips it, like everything else here. Unequip by hand and put it
+    // back, so the round trip through the ordinary machinery is the assertion.
+    getState().profile.equipped[item.kind] = fresh.equipped[item.kind];
+    assert.ok(equipItem(item.id, item.bucket), `${item.id} cannot be re-equipped`);
+    assert.equal(getState().profile.equipped[item.kind], item.id,
+      `${item.id} equipped into some other slot than ${item.kind}`);
+  }
+});
+
+test('what the far shelf shows before you get there', () => {
+  // The rung is public and the item is not. A sealed card that leaked its name
+  // or its picture would be a countdown to something you had already seen.
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.stardust = 1_000_000;
+  for (const item of allItems().filter((i) => i.shelf === 'far')) {
+    const check = canBuy(state, item);
+    assert.equal(check.sealed, true, `${item.name} is not sealed at zero nights`);
+    assert.doesNotMatch(check.reason, new RegExp(item.name, 'i'),
+      `the lock on ${item.id} says its name`);
+    assert.match(check.reason, new RegExp(`^${item.reqNights} more nights on time$`));
+  }
 });

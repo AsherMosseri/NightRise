@@ -465,6 +465,18 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 }
 .card--equipped { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .card--locked { opacity: 0.72; }
+
+/* A Far Shelf card you have not reached. Dimmer than a level lock, because it
+   is not a thing you can go and do tonight — and the plate is deliberately
+   featureless rather than blurred, since a blur of the real art still shows you
+   the colours and there would be nothing left to find out. */
+.card--sealed { opacity: 0.66; }
+.card--sealed .card__head h3 { color: var(--muted); letter-spacing: 0.24em; }
+.swatch--sealed {
+  background:
+    repeating-linear-gradient(135deg, var(--panel-2) 0 9px, transparent 9px 18px),
+    var(--panel);
+}
 .card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .card__head h3 { font-size: 14.5px; font-weight: 650; }
 .card__tag { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; }

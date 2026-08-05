@@ -25,8 +25,8 @@ import {
 import { serializeState, parseImport, clearStorage, exportedAtOf } from '../storage.js';
 import { createInitialState } from '../model.js';
 import { SHORTCUTS } from '../keys.js';
-import { previewPack } from '../audio.js';
-import { setSkyPaused } from '../sky.js';
+import { previewPack, packTones } from '../audio.js';
+import { setSkyPaused, trailSpec, trailTintCss } from '../sky.js';
 import { toast } from '../toast.js';
 import { formatNumber, plural, clamp } from '../util.js';
 import { confirmAction, chooseAction } from './confirm.js';
@@ -185,6 +185,33 @@ function priceTag(cost) {
  * cannot promise something the app then does not do — the rule this project
  * already applies to what a task says it pays.
  */
+/**
+ * Waveform colour by oscillator type, so the card's tint means something: two
+ * packs that share a timbre look related, and a pack added later gets a colour
+ * without anybody choosing one for it.
+ */
+const SOUND_TINTS = {
+  sine: 'var(--accent)',
+  triangle: 'var(--good)',
+  square: 'var(--warn)',
+  sawtooth: 'var(--accent-2)',
+};
+
+/**
+ * The longest check sound on the shelf, so every card can be drawn on the same
+ * time axis.
+ *
+ * Scaling each card to its own length made Temple Bell — "low and long", 1.6
+ * seconds — and Pulse — "barely a note", 0.14 — come out as the same picture at
+ * different heights, which is a preview describing two sounds identically while
+ * their descriptions say the opposite. Measured from the catalog rather than
+ * written down, so adding a longer pack rescales the shelf instead of running
+ * off the end of it.
+ */
+const SOUND_SPAN = Math.max(0.3, ...allItems()
+  .filter((item) => item.bucket === 'sounds')
+  .flatMap((item) => packTones(item.id).map((t) => t.delay + t.dur)));
+
 function skinPreview(item) {
   if (item.kind === 'moon') {
     const disc = item.disc === 'theme' ? 'var(--moon)' : item.disc;
@@ -242,18 +269,22 @@ function skinPreview(item) {
     const tint = ['accent', 'star', 'glow'].includes(item.color) ? `var(--${item.color === 'star' ? 'sky-star' : item.color})` : item.color;
     if (!item.count) return h('div', { class: 'swatch swatch--drawn', 'aria-hidden': 'true' });
     // A still frame of the layer: the same shape, size and colour it really has.
+    // Wide, like the box — weather is a layer over the whole sky, and in a
+    // 100x56 frame it letterboxed into the middle third of the card with two
+    // thirds of empty plate either side. Same fault the trails had.
+    const W = 300;
     const seeded = (n) => ((Math.sin(n * 12.9898) * 43758.5453) % 1 + 1) % 1;
-    const marks = Array.from({ length: 22 }, (_, i) => {
-      const x = seeded(i + 1) * 100;
+    const marks = Array.from({ length: 52 }, (_, i) => {
+      const x = seeded(i + 1) * W;
       const y = seeded(i + 41) * 52 + 2;
       const r = Math.max(0.7, Math.min(3.4, item.size * 0.35));
       return item.shape === 'streak'
         ? svg('line', { x1: x, y1: y, x2: x - item.vx * 5, y2: y - Math.abs(item.vy) * 5, stroke: tint, 'stroke-width': Math.max(0.7, r * 0.5), opacity: item.opacity })
         : svg(item.shape === 'band' ? 'rect' : 'circle', item.shape === 'band'
-          ? { x: x - 16, y, width: 32, height: Math.max(1.4, r), fill: tint, opacity: item.opacity, rx: 1 }
+          ? { x: x - 26, y, width: 52, height: Math.max(1.4, r), fill: tint, opacity: item.opacity, rx: 1 }
           : { cx: x, cy: y, r, fill: tint, opacity: item.opacity });
     });
-    return svg('svg', { class: 'swatch swatch--drawn', viewBox: '0 0 100 56', 'aria-hidden': 'true' }, ...marks);
+    return svg('svg', { class: 'swatch swatch--drawn', viewBox: `0 0 ${W} 56`, 'aria-hidden': 'true' }, ...marks);
   }
 
   if (item.kind === 'mark') {
@@ -269,6 +300,91 @@ function skinPreview(item) {
       style: ink(item.paper, '--env-paper') + ink(item.flap, '--env-flap') + ink(item.seal, '--env-seal') || null,
     }, h('span', { class: 'swatch__flap' }),
     item.seal && item.seal !== 'theme' ? h('span', { class: 'swatch__seal' }) : null);
+  }
+
+  if (item.kind === 'sounds') {
+    // A transcript of the pack's own check sound: one run of bars per tone,
+    // placed along a time axis, at a height set by pitch. Recorded from the
+    // real call rather than described a second time — see js/audio.js.
+    const tones = packTones(item.id);
+    if (!tones.length) return h('div', { class: 'swatch swatch--drawn', 'aria-hidden': 'true' });
+    const W = 300;                                   // wide, like the box — see the trail note
+    // Log pitch: an octave is a constant step, which is what the ear does and
+    // what keeps a 4200Hz chirp from flattening everything else to the floor.
+    const pitch = (f) => {
+      const lo = Math.log(140);
+      const norm = (Math.log(Math.max(140, Math.min(4400, f))) - lo) / (Math.log(4400) - lo);
+      return 8 + norm * 38;
+    };
+    // Square-rooted time. A linear shared axis is honest and unreadable — the
+    // shortest pack is a twelfth of the longest, which draws as a smudge in the
+    // corner. The root keeps the ordering and the sense that one is much longer
+    // than the other, at a size you can still see.
+    const axis = (t) => 6 + Math.sqrt(Math.min(1, t / SOUND_SPAN)) * (W - 14);
+    const bars = [];
+    for (const t of tones) {
+      const x0 = axis(t.delay);
+      const x1 = axis(t.delay + t.dur);
+      const height = pitch(t.freq);
+      // Gain runs 0.025 to 0.12 across the packs; map it to something visible
+      // at the quiet end, because Temple Bell being faint is the point of it.
+      const opacity = Math.min(1, 0.45 + t.gain * 4.5);
+      for (let x = x0; x < Math.max(x0 + 6, x1); x += 11) {
+        bars.push(svg('rect', {
+          x: Math.min(x, W - 8), y: 28 - height / 2, width: 6, height,
+          rx: 3, fill: SOUND_TINTS[t.type] || 'var(--accent)', opacity,
+        }));
+      }
+    }
+    return svg('svg', { class: 'swatch swatch--drawn', viewBox: `0 0 ${W} 56`, 'aria-hidden': 'true' }, ...bars);
+  }
+
+  if (item.kind === 'trail') {
+    const spec = trailSpec(item.id);
+    if (!spec) return h('div', { class: 'swatch swatch--drawn swatch--trail-none', 'aria-hidden': 'true' });
+    const fill = trailTintCss(spec);
+    /* A still frame of the emitter, with the pointer at the right-hand end and
+       the tail running back from it.
+
+       Normalised on lifetime, deliberately. Ages scale with the spec's own
+       `1/decay`, so every trail fades out across the same box. Running the real
+       frame counter instead put Ripple's whole tail in the first eighth of the
+       card and Moondust's off the end — and in a *still* frame decay is not
+       something you can see anyway, only something that decides how much of the
+       picture is left. What the eye can read is density (`per`), grain size
+       (`r`, `jitter`), which way it goes (`drift`), whether it twinkles
+       (`flicker`) and its colour, and every one of those is the spec's own. */
+    const seeded = (n) => ((Math.sin(n * 12.9898) * 43758.5453) % 1 + 1) % 1;
+    const lifespan = 0.9 / spec.decay;                    // frames until nearly out
+    const dots = [];
+    const steps = 46;
+    // A wide box, unlike every other swatch here. `.swatch` is 56px tall and as
+    // wide as the card — about 5.4:1 — and a 100x56 viewBox meets that by
+    // letterboxing itself into the middle third, which is where the whole trail
+    // was sitting. A motif wants centring; a ribbon wants the width.
+    const W = 300;
+    // The canvas is a phone wide and this box is 100 units, so a radius in
+    // canvas pixels would land under a third of a unit. The frame is magnified;
+    // the ratio between a fine grain and a fat one is what carries over.
+    const ZOOM = 2.4;
+    for (let i = 0; i < steps; i += 1) {
+      const t = i / (steps - 1);
+      const age = (1 - t) * lifespan;                     // the pointer is at t = 1
+      const life = Math.max(0, 1 - spec.decay * age);
+      for (let k = 0; k < spec.per; k += 1) {
+        const j = i * 7 + k;
+        const rise = spec.drift
+          ? -(spec.drift.up + seeded(j + 3) * spec.drift.spread) * age * 0.22
+          : (seeded(j + 5) - 0.5) * age * 0.08;
+        dots.push(svg('circle', {
+          cx: 10 + t * (W - 22) + (seeded(j) - 0.5) * 7,
+          cy: clamp(38 - t * 16 + rise + (seeded(j + 61) - 0.5) * 5, 3, 53),
+          r: Math.max(0.6, (spec.r + seeded(j + 17) * spec.jitter) * (0.35 + life * 0.65) * ZOOM),
+          fill, opacity: Math.min(1, (0.15 + life * 0.8) * (spec.flicker ? 0.5 + seeded(j + 91) * 0.5 : 1)),
+        }));
+      }
+    }
+    return svg('svg', { class: 'swatch swatch--drawn', viewBox: `0 0 ${W} 56`, 'aria-hidden': 'true' }, ...dots);
   }
 
   if (item.kind === 'font') {

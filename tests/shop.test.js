@@ -10,13 +10,19 @@ import {
   THEMES, SOUND_PACKS, TRAILS, FONTS, CONSUMABLES, allItems, itemById,
 } from '../js/shop.js';
 import { WEATHER, MOONS, MARKS, ENVELOPES } from '../js/skins.js';
+import { packTones } from '../js/audio.js';
+import { markIconName } from '../js/dom.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
-import { TRAIL_IDS } from '../js/sky.js';
+import { TRAIL_IDS, trailSpec } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
 import { equipItem, buyConsumable, canBuy, gateFor } from '../js/shop.js';
 import { MOMENTUM_MIN_GAP_MS } from '../js/game.js';
 import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
+
+/* Skies are the one shelf still drawn by a CSS rule per id, so the test that
+   nothing is sold behind an empty picture has to read the stylesheet. */
+const THEME_CSS = readFileSync(new URL('../css/themes.css', import.meta.url), 'utf8');
 
 const CATALOGS = [
   ['themes', THEMES], ['weather', WEATHER], ['moons', MOONS],
@@ -36,6 +42,52 @@ test('every id in the market is unique and resolves', () => {
       assert.ok(typeof item.name === 'string' && item.name, `${item.id} has no name`);
       assert.ok(typeof item.desc === 'string' && item.desc, `${item.id} has no description`);
       assert.ok(Number.isFinite(item.cost) && item.cost >= 0, `${item.id} has no cost`);
+    }
+  }
+});
+
+/**
+ * What each shelf's card reads to draw its picture. A shelf that is not in here
+ * has no preview at all, which is the failure this test exists for: sounds and
+ * trails were drawn by hand-written CSS, one rule per id, and when both shelves
+ * were deepened the rules were not — so Kalimba, Temple Bell, Pulse, Embers,
+ * Moondust and Ripple all showed an empty box, on cards priced 690 to 950. The
+ * CSS was silent about it and so was every test.
+ */
+const PREVIEW_SOURCE = {
+  themes: (item) => THEME_CSS.includes(`.swatch--theme.swatch--${item.id} `),
+  sounds: (item) => packTones(item.id).length > 0,
+  trails: (item) => item.id === 'none' || Boolean(trailSpec(item.id)),
+  moons: (item) => Boolean(item.disc),
+  horizons: (item) => item.id === 'open' || Boolean(item.points?.length),
+  weather: (item) => item.id === 'clear' || Boolean(item.count),
+  marks: (item) => markIconName({ profile: { equipped: { mark: item.id } } }) === `mark:${item.id}`,
+  envelopes: (item) => Boolean(item.paper),
+  fonts: (item) => Boolean(item.stack),
+  companions: (item) => SPECIES_IDS.includes(item.id),
+};
+
+test('nothing in the market is sold behind an empty picture', () => {
+  const items = allItems();
+  assert.ok(items.length > 50, 'the market got smaller — check this list still covers it');
+  for (const item of items) {
+    const has = PREVIEW_SOURCE[item.bucket];
+    assert.ok(has, `no shelf rule for "${item.bucket}" — a whole shelf could be drawing nothing`);
+    assert.ok(has(item), `"${item.name}" (${item.bucket}/${item.id}) has nothing to draw on its card`);
+  }
+});
+
+test('a sound card is a transcript of the sound behind the Preview button', () => {
+  // The picture is recorded from the same call the button plays, so the two
+  // cannot describe different sounds. The quiet pack has to read as quiet and
+  // the high one as high, or the drawing is decoration rather than a preview.
+  const gain = (id) => Math.max(...packTones(id).map((t) => t.gain));
+  const pitch = (id) => Math.max(...packTones(id).map((t) => t.freq));
+  assert.ok(gain('bell') < gain('pulse'), 'Temple Bell is the quiet one, and the card must show it');
+  assert.ok(pitch('crickets') > pitch('bell') * 4, 'a chirp and a temple bell drew the same height');
+  for (const pack of SOUND_PACKS) {
+    for (const tone of packTones(pack.id)) {
+      assert.ok(tone.freq > 0 && tone.dur > 0, `${pack.id} records a tone with no shape`);
     }
   }
 });

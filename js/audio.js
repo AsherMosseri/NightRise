@@ -26,7 +26,24 @@ export function setPack(id) {
   pack = id || 'chime';
 }
 
+/**
+ * When this is an array, `tone()` records instead of playing.
+ *
+ * The market's sound cards used to be hand-written CSS — one
+ * `.swatch--sounds.swatch--<id>` rule per pack — and three packs shipped
+ * without one, so Kalimba, Temple Bell and Pulse showed an empty box on a card
+ * that was charging 690 to 900 stardust. Adding three more rules would have
+ * left the next pack to fail exactly the same way. Recording the real call
+ * cannot: a pack that plays something has something to draw, because it is the
+ * same function call answering both questions.
+ */
+let capture = null;
+
 function tone({ freq = 440, dur = 0.18, type = 'sine', gain = 0.12, delay = 0, sweepTo = null, filter = null }) {
+  if (capture) {
+    capture.push({ freq, dur, type, gain, delay, sweepTo, filter });
+    return;
+  }
   const audio = context();
   if (!audio) return;
   const t0 = audio.currentTime + delay;
@@ -127,6 +144,24 @@ export function play(event) {
   if (audio.state === 'suspended') audio.resume();
   const fn = (PACKS[pack] || PACKS.chime)[event] || SHARED[event];
   if (fn) fn();
+}
+
+/**
+ * The tones a pack plays for an event, without playing them.
+ *
+ * This is what the market's cards draw, so the picture on a sound card is a
+ * transcript of the sound behind the Preview button rather than a decoration
+ * that happens to sit near it. Returns `[]` for a pack that does not answer to
+ * the event — which is itself the signal a card needs, and is checked by a test
+ * so a silent shelf cannot ship.
+ */
+export function packTones(id, event = 'check') {
+  const fn = (PACKS[id] || {})[event] || SHARED[event];
+  if (!fn) return [];
+  const recording = [];
+  capture = recording;
+  try { fn(); } finally { capture = null; }
+  return recording;
 }
 
 /** Preview used by the shop so you can hear a pack before buying it. */

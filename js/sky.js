@@ -57,17 +57,29 @@ const colors = {
   horizon: '#05070f',
 };
 
+/**
+ * Which custom property each canvas colour is read from.
+ *
+ * Exported because the market draws previews of things this canvas paints, and
+ * a preview that names its own colour is a second source of truth that drifts.
+ * A card asking for the `trail` tint gets `var(--trail)` — the same property
+ * `readColors` reads a frame from.
+ */
+export const SKY_COLOR_VARS = {
+  star: '--sky-star',
+  starDim: '--sky-star-dim',
+  accent: '--accent',
+  moon: '--moon',
+  moonShadow: '--moon-shadow',
+  trail: '--trail',
+  glow: '--glow',
+};
+
 function readColors() {
   if (typeof window === 'undefined') return;
   const style = getComputedStyle(document.documentElement);
   const get = (name, fallback) => (style.getPropertyValue(name) || '').trim() || fallback;
-  colors.star = get('--sky-star', colors.star);
-  colors.starDim = get('--sky-star-dim', colors.starDim);
-  colors.accent = get('--accent', colors.accent);
-  colors.moon = get('--moon', colors.moon);
-  colors.moonShadow = get('--moon-shadow', colors.moonShadow);
-  colors.trail = get('--trail', colors.trail);
-  colors.glow = get('--glow', colors.glow);
+  for (const [key, prop] of Object.entries(SKY_COLOR_VARS)) colors[key] = get(prop, colors[key]);
   // Falls back to the darkest tone of whatever sky is equipped, so a horizon
   // that names no ink of its own still belongs to the night it stands in.
   colors.horizon = get('--horizon', get('--sky-1', colors.horizon));
@@ -573,17 +585,37 @@ export function starSwell() {
  * one row. `drift` null means the particle wanders; a drift object makes it
  * rise, which is what separates fireflies from dust.
  */
+/**
+ * `tint` is either a key of SKY_COLOR_VARS or a literal, so the market can draw
+ * a trail in the colour this canvas will draw it in without holding a second
+ * copy of the colour. It replaced a `color: () => …` closure, which was correct
+ * here and unreadable anywhere else: a card had no way to ask a function what
+ * it was going to return, so the shop fell back to hand-written CSS and three
+ * of the six trails shipped with no rule at all — an empty box on a 950
+ * stardust card.
+ */
 const TRAIL_SPECS = {
-  stardust: { per: 1, decay: 0.03, r: 1, jitter: 1, drift: null, flicker: false, color: () => colors.trail },
-  comet: { per: 2, decay: 0.045, r: 1.6, jitter: 1.6, drift: null, flicker: false, color: () => colors.star },
-  fireflies: { per: 1, decay: 0.012, r: 1, jitter: 1, drift: { up: 0.15, spread: 0.3 }, flicker: true, color: () => '#ffe58a' },
-  embers: { per: 2, decay: 0.028, r: 0.8, jitter: 1.2, drift: { up: 0.35, spread: 0.45 }, flicker: true, color: () => '#ff9d5c' },
-  moondust: { per: 1, decay: 0.008, r: 0.8, jitter: 0.9, drift: { up: -0.06, spread: 0.12 }, flicker: false, color: () => colors.moon },
-  ripple: { per: 3, decay: 0.06, r: 2.2, jitter: 1.4, drift: null, flicker: false, color: () => colors.accent },
+  stardust: { per: 1, decay: 0.03, r: 1, jitter: 1, drift: null, flicker: false, tint: 'trail' },
+  comet: { per: 2, decay: 0.045, r: 1.6, jitter: 1.6, drift: null, flicker: false, tint: 'star' },
+  fireflies: { per: 1, decay: 0.012, r: 1, jitter: 1, drift: { up: 0.15, spread: 0.3 }, flicker: true, tint: '#ffe58a' },
+  embers: { per: 2, decay: 0.028, r: 0.8, jitter: 1.2, drift: { up: 0.35, spread: 0.45 }, flicker: true, tint: '#ff9d5c' },
+  moondust: { per: 1, decay: 0.008, r: 0.8, jitter: 0.9, drift: { up: -0.06, spread: 0.12 }, flicker: false, tint: 'moon' },
+  ripple: { per: 3, decay: 0.06, r: 2.2, jitter: 1.4, drift: null, flicker: false, tint: 'accent' },
 };
 
 /** Which trails this renderer can actually draw — the shop is tested against it. */
 export const TRAIL_IDS = Object.keys(TRAIL_SPECS);
+
+/** The spec behind a trail id, for anything that wants to draw one flat. */
+export function trailSpec(id) {
+  return TRAIL_SPECS[id] || null;
+}
+
+/** A spec's tint as a CSS colour: a custom property when it names one. */
+export function trailTintCss(spec) {
+  if (!spec) return 'currentColor';
+  return SKY_COLOR_VARS[spec.tint] ? `var(${SKY_COLOR_VARS[spec.tint]})` : spec.tint;
+}
 
 export function setTrail(kind) {
   trailKind = kind || 'none';
@@ -835,7 +867,9 @@ function drawRibbons() {
 
 function drawParticles(time) {
   const spec = TRAIL_SPECS[trailKind];
-  const color = spec ? spec.color() : colors.trail;
+  // `colors[tint]` when the tint names one of the theme colours, else the tint
+  // itself — the same resolution `trailTintCss` does for the market's cards.
+  const color = (spec && (colors[spec.tint] || spec.tint)) || colors.trail;
   for (const p of trailParticles) {
     const flicker = spec?.flicker ? 0.5 + 0.5 * Math.sin(time / 200 + p.phase) : 1;
     ctx.globalAlpha = clamp(p.life * flicker, 0, 1) * 0.85;

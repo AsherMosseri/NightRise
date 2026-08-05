@@ -474,15 +474,8 @@
 .swatch--theme.swatch--lantern { background: linear-gradient(135deg, #ffab86, #3f1d2c 62%, #0d0608); }
 .swatch--theme.swatch--abyss { background: linear-gradient(135deg, #7f92b8, #0a1120 58%, #010204); }
 
-.swatch--sounds.swatch--chime { background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 12px); }
-.swatch--sounds.swatch--crickets { background: repeating-linear-gradient(90deg, var(--good) 0 2px, transparent 2px 7px); }
-.swatch--sounds.swatch--windchime { background: repeating-linear-gradient(90deg, var(--accent-2) 0 4px, transparent 4px 16px); }
-.swatch--sounds.swatch--synth { background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 10px); }
 
-.swatch--trail.swatch--none { background: var(--panel-2); }
-.swatch--trail.swatch--stardust { background: radial-gradient(circle at 30% 40%, var(--trail) 1px, transparent 1.5px) 0 0 / 12px 12px; }
-.swatch--trail.swatch--comet { background: linear-gradient(100deg, transparent 30%, var(--sky-star) 60%, transparent 62%); }
-.swatch--trail.swatch--fireflies { background: radial-gradient(circle at 60% 30%, #ffe58a 2px, transparent 2.5px) 0 0 / 22px 20px; }
+.swatch--trail-none { background: var(--panel-2); }
 
 .swatch--font {
   display: grid;

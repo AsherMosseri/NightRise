@@ -16,7 +16,7 @@ import { soundAt, soundTint } from '../js/render/modals.js';
 import { COMPANIONS, SPECIES_IDS } from '../js/companion.js';
 import { TRAIL_IDS, trailSpec } from '../js/sky.js';
 import { createProfile, createInitialState } from '../js/model.js';
-import { equipItem, buyConsumable, canBuy, gateFor, purchase } from '../js/shop.js';
+import { equipItem, buyConsumable, canBuy, purchase } from '../js/shop.js';
 import { MOMENTUM_MIN_GAP_MS } from '../js/game.js';
 import { getState, replaceState } from '../js/state.js';
 import { normalizeState } from '../js/storage.js';
@@ -440,69 +440,45 @@ test('there is no price a night could fall into with nothing to buy', () => {
   assert.ok(worst <= 400, `the biggest jump between prices is ${worst} stardust`);
 });
 
-/**
- * When each level first arrives, measured by replaying 120 nights of an
- * eighteen-task list through the real action layer. The gates are checked
- * against this rather than against a feeling about what level sounds late.
- */
-const LEVEL_NIGHT = { 8: 6, 9: 7, 10: 9, 11: 12, 12: 14, 13: 17, 14: 21 };
-/** What a settled night pays, from the same simulation. */
-const DUST_PER_NIGHT = 131;
-
-test('every level gate actually gates', () => {
-  // This is the whole point of having them. There used to be eleven hand-typed
-  // gates and nine never once bound: level 13 arrives on night 17 and the
-  // level-13 sky takes thirteen nights to save for, so the card said "Reach
-  // level 13" about a barrier that was never the barrier. A gate has to arrive
-  // AFTER you could have afforded the thing, or it is decoration.
-  const gated = allItems().filter((i) => i.reqLevel);
-  assert.ok(gated.length > 0, 'the gates are meant to exist');
-  for (const item of gated) {
-    const saveNight = Math.ceil(item.cost / DUST_PER_NIGHT);
-    const gateNight = LEVEL_NIGHT[item.reqLevel];
-    assert.ok(gateNight, `level ${item.reqLevel} is off the measured curve`);
-    assert.ok(gateNight > saveNight,
-      `${item.bucket}/${item.id}: affordable on night ${saveNight}, gate opens on ${gateNight}`);
-  }
-});
-
-test('the gates are derived from price, not typed one by one', () => {
-  // Typed numbers drift away from a curve nobody re-measures, which is how the
-  // first set stopped binding. Same price, same gate, everywhere.
+test('nothing in the market is gated on anything but its price', () => {
+  // There were level gates here, twice. Eleven hand-typed ones first, of which
+  // nine never bound; then five derived from the measured curve, which did bind
+  // — for three weeks. Every band was open by night 23 and never closed again,
+  // while thirty-seven of sixty-seven cards went on wearing a "Level 12" chip
+  // about a barrier that had been gone for months.
+  //
+  // Gating them on nights slept on time instead was measured and rejected: the
+  // gated items are 80% of the market by cost, and at one on-time night in
+  // seven the level-14 band would have moved from night 23 to night 161. That
+  // is a reward turned into a restriction on the main sink, landing hardest on
+  // whoever is sleeping worst — the Starlight mistake, at four times the scale.
+  //
+  // So price is the pacing, and this fails if a second condition comes back.
   for (const item of allItems()) {
-    // Except the Far Shelf, which carries no level gate at all. Deriving one
-    // from its price would tag every rung "Reach level 14" — a barrier that
-    // arrives on night 23, printed on a card whose real barrier is months out.
-    if (item.shelf === 'far') {
-      assert.equal(item.reqLevel, undefined, `${item.id} picked up a level gate`);
-      continue;
-    }
-    assert.equal(item.reqLevel || 0, gateFor(item.cost || 0), `${item.id} does not match its band`);
+    assert.equal(item.reqLevel, undefined, `${item.id} carries a level gate again`);
+    if (item.shelf === 'far') continue;
+    assert.equal(item.reqNights, undefined, `${item.id} carries a nights gate`);
   }
-  assert.equal(gateFor(0), 0, 'a free default is never gated');
-  assert.equal(gateFor(599), 0, 'and neither is anything early');
-  assert.ok(gateFor(1680) > gateFor(620), 'and the bands climb');
-});
-
-test('the early market is not a wall of locks', () => {
-  // Under 600 is ungated on purpose: at the start the market should be a thing
-  // you can reach into.
-  const cheap = allItems().filter((i) => i.cost > 0 && i.cost < 600);
-  assert.ok(cheap.length >= 15, 'there should be plenty to buy before any gate');
-  assert.deepEqual(cheap.filter((i) => i.reqLevel), []);
-});
-
-test('the level check refuses and then relents', () => {
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.level = 1;
   state.profile.stardust = 99999;
-  state.profile.level = 2;
-  const gated = { id: 'x', cost: 10, reqLevel: 9, bucket: 'themes', kind: 'theme' };
-  assert.equal(canBuy(state, gated).ok, false);
-  assert.match(canBuy(state, gated).reason, /level 9/);
-  state.profile.level = 9;
-  assert.equal(canBuy(state, gated).ok, true);
+  const dearest = allItems().filter((i) => i.shelf !== 'far')
+    .reduce((a, b) => (b.cost > a.cost ? b : a));
+  assert.equal(canBuy(state, dearest).ok, true,
+    `${dearest.name} costs ${dearest.cost} and level 1 with the money cannot buy it`);
 });
 
+test('the only thing that refuses a sale is not having the stardust', () => {
+  const state = createInitialState(new Date(2026, 6, 29, 22, 0));
+  state.profile.level = 1;
+  state.profile.stardust = 0;
+  const item = allItems().find((i) => i.cost > 0 && i.shelf !== 'far');
+  const poor = canBuy(state, item);
+  assert.equal(poor.ok, false);
+  assert.match(poor.reason, /more stardust$/);
+  state.profile.stardust = item.cost;
+  assert.equal(canBuy(state, item).ok, true);
+});
 test('a save from before any of this arrives whole and unchanged', () => {
   // The migration the whole expansion rests on: five categories, a renamed
   // typeface and a schema bump between this save and today. Everything new must
@@ -610,13 +586,18 @@ test('the supplies shelf says why on the button, not in a tooltip', () => {
 });
 
 test('the market card labels itself with the reason it cannot be bought', () => {
-  // canBuy returns the shortfall or the level it wants; the card must show it.
+  // canBuy returns the shortfall, and the card shows it. There are two reasons
+  // in the whole market now — the money, and the Far Shelf's nights — and both
+  // are a sentence a person can act on rather than a level number.
   const state = createInitialState(new Date(2026, 6, 29, 22, 0));
   state.profile.stardust = 108;
   const dear = { id: 'x', cost: 430, bucket: 'weather', kind: 'weather' };
   assert.equal(canBuy(state, dear).reason, '322 more stardust');
+  // A level, however low, is never a reason any more.
   state.profile.level = 1;
-  assert.equal(canBuy(state, { ...dear, reqLevel: 11 }).reason, 'Reach level 11');
+  state.profile.stardust = 99999;
+  assert.equal(canBuy(state, dear).ok, true);
+  assert.equal(canBuy(state, { ...dear, reqNights: 5 }).reason, '5 more nights on time');
 });
 
 /* ------------------------------------------------------------- horizons */

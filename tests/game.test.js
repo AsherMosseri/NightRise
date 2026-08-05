@@ -32,8 +32,14 @@ test('titles unlock at their levels', () => {
   assert.equal(titleForLevel(1), 'Dreamer');
   assert.equal(titleForLevel(4), 'Night Owl');
   assert.equal(titleForLevel(5), 'Star Gazer');
-  assert.equal(titleForLevel(99), 'Well Slept');
+  assert.equal(titleForLevel(25), 'Well Slept');
+  // Past the old top of the ladder. It stopped at 25 — night 91 on the measured
+  // curve — and every level after that changed nothing, including your badge,
+  // which is the whole reason there is a tail now.
+  assert.equal(titleForLevel(30), 'Practised');
+  assert.equal(titleForLevel(99), 'At Rest');
   assert.equal(nextTitle(1).name, 'Night Owl');
+  assert.equal(nextTitle(25).level, 30, 'reaching 25 used to be the end of the ladder');
   assert.equal(nextTitle(99), null);
 });
 

@@ -22,6 +22,31 @@ export const COMBO_MAX = 2.5;
 export const BASE_TASK_XP = 10;
 export const STREAK_THRESHOLD_PCT = 60;
 
+/**
+ * What a level is worth, now that it is the only thing a level does.
+ *
+ * The market used to gate items on level and does not any more — the bands all
+ * expired by night 23 and gating them on nights instead would have shut 80% of
+ * the shop on the person least able to open it. So levels buy nothing and
+ * unlock nothing; they name you, and that is the whole job.
+ *
+ * Which made the ladder stopping at 25 a real hole. Measured against the
+ * eight-minute list: level 25 lands on night 91 and the levels keep coming —
+ * 30 on night 141, 42 on 314, 60 on 731 — so from three months in, a level-up
+ * did not change a single thing anywhere in the app, including your own badge.
+ * The tail below runs to 75, which is around three and a half years of nights.
+ *
+ * The names turn at 25 on purpose. The early ones are fanciful because the
+ * early nights are, and everything past "Well Slept" is plain and about habit,
+ * because that is what it actually is by then. Three of them were rewritten
+ * after the suite caught them: "Old Hand" is already an achievement tier,
+ * "Sound Sleeper" sits beside the tier "Sound Asleep", and "The Long Habit"
+ * hinged on the same word as "Creature of Habit" — two rungs you cannot tell
+ * apart in a toast. None of them names a duration:
+ * a title is levels, levels are XP, and XP does not know how long you have been
+ * here. "A Year of Nights" would be a lovely rung and a lie on any save that
+ * played twice a week.
+ */
 export const TITLES = [
   { level: 1, name: 'Dreamer' },
   { level: 3, name: 'Night Owl' },
@@ -31,6 +56,12 @@ export const TITLES = [
   { level: 16, name: 'Void Sailor' },
   { level: 20, name: 'Constellation Keeper' },
   { level: 25, name: 'Well Slept' },
+  { level: 30, name: 'Practised' },
+  { level: 36, name: 'Creature of Habit' },
+  { level: 42, name: 'Home by Dark' },
+  { level: 50, name: 'Lamplighter' },
+  { level: 60, name: 'Undisturbed' },
+  { level: 75, name: 'At Rest' },
 ];
 
 /** XP needed to get from `level` to `level + 1`. */

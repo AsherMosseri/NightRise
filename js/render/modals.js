@@ -574,10 +574,9 @@ function shopCard(state, item, { onPreview } = {}) {
   const equipped = isEquipped(state, item);
   const check = canBuy(state, item);
   if (check.sealed) return sealedCard(item, check);
-  const locked = Boolean(item.reqLevel && state.profile.level < item.reqLevel);
 
   return h('article', {
-    class: ['card', ownedAlready && 'card--owned', equipped && 'card--equipped', locked && 'card--locked'].filter(Boolean).join(' '),
+    class: ['card', ownedAlready && 'card--owned', equipped && 'card--equipped'].filter(Boolean).join(' '),
   },
   h('div', { class: 'card__head' },
     h('h3', {}, item.name),
@@ -587,7 +586,6 @@ function shopCard(state, item, { onPreview } = {}) {
     : skinPreview(item),
   h('p', { class: 'card__desc' }, item.desc),
   h('div', { class: 'card__foot' },
-    locked ? h('span', { class: 'card__lock' }, `Level ${item.reqLevel}`) : null,
     onPreview ? h('button', { type: 'button', class: 'btn btn--ghost btn--sm', onClick: () => onPreview(item) }, 'Preview') : null,
     ownedAlready
       ? (equipped

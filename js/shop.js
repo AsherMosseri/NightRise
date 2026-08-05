@@ -66,34 +66,29 @@ const KIND_BY_LIST = [
 export const COMPANION_ITEMS = COMPANIONS.map((c) => ({ ...c, kind: 'companion' }));
 
 /**
- * The level an item asks for, derived from its price.
+ * There are no level gates any more, and this is where they were.
  *
- * There were eleven hand-typed gates and nine of them never once bound: level
- * 13 arrives on night 17 and the level-13 sky takes thirteen nights to save
- * for, so the card said "Reach level 13" about a barrier that was never the
- * barrier. Typed numbers drift away from a curve nobody re-measures.
+ * There were eleven hand-typed ones first, and nine never bound: level 13
+ * arrives on night 17 and the level-13 sky takes thirteen nights to save for.
+ * They were re-derived from the measured curve after that, into five bands that
+ * each landed two to nine nights after affordability — honest, and still
+ * pointless. Every band expired by night 23 and never bound again for the rest
+ * of the app's life, while thirty-seven of sixty-seven cards went on wearing a
+ * chip saying "Level 12" about a barrier that had been gone for months.
  *
- * So the bands are chosen against the measured curve instead. Levels arrive at
- * nights 9, 12, 14, 17 and 21 for 10 through 14; a settled night pays about 131
- * stardust, so an item costing C takes about C/131 nights to save for alone.
- * Every band below lands two to nine nights *after* that, which is what makes
- * the gate a real second condition rather than decoration — and tests/shop
- * asserts exactly that against the same measured table.
+ * Replacing them with nights slept on time was the obvious move and the wrong
+ * one. Those thirty-seven cards are 80% of the market by cost, and at one
+ * on-time night in seven the level-14 band would have gone from night 23 to
+ * night 161 — five months with most of the shop shut. That is the Starlight
+ * mistake again: a reward turned into a restriction on the main sink, and it
+ * would land hardest on exactly the person the app is for. It would also punish
+ * a bad week twice, since an on-time night already pays half again in stardust,
+ * already lights a star, and already opens the Far Shelf.
  *
- * Nothing under 600 is gated. Early on the market should be a thing you can
- * reach into, not a wall of locks.
+ * So the market is paced by price alone, which is what it was really paced by.
+ * The Far Shelf carries the nights, where it adds rather than subtracts, and
+ * levels carry the titles, which cost nothing and gate nothing.
  */
-export const GATE_BANDS = [
-  { from: 1500, level: 14 },
-  { from: 1300, level: 13 },
-  { from: 1100, level: 12 },
-  { from: 900, level: 11 },
-  { from: 600, level: 10 },
-];
-
-export function gateFor(cost) {
-  return GATE_BANDS.find((band) => cost >= band.from)?.level || 0;
-}
 
 /**
  * Every equippable item, tagged with its inventory bucket, cheapest first.
@@ -101,9 +96,9 @@ export function gateFor(cost) {
  * Sorted here rather than in the catalogs, because a shelf is a ladder and the
  * catalogs are edited by hand: skies, type and companions had all drifted out of
  * order simply by having new entries appended to the end, so the Skies tab read
- * 400, 700, 920, 1150, 1550, 620, 840. Price is the only pacing this market has
- * — levels come far too fast to gate anything — so the order it is read in has
- * to be the order it is affordable in.
+ * 400, 700, 920, 1150, 1550, 620, 840. Price is the only pacing this market has,
+ * now literally rather than nearly, so the order it is read in has to be the
+ * order it is affordable in.
  */
 function byPrice(a, b) {
   return (a.cost || 0) - (b.cost || 0);
@@ -111,14 +106,7 @@ function byPrice(a, b) {
 
 export function allItems() {
   const items = [];
-  const tag = (item, kind, bucket) => {
-    // Far Shelf items are never level-gated. Their gate is `reqNights`, and two
-    // gates on one card is two things to satisfy and one of them a lie — the
-    // level always arrives first, so the card would name a barrier that had
-    // already gone while the real one sat months away.
-    const level = item.shelf === 'far' ? 0 : gateFor(item.cost || 0);
-    return { ...item, kind, bucket, ...(level ? { reqLevel: level } : {}) };
-  };
+  const tag = (item, kind, bucket) => ({ ...item, kind, bucket });
   for (const [bucket, kind, list] of KIND_BY_LIST) {
     for (const item of [...list].sort(byPrice)) items.push(tag(item, kind, bucket));
   }
@@ -176,9 +164,6 @@ export function canBuy(state, item) {
     if (have < item.reqNights) {
       return { ok: false, reason: `${item.reqNights - have} more nights on time`, sealed: true };
     }
-  }
-  if (item.reqLevel && state.profile.level < item.reqLevel) {
-    return { ok: false, reason: `Reach level ${item.reqLevel}` };
   }
   if (state.profile.stardust < item.cost) {
     return { ok: false, reason: `${item.cost - state.profile.stardust} more stardust` };

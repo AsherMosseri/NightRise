@@ -309,9 +309,9 @@ it's the scroll.
   nights slept on time cannot be rushed, cannot be farmed and cannot be bought — and it is
   not the Starlight mistake below in a new coat, because nothing existing is locked up:
   the star map, the market and every sink that was open stay open, and this is eight new
-  things arriving on a schedule. Far Shelf items carry no level gate either, since one
-  derived from their price would tag every rung "Reach level 14" — a barrier that expired
-  on night 23 — while the real barrier sat months out.
+  things arriving on a schedule. The level gates it was meant to sit beside are gone
+  entirely now — see the market section below for why replacing them with nights was
+  measured and rejected.
 - **Sleeping on time makes you richer; it does not unlock a door.** This shipped the wrong
   way round for an hour and is worth writing down. The first version was *Starlight*: a
   second currency, minted only by stopping on time, that a star cost **in addition** to its
@@ -448,9 +448,17 @@ it's the scroll.
 - **A Streak Freeze covers the streak it says it covers.** It guards the clean-night
   streak — all or nothing, enough to cover every missed night or none are spent, because
   half-covering a gap burns the tokens and loses the streak anyway.
-- XP with a level curve and eight titles, from Dreamer upward. You can see the level each
-  one arrives at but never what it is called until you get there — a list of every name you
-  will ever be given is a list of endings, and the reveal is the reward.
+- XP with a level curve and fourteen titles, from Dreamer to At Rest. You can see the level
+  each one arrives at but never what it is called until you get there — a list of every name
+  you will ever be given is a list of endings, and the reveal is the reward.
+  Titles are the only thing a level does now, and that is deliberate: they buy nothing, so
+  there is no reason to pad the list and grind it at 1am to reach one. The ladder used to
+  stop at 25 — night 91 on the measured curve — while the levels kept arriving: 30 on night
+  141, 42 on 314, 60 on 731. From three months in, a level-up changed nothing anywhere in
+  the app, including your own badge. It runs to 75 now. The names turn plain at *Well
+  Slept* on purpose, because by then it is a habit rather than an adventure, and none of
+  them names a duration — a title is levels, levels are XP, and XP has no idea how long you
+  have been here.
 - A nightly bonus quest, seeded by the date so it never rerolls on you.
 - **Achievements that level up.** Nine families — nights banked, list streak, nights on
   time, nights cleared, level, momentum, unlocks, constellations, companion — each with
@@ -553,15 +561,24 @@ it's the scroll.
   companions, seven sound packs, seven trails, six typefaces, six moons, five weather
   layers, five marks, five envelopes and four supplies. It was 18 across five shelves, and
   bought out on night 60.
-- **Level gates that actually gate.** Anything over 600 stardust asks for a level as well
-  as the price, and the level is *derived from the price* rather than typed on each item —
-  because typed numbers drift away from a curve nobody re-measures, which is exactly what
-  had happened. Eleven hand-written gates had become nine that never once bound: level 13
-  arrives on night 17 and the level-13 sky takes thirteen nights to save for, so the card
-  said "Reach level 13" about a barrier that was never the barrier. The bands are set
-  against the measured curve, so every gate now opens **two to nine nights after** you
-  could first have afforded the thing. Nothing under 600 is gated: early on the market
-  should be something you can reach into, not a wall of locks.
+- **Nothing in the market is gated on anything but its price**, and getting there took two
+  wrong turns worth writing down. First there were eleven hand-typed level gates, of which
+  nine never once bound: level 13 arrives on night 17 and the level-13 sky takes thirteen
+  nights to save for, so the card said *"Reach level 13"* about a barrier that was never
+  the barrier. Then they were re-derived from the measured curve into five bands that each
+  opened two to nine nights *after* affordability — honest, and still pointless, because
+  every band was open by **night 23** and never bound again for the rest of the app's life
+  while 37 of 67 cards went on wearing a "Level 12" chip.
+  The obvious fix was to gate them on nights slept on time instead, and it was measured and
+  rejected. Those 37 items are **80% of the market by cost**, and at one on-time night in
+  seven the level-14 band would have moved from night 23 to **night 161** — five months
+  with most of the shop shut, landing hardest on whoever is sleeping worst. That is the
+  Starlight mistake at four times the scale: a reward turned into a restriction on the main
+  sink. It would also punish a bad week twice over, since an on-time night already pays
+  half again in stardust, already lights a star, and already opens the Far Shelf.
+  So price is the pacing, which is what it had really been all along. The Far Shelf carries
+  the nights, where it adds rather than subtracts; levels carry the titles, which gate
+  nothing. Each mechanic does one job, and none of them charges you twice.
 - Every shelf reads cheapest first — three of them had drifted out of order simply by
   having new entries appended, so Skies read 400, 700, 920, 1150, 1550, 620, 840.
 - **A price you cannot meet is information, not a dead call to action.** All four spend
@@ -742,7 +759,7 @@ domain — every path in the app is relative.
 
 ## Tests
 
-**401 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
+**399 tests, 20 suites, zero dependencies**, on Node's built-in runner. No install step:
 
 ```bash
 node --test "tests/*.test.js"

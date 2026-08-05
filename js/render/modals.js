@@ -264,14 +264,34 @@ const SOUND_SPAN = Math.max(0.3, ...allItems()
  * quiet pack and the loud pack draw the same tall bars, and Temple Bell's whole
  * pitch — the one to have on when somebody else is asleep — goes missing.
  */
+function packPeak(id) {
+  const tones = packTones(id);
+  let peak = 0;
+  for (let i = 0; i <= 600; i += 1) peak = Math.max(peak, soundAt((i / 600) * SOUND_SPAN, tones).amp);
+  return peak;
+}
+
 const SOUND_PEAK = Math.max(0.02, ...allItems()
   .filter((item) => item.bucket === 'sounds')
-  .map((item) => {
-    const tones = packTones(item.id);
-    let peak = 0;
-    for (let i = 0; i <= 400; i += 1) peak = Math.max(peak, soundAt((i / 400) * SOUND_SPAN, tones).amp);
-    return peak;
-  }));
+  .map((item) => packPeak(item.id)));
+
+/**
+ * How tall a pack's card is allowed to get, from how loud it actually is.
+ *
+ * The first version normalised every card against the shelf's peak inside the
+ * same 42dB window that draws the taper, which does not work: the shelf's whole
+ * dynamic range is 9dB, and 9 into 42 put every pack between 79% and 100% of
+ * the height. Temple Bell at 92% is Chime at 100%, so the quiet pack — the one
+ * to have on when somebody else in the room is asleep, which is the only reason
+ * to buy it — had no way to look quiet.
+ *
+ * So loudness sets the ceiling and the window only draws the shape inside it.
+ * The 0.6 is Stevens' exponent for loudness against sound pressure, not a
+ * number picked to make the difference show: it is the same curve that says
+ * halving the amplitude sounds about a third quieter rather than half. Measured
+ * across the shelf it spreads the cards from 54% to 100%.
+ */
+const soundCeiling = (peak) => (peak / SOUND_PEAK) ** 0.6;
 
 function skinPreview(item) {
   if (item.kind === 'moon') {
@@ -387,9 +407,13 @@ function skinPreview(item) {
     // to 4% of peak by the midpoint, so a linear scale draws every sound as a
     // spike and a flat line. Loudness is logarithmic and so is every waveform
     // display ever built; a 42dB window puts the taper where the ear puts it.
+    // Against the pack's OWN peak, so every card shows its whole shape — how
+    // loud the pack is against the rest of the shelf is the ceiling's job.
     const WINDOW = 42;
+    const peak = packPeak(item.id);
+    const ceiling = soundCeiling(peak);
     const scale = (amp) => (amp <= 0 ? 0
-      : clamp((20 * Math.log10(amp / SOUND_PEAK) + WINDOW) / WINDOW, 0, 1));
+      : clamp((20 * Math.log10(amp / peak) + WINDOW) / WINDOW, 0, 1));
     // Cube-rooted time. A shared linear axis is honest and unreadable — the
     // shortest pack is a twelfth of the longest and draws as a smudge in the
     // corner — but a square root overcorrected the other way: Pulse reached 30%
@@ -416,7 +440,7 @@ function skinPreview(item) {
         const sample = soundAt(t0 + ((t1 - t0) * k) / 6, tones);
         if (sample.amp > amp) { amp = sample.amp; hz = sample.hz; }
       }
-      const height = scale(amp) * REACH;
+      const height = scale(amp) * REACH * ceiling;
       const x = 5 + u * (W - 10 - BAR);
       if (height < 0.75) {
         // The rest of the timeline, so a short sound reads as short rather than

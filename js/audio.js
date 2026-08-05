@@ -112,8 +112,9 @@ const PACKS = {
     level: () => [523, 622, 784, 932].forEach((f, i) => tone({ freq: f, dur: 0.6, type: 'triangle', gain: 0.06, delay: i * 0.1, filter: 2800 })),
     complete: () => [440, 523, 659, 784, 1046].forEach((f, i) => tone({ freq: f, dur: 0.8, type: 'triangle', gain: 0.055, delay: i * 0.12, filter: 3000 })),
   },
-  // Low and long. The quietest pack here on purpose — it is the one to have on
-  // when somebody else in the room is already asleep.
+  // Low and long, and the one to have on when somebody else in the room is
+  // already asleep — it was the quietest pack here until Music Box, which peaks
+  // at 0.043 against this one's 0.080. Low is what carries it now, not faint.
   bell: {
     check: () => { tone({ freq: 196, dur: 1.6, gain: 0.06, filter: 900 }); tone({ freq: 294, dur: 1.1, gain: 0.025, delay: 0.02 }); },
     uncheck: () => tone({ freq: 147, dur: 0.7, gain: 0.04, filter: 700 }),

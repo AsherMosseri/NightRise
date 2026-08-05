@@ -487,31 +487,51 @@
 .is-dim #modal::backdrop { background: rgba(2, 3, 10, 0.78); }
 
 /* Shop swatches mirror each pack so you can see what you are buying. */
-.swatch { height: 56px; border-radius: var(--r-md); border: 1px solid var(--border); }
+.swatch {
+  height: 56px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  /* Both of these are load-bearing, and the defaults put a bright line down the
+     far edge of every gradient swatch in the market. Every rule below therefore
+     sets `background-image` or `background-color` and never the `background`
+     shorthand — a shorthand resets every longhand it does not mention, so
+     `background: linear-gradient(...)` on a sky put origin and repeat straight
+     back to their defaults and the line came back. That is exactly what
+     happened on the first attempt at this fix, and only re-measuring caught it.
+     `background-origin` defaults to the PADDING box and `background-clip` to
+     the BORDER box, so a gradient here was sized to 297x54 and painted across
+     299x56 — and `background-repeat` defaults to `repeat`, which filled that
+     one-pixel overhang on the right and bottom with the start of the next tile.
+     Measured on Deep Space: the last column came out 17 units from the
+     gradient's FIRST colour and 241 from the pixel beside it. So the sky that
+     fades pink to near-black ended on a pink hairline. */
+  background-origin: border-box;
+  background-repeat: no-repeat;
+}
 
-.swatch--theme.swatch--midnight { background: linear-gradient(135deg, #141c4a, #05070f); }
-.swatch--theme.swatch--aurora { background: linear-gradient(135deg, #53ebb0, #103a4e 60%, #05221f); }
-.swatch--theme.swatch--deepspace { background: linear-gradient(135deg, #ff6ad5, #5e80ff 55%, #150a34); }
-.swatch--theme.swatch--city { background: linear-gradient(135deg, #ffb054, #4b2410 65%, #120a06); }
-.swatch--theme.swatch--frost { background: linear-gradient(135deg, #a0dcff, #16374f 60%, #040a12); }
-.swatch--theme.swatch--bloodmoon { background: linear-gradient(135deg, #ff5252, #4a1218 60%, #0d0405); }
-.swatch--theme.swatch--harbour { background: linear-gradient(135deg, #5fc9d8, #0f3a48 60%, #04090e); }
-.swatch--theme.swatch--dunes { background: linear-gradient(135deg, #e2a074, #3a2338 62%, #0a0710); }
-.swatch--theme.swatch--hollow { background: linear-gradient(135deg, #7ed6a0, #143026 60%, #030806); }
-.swatch--theme.swatch--thunderhead { background: linear-gradient(135deg, #b4c4e6, #262d3f 60%, #06070b); }
-.swatch--theme.swatch--lantern { background: linear-gradient(135deg, #ffab86, #3f1d2c 62%, #0d0608); }
-.swatch--theme.swatch--abyss { background: linear-gradient(135deg, #7f92b8, #0a1120 58%, #010204); }
-.swatch--theme.swatch--home { background: linear-gradient(135deg, #e0a86a, #241d1c 58%, #0d0a09); }
+.swatch--theme.swatch--midnight { background-image: linear-gradient(135deg, #141c4a, #05070f); }
+.swatch--theme.swatch--aurora { background-image: linear-gradient(135deg, #53ebb0, #103a4e 60%, #05221f); }
+.swatch--theme.swatch--deepspace { background-image: linear-gradient(135deg, #ff6ad5, #5e80ff 55%, #150a34); }
+.swatch--theme.swatch--city { background-image: linear-gradient(135deg, #ffb054, #4b2410 65%, #120a06); }
+.swatch--theme.swatch--frost { background-image: linear-gradient(135deg, #a0dcff, #16374f 60%, #040a12); }
+.swatch--theme.swatch--bloodmoon { background-image: linear-gradient(135deg, #ff5252, #4a1218 60%, #0d0405); }
+.swatch--theme.swatch--harbour { background-image: linear-gradient(135deg, #5fc9d8, #0f3a48 60%, #04090e); }
+.swatch--theme.swatch--dunes { background-image: linear-gradient(135deg, #e2a074, #3a2338 62%, #0a0710); }
+.swatch--theme.swatch--hollow { background-image: linear-gradient(135deg, #7ed6a0, #143026 60%, #030806); }
+.swatch--theme.swatch--thunderhead { background-image: linear-gradient(135deg, #b4c4e6, #262d3f 60%, #06070b); }
+.swatch--theme.swatch--lantern { background-image: linear-gradient(135deg, #ffab86, #3f1d2c 62%, #0d0608); }
+.swatch--theme.swatch--abyss { background-image: linear-gradient(135deg, #7f92b8, #0a1120 58%, #010204); }
+.swatch--theme.swatch--home { background-image: linear-gradient(135deg, #e0a86a, #241d1c 58%, #0d0a09); }
 
 
-.swatch--trail-none { background: var(--panel-2); }
+.swatch--trail-none { background-color: var(--panel-2); }
 
 .swatch--font {
   display: grid;
   place-items: center;
   font-size: 24px;
   color: var(--text);
-  background: var(--panel-2);
+  background-color: var(--panel-2);
 }
 /* The face comes from the item's own `stack`, set inline — a class name matched
    by convention came unstuck the moment an id was renamed. */
@@ -524,13 +544,13 @@
   display: block;
   width: 100%;
   color: var(--sky-1, #05070f);
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  background-image: linear-gradient(180deg, var(--panel-2), var(--panel));
   overflow: hidden;
 }
 .swatch--mark { display: grid; place-items: center; color: var(--accent); }
 .swatch--envelope {
   position: relative;
-  background: var(--env-paper, var(--panel-solid));
+  background-color: var(--env-paper, var(--panel-solid));
 }
 /* The fallback belongs at the point of use. Declaring --env-flap with itself as
    its own fallback is a cycle, which CSS throws away entirely — so the default
@@ -540,7 +560,7 @@
   inset: 0 0 auto 0;
   height: 66%;
   clip-path: polygon(0 0, 100% 0, 50% 100%);
-  background: var(--env-flap, color-mix(in srgb, var(--accent) 46%, var(--panel-solid)));
+  background-color: var(--env-flap, color-mix(in srgb, var(--accent) 46%, var(--panel-solid)));
 }
 .swatch--envelope .swatch__seal {
   position: absolute;
@@ -550,6 +570,6 @@
   height: 13px;
   margin: -6.5px 0 0 -6.5px;
   border-radius: 50%;
-  background: var(--env-seal, var(--accent));
+  background-color: var(--env-seal, var(--accent));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }

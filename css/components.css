@@ -473,9 +473,9 @@ body.is-dragging-active .section__actions { opacity: 0 !important; }
 .card--sealed { opacity: 0.66; }
 .card--sealed .card__head h3 { color: var(--muted); letter-spacing: 0.24em; }
 .swatch--sealed {
-  background:
-    repeating-linear-gradient(135deg, var(--panel-2) 0 9px, transparent 9px 18px),
-    var(--panel);
+  /* Longhands, not the `background` shorthand — see the note on `.swatch`. */
+  background-image: repeating-linear-gradient(135deg, var(--panel-2) 0 9px, transparent 9px 18px);
+  background-color: var(--panel);
 }
 .card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .card__head h3 { font-size: 14.5px; font-weight: 650; }

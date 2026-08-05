@@ -313,3 +313,43 @@ test('no dim escape list filters a toast that is already inside a filtered dialo
   const scoped = [...CSS.matchAll(/^\.is-[a-z.-]*\s+#toasts \.toast,$/gm)];
   assert.equal(scoped.length, 3, 'all three escape lists (dim, lastcall, both) scope it');
 });
+
+test('no swatch rule uses the background shorthand', () => {
+  /* A gradient swatch has a border, and CSS paints a background out to the
+     BORDER box while sizing it to the PADDING box — then repeats it, because
+     `background-repeat` defaults to `repeat`. So the one-pixel overhang on the
+     right and bottom was filled with the start of the next tile, and every sky
+     in the market ended on a hairline of its own first colour. Measured on Deep
+     Space: the last column sat 12 units from the gradient's opening pink and
+     174 from the pixel beside it.
+
+     `.swatch` fixes it with `background-origin: border-box` and
+     `background-repeat: no-repeat`. The trap is that a shorthand resets every
+     longhand it does not name, so a single `background: linear-gradient(...)`
+     further down puts both straight back — which is what happened on the first
+     attempt at this fix, and it looked identical to not having fixed it. Every
+     swatch rule therefore declares `background-image` or `background-color`,
+     and this fails if one goes back to the shorthand. */
+  const files = ['../css/themes.css', '../css/components.css', '../css/layout.css', '../css/base.css'];
+  const offenders = [];
+  for (const file of files) {
+    const text = readFileSync(new URL(file, import.meta.url), 'utf8');
+    // Each rule, as selector + body.
+    for (const [, selector, body] of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!selector.includes('.swatch')) continue;
+      if (/(^|[;\s])background\s*:/.test(body)) {
+        offenders.push(`${file}  ${selector.trim().split('\n').pop().trim()}`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], 'these reset background-origin and background-repeat');
+});
+
+test('the swatch box keeps its background inside its own edges', () => {
+  const rule = CSS.match(/\.swatch\s*\{([^}]*)\}/);
+  assert.ok(rule, '.swatch is gone');
+  assert.match(rule[1], /background-origin:\s*border-box/,
+    'the gradient is sized to the padding box and painted to the border box');
+  assert.match(rule[1], /background-repeat:\s*no-repeat/,
+    'and the overhang is filled from the next tile');
+});

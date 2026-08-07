@@ -27,6 +27,11 @@
       <stop offset="0%" stop-color="#f7f0dc" />
       <stop offset="100%" stop-color="#cbb98f" />
     </linearGradient>
+    <linearGradient id="meteor" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7d9bff" stop-opacity="0" />
+      <stop offset="55%" stop-color="#a9bcff" stop-opacity=".8" />
+      <stop offset="100%" stop-color="#eaf0ff" stop-opacity="1" />
+    </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%">
       <stop offset="0%" stop-color="#7d9bff" stop-opacity=".34" />
       <stop offset="100%" stop-color="#7d9bff" stop-opacity="0" />
@@ -47,11 +52,27 @@
   <!-- The lit lune at fill 0.62. rx = 126 * |1 - 2(0.62)| = 30. -->
   <path d="M262 122 A126 126 0 0 1 262 374 A30 126 0 0 1 262 122 Z" fill="url(#moon)" />
 
+  <!--
+    A meteor, because js/main.js:161 fires shootingStar() on every check-off.
+    It is the app's own way of saying "done" — which is the job the checkmark
+    was doing, in this app's vocabulary rather than in the generic one. It also
+    does the two things the composition needed and the moon alone could not: a
+    second element, and the only straight line among all these circles.
+
+    Thick on purpose. A 3px stroke on a 512 canvas is a sixth of a pixel at the
+    29px this has to survive; 15 with a round cap is about one, which is the
+    floor for a thing that is meant to be seen at all.
+  -->
+  <g>
+    <path d="M322 74 L436 164" stroke="url(#meteor)" stroke-width="15" stroke-linecap="round" fill="none" />
+    <circle cx="438" cy="166" r="15" fill="#eaf0ff" opacity=".28" />
+    <circle cx="438" cy="166" r="9" fill="#f6f9ff" />
+  </g>
+
   <g fill="#eaf0ff">
     <circle cx="96" cy="106" r="11" opacity=".95" />
-    <circle cx="158" cy="56" r="7" opacity=".7" />
     <circle cx="70" cy="196" r="6.5" opacity=".55" />
-    <circle cx="440" cy="404" r="9" opacity=".7" />
-    <circle cx="378" cy="456" r="6" opacity=".5" />
+    <circle cx="430" cy="418" r="8" opacity=".6" />
+    <circle cx="366" cy="462" r="6" opacity=".45" />
   </g>
 </svg>

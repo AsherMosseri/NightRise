@@ -62,6 +62,14 @@ const FILL = 0.62;
 const TERMINATOR_RX = MOON_R * Math.abs(1 - 2 * FILL);
 const MOON_UNLIT = hex('#39457e');
 const MOON_RIM = hex('#5866a8');
+// The meteor, which is what shootingStar() draws when you tick something off.
+const METEOR = [[322 / 512, 74 / 512], [436 / 512, 164 / 512]];
+const METEOR_W = 7.5 / 512;
+const METEOR_HEAD = [438 / 512, 166 / 512];
+const HEAD_R = 9 / 512;
+const HALO_R = 15 / 512;
+const METEOR_TAIL = hex('#7d9bff');
+const METEOR_HOT = hex('#f6f9ff');
 
 function sample(u, v, { maskable }) {
   const inset = maskable ? 0.1 : 0;
@@ -77,8 +85,8 @@ function sample(u, v, { maskable }) {
 
   // Stars. Fat on purpose: the old ones were r=0.008 of the canvas, which is
   // under half a pixel at the 60x60 this is actually looked at.
-  const stars = [[0.1875, 0.207, 0.0215, 0.95], [0.309, 0.109, 0.0137, 0.7],
-    [0.137, 0.383, 0.0127, 0.55], [0.859, 0.789, 0.0176, 0.7], [0.738, 0.891, 0.0117, 0.5]];
+  const stars = [[0.1875, 0.207, 0.0215, 0.95], [0.137, 0.383, 0.0127, 0.55],
+    [0.840, 0.816, 0.0156, 0.6], [0.715, 0.902, 0.0117, 0.45]];
   for (const [sx, sy, sr, alpha] of stars) {
     const d = Math.hypot(x - sx, y - sy);
     if (d < sr) color = mix(color, STAR, alpha);
@@ -106,6 +114,22 @@ function sample(u, v, { maskable }) {
       color = mix(MOON_LIGHT, MOON_DARK, Math.max(0, Math.min(1, shade)));
     }
   }
+
+  // The meteor last, so it reads over the moon's glow. Its brightness ramps
+  // along the segment the way the SVG's gradient does — dim at the tail, hot at
+  // the head — which is also how sky.js draws one.
+  const [[mx1, my1], [mx2, my2]] = METEOR;
+  const dMeteor = distanceToSegment(x, y, mx1, my1, mx2, my2);
+  if (dMeteor <= METEOR_W) {
+    const dx = mx2 - mx1;
+    const dy = my2 - my1;
+    const t = Math.max(0, Math.min(1, ((x - mx1) * dx + (y - my1) * dy) / (dx * dx + dy * dy)));
+    const edge = 1 - (dMeteor / METEOR_W) ** 2;
+    color = mix(color, mix(METEOR_TAIL, METEOR_HOT, t), Math.min(1, t * 1.15) * edge);
+  }
+  const fromHead = Math.hypot(x - METEOR_HEAD[0], y - METEOR_HEAD[1]);
+  if (fromHead < HALO_R) color = mix(color, METEOR_HOT, 0.28 * (1 - fromHead / HALO_R));
+  if (fromHead <= HEAD_R) color = METEOR_HOT.slice();
 
   return color;
 }

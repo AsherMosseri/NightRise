@@ -260,3 +260,122 @@ Each of these shipped, was found by measurement, and has a test holding it down.
 
 Keep using the web app nightly while you build. It costs nothing and it is still
 accumulating the only data that matters.
+
+---
+
+## Where the Swift lives
+
+One repo, not two. The Xcode project goes **inside this one**, alongside the
+JavaScript it is porting:
+
+```
+NightRise/
+  ios/            the Xcode project
+  js/             the reference implementation
+  tests/          the specification, 399 of them
+  tools/          economy-sim.mjs
+  PORT.md
+```
+
+The whole instruction at the top of this file — *keep the web app running beside
+you; when the Swift economy disagrees, the web app is right until you have proved
+otherwise* — only works if both are in the same tree. Two repos means opening two
+windows and checking neither.
+
+`node --test 'tests/*.test.js'` keeps working from the root the entire time, which
+is how you settle an argument about what a settled night pays.
+
+---
+
+## Shipping
+
+Researched once, painful to re-derive. None of it is guesswork; the failure modes
+listed were reported by developers who hit them.
+
+### Screen Time entitlements
+
+There are **two**, and only one needs Apple.
+
+| | approval | works where |
+|---|---|---|
+| Family Controls **(Development)** | **none** | Xcode → a physical device |
+| Family Controls **(Distribution)** | Apple reviews a form | TestFlight, App Store |
+
+- **The simulator cannot do this.** `AuthorizationCenter.requestAuthorization(for:
+  .individual)` throws `FamilyControlsError` 3. Screen Time work needs a device on a
+  cable, always.
+- The distribution form: `developer.apple.com/contact/request/family-controls-distribution`,
+  signed into the developer account. It asks for the app and bundle ID.
+- **Every extension needs its own request.** `DeviceActivityMonitor`,
+  `DeviceActivityReport`, `ShieldAction`, `ShieldConfiguration` — four separate
+  submissions if you use all four.
+- Reported turnaround runs from about two days to four and a half weeks.
+- Apple wants a genuine parental-control or personal digital-wellbeing case. It
+  rejects collecting usage data for advertising or profiling. NightRise is squarely
+  the former; do not drift toward the latter.
+- Once granted, enable it under Identifiers → Additional Capabilities. The option
+  does not appear until then.
+- A recurring trap: it works from Xcode on device and then fails on TestFlight
+  because the provisioning profile did not pick up the *extension* entitlements.
+  Budget a day for signing.
+
+A thing worth being honest about in the copy: **a shield is friction, not a wall.**
+It can be dismissed, and the user can switch it off in Settings. A Screen Time
+passcode raises the cost. It is far stronger than anything the web can do, and it is
+not the same as "impossible" — this app does not overclaim.
+
+Also: the activity picker returns **opaque tokens**. You can shield an app; you
+cannot read which app it was or how long was spent in it. Any feature that would
+need to name the app the user picked cannot be built.
+
+### The bundle ID
+
+- **Permanent** the moment an App Store Connect record attaches to it, or a build is
+  uploaded. Free to change in Xcode before that.
+- **Case-sensitive.** It must match character for character across Xcode, the
+  registered App ID, the provisioning profile and App Store Connect. A capital that
+  differs in one place is a known cause of upload failures.
+- Reverse-DNS is conventionally lowercase, mirroring domains. `org.mosseri.nightrise`.
+
+### The listing
+
+`NightRise` on its own is **already taken** in App Store Connect — reserved by
+another developer, with the "submit a trademark claim" error. That path needs
+trademark rights this project does not have, and waiting for the reservation to
+lapse is not a plan: Apple removed the old expiry (90, then 120, then 180 days) and
+publishes no policy now.
+
+It does not matter, because the store name and the name under the icon are
+**different fields**:
+
+| field | value | unique? |
+|---|---|---|
+| `CFBundleDisplayName` | **NightRise** | no — this is the one on the home screen |
+| App Store Connect name (30) | **NightRise: Lights Out** | yes, globally |
+| Subtitle (30) | **A game you win by going to bed** | no |
+| Keywords (100) | `bedtime, sleep, wind down, screen time, night routine, doomscroll, evening, focus` | no |
+
+*Lights Out* is the app's own word — the button you hold, the ceremony, the moment
+the screen goes away. It also keeps "NightRise" and "Game" from sitting next to each
+other, which is the one phrasing that collides with an unrelated Steam title called
+*Nightrise*.
+
+**Two words stay out of both fields: "Tracker" and "Habit".** They put this in the
+habit-tracker aisle beside Streaks and Habitica — a category this app is explicitly
+not in, does not compete in, and would lose in, since it tracks no habits. It does
+one night. The subtitle is the second-strongest search field; spend it on what the
+app is, not on the category it is nearest to.
+
+The old `NightRise Tracker` draft record can stay where it is. A never-submitted
+draft costs nothing and quietly holds a second name.
+
+### Trademark
+
+Class 9 (downloadable software) and Class 42 (SaaS) are clear. One Class 41
+registration exists — serial **97083142**, filed 2021-10-20 — but its services are
+*"arranging, organizing, conducting and hosting social entertainment events… ticket
+reservation and booking"*. A nightlife business, not software. Classes are
+administrative; the legal test is likelihood of confusion, which weighs the actual
+goods and channels. Its status on Justia reads as of 2021 and looks stale — check
+TSDR for the live record before relying on any of this. None of the above is legal
+advice.

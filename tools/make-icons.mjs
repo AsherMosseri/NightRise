@@ -46,46 +46,66 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
 }
 
 /** Colour of one sample point, in a 0..1 unit square. */
+/**
+ * The same picture assets/icon.svg draws, in a rasteriser rather than in SVG.
+ *
+ * Two renderers of one image is exactly the drift this project keeps getting
+ * caught by, so it is worth saying what has to stay in step: the moon centre,
+ * the radius, the fill fraction, and the fact that there is no checkmark. If
+ * you change the SVG, change this, then run it and look at both.
+ */
+const MOON_X = 262 / 512;
+const MOON_Y = 248 / 512;
+const MOON_R = 126 / 512;
+const FILL = 0.62;
+// The terminator's x-radius, straight out of sky.js drawMoon: r * |1 - 2f|.
+const TERMINATOR_RX = MOON_R * Math.abs(1 - 2 * FILL);
+const MOON_UNLIT = hex('#39457e');
+const MOON_RIM = hex('#5866a8');
+
 function sample(u, v, { maskable }) {
   const inset = maskable ? 0.1 : 0;
-  const size = 1;
-  const radius = maskable ? 0.5 : 0.22;
 
-  if (!maskable && !roundedRectContains(u, v, size, radius)) return null;
-
-  // Background gradient.
+  // Square, always. Every platform that shows this applies its own mask, and a
+  // pre-rounded asset with transparent corners gets rounded twice or picks up
+  // dark ones. Only the maskable variant insets, and it stays full bleed.
   let color = v < 0.5 ? mix(SKY_TOP, SKY_MID, v * 2) : mix(SKY_MID, SKY_BOTTOM, (v - 0.5) * 2);
 
   const scale = 1 - inset * 2;
   const x = (u - inset) / scale;
   const y = (v - inset) / scale;
 
-  // Stars.
-  const stars = [[0.21, 0.23, 0.014, 0.9], [0.29, 0.14, 0.009, 0.7], [0.16, 0.38, 0.008, 0.55],
-    [0.82, 0.23, 0.010, 0.6], [0.77, 0.64, 0.008, 0.5]];
+  // Stars. Fat on purpose: the old ones were r=0.008 of the canvas, which is
+  // under half a pixel at the 60x60 this is actually looked at.
+  const stars = [[0.1875, 0.207, 0.0215, 0.95], [0.309, 0.109, 0.0137, 0.7],
+    [0.137, 0.383, 0.0127, 0.55], [0.859, 0.789, 0.0176, 0.7], [0.738, 0.891, 0.0117, 0.5]];
   for (const [sx, sy, sr, alpha] of stars) {
     const d = Math.hypot(x - sx, y - sy);
     if (d < sr) color = mix(color, STAR, alpha);
     else if (d < sr * 2.6) color = mix(color, STAR, alpha * 0.18 * (1 - (d - sr) / (sr * 1.6)));
   }
 
+  const fromMoon = Math.hypot(x - MOON_X, y - MOON_Y);
+
   // Moon glow.
-  const glow = Math.hypot(x - 0.586, y - 0.414);
-  if (glow < 0.34) color = mix(color, ACCENT, 0.32 * (1 - glow / 0.34));
+  const reach = 190 / 512;
+  if (fromMoon < reach) color = mix(color, ACCENT, 0.34 * (1 - fromMoon / reach));
 
-  // Crescent: big disc minus an offset disc.
-  const inMoon = Math.hypot(x - 0.586, y - 0.414) <= 0.23;
-  const inCut = Math.hypot(x - 0.47, y - 0.30) <= 0.196;
-  if (inMoon && !inCut) {
-    const shade = (x - 0.36) / 0.46;
-    color = mix(MOON_LIGHT, MOON_DARK, Math.max(0, Math.min(1, shade)));
+  if (fromMoon <= MOON_R) {
+    // The whole disc first — the part that is not done yet has to be visible,
+    // or the lit part is a blob rather than a fraction of something.
+    color = MOON_UNLIT.slice();
+    if (fromMoon > MOON_R - 0.006) color = MOON_RIM.slice();
+
+    // The lit lune: the right half, plus whatever the terminator ellipse adds.
+    const dx = (x - MOON_X) / TERMINATOR_RX;
+    const dy = (y - MOON_Y) / MOON_R;
+    const lit = x >= MOON_X || dx * dx + dy * dy <= 1;
+    if (lit) {
+      const shade = (x - (MOON_X - MOON_R)) / (MOON_R * 2);
+      color = mix(MOON_LIGHT, MOON_DARK, Math.max(0, Math.min(1, shade)));
+    }
   }
-
-  // Check mark.
-  const strokeWidth = 0.033;
-  const d1 = distanceToSegment(x, y, 0.293, 0.695, 0.395, 0.797);
-  const d2 = distanceToSegment(x, y, 0.395, 0.797, 0.621, 0.555);
-  if (Math.min(d1, d2) <= strokeWidth) color = ACCENT.slice();
 
   return color;
 }

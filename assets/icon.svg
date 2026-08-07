@@ -1,4 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    The moon, part filled. Which is the app: drawMoon() paints the disc in the
+    shadow tone and then fills a lit lune across it as tonight's list gets done,
+    so a partly lit moon is a picture of the mechanic rather than a label for the
+    category. It says progress without a bar chart and night without a tick.
+
+    The lune is the same geometry sky.js uses — a right semicircle joined to a
+    terminator ellipse of x-radius r * |1 - 2 * fill| — drawn here at fill 0.68.
+    Gibbous rather than half on purpose: an exact semicircle reads as a shape
+    with a straight edge, not as a moon.
+
+    Square, with no baked corner radius. Every platform that shows this applies
+    its own mask, and a pre-rounded asset gets rounded twice or picks up dark
+    corners. The rounding lives in make-icons.mjs for the maskable variant only.
+
+    Stars are deliberately fat. The old ones were r=4 on a 512 canvas, which is
+    under half a pixel at 60x60 — the size this is actually looked at.
+  -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#141c4a" />
@@ -9,25 +27,31 @@
       <stop offset="0%" stop-color="#f7f0dc" />
       <stop offset="100%" stop-color="#cbb98f" />
     </linearGradient>
-    <radialGradient id="glow" cx="50%" cy="42%">
-      <stop offset="0%" stop-color="#7d9bff" stop-opacity=".55" />
+    <radialGradient id="glow" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#7d9bff" stop-opacity=".34" />
       <stop offset="100%" stop-color="#7d9bff" stop-opacity="0" />
     </radialGradient>
   </defs>
 
-  <rect width="512" height="512" rx="112" fill="url(#bg)" />
-  <circle cx="300" cy="212" r="170" fill="url(#glow)" />
+  <rect width="512" height="512" fill="url(#bg)" />
+  <circle cx="262" cy="248" r="190" fill="url(#glow)" />
 
-  <path d="M366 250a118 118 0 1 1-134-134 92 92 0 0 0 134 134z" fill="url(#moon)" />
+  <!-- The unlit disc, and it has to be clearly visible. The first attempt drew
+       it at #232a52, which vanished into the glow and left the lit lune reading
+       as a lopsided blob — no circle for it to be a fraction of, so the whole
+       idea went missing. It is the part that is not done yet; it has to be
+       legible or the icon says nothing. -->
+  <circle cx="262" cy="248" r="126" fill="#39457e" />
+  <circle cx="262" cy="248" r="126" fill="none" stroke="#5866a8" stroke-width="3" opacity=".8" />
+
+  <!-- The lit lune at fill 0.62. rx = 126 * |1 - 2(0.62)| = 30. -->
+  <path d="M262 122 A126 126 0 0 1 262 374 A30 126 0 0 1 262 122 Z" fill="url(#moon)" />
 
   <g fill="#eaf0ff">
-    <circle cx="106" cy="118" r="7" opacity=".9" />
-    <circle cx="150" cy="72" r="4.5" opacity=".7" />
-    <circle cx="82" cy="196" r="4" opacity=".55" />
-    <circle cx="418" cy="118" r="5" opacity=".6" />
-    <circle cx="392" cy="330" r="4" opacity=".5" />
+    <circle cx="96" cy="106" r="11" opacity=".95" />
+    <circle cx="158" cy="56" r="7" opacity=".7" />
+    <circle cx="70" cy="196" r="6.5" opacity=".55" />
+    <circle cx="440" cy="404" r="9" opacity=".7" />
+    <circle cx="378" cy="456" r="6" opacity=".5" />
   </g>
-
-  <path d="M150 356l52 52 116-124" fill="none" stroke="#7d9bff" stroke-width="34"
-        stroke-linecap="round" stroke-linejoin="round" />
 </svg>

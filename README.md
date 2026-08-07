@@ -1,4 +1,10 @@
-# NightCheck
+# NightRise
+
+**The web app in this repo shipped as NightCheck.** It still calls itself that
+everywhere, on purpose — the storage key is load-bearing and renaming it would orphan
+every save. It is now the reference implementation for a native iOS app called
+**NightRise**, and [`PORT.md`](PORT.md) is the handoff: what ports, what gets rebuilt,
+what the 399 tests actually hold, and which mistakes must not come back.
 
 A night-themed checklist game for getting things done before bed. Build your night out
 of sections and tasks, check them off, and watch the moon fill up. Finishing things earns
@@ -15,7 +21,8 @@ phone at midnight.
 
 Everything runs in the browser. No accounts, no server, no build step, no dependencies —
 your night lives in `localStorage` and can be exported to a JSON file whenever you like.
-About 23,000 lines, and all of it ships as written.
+**18,303 lines ship to the browser exactly as written**, of which 4,317 are comment;
+25,709 across the whole repo, tests and tools included.
 
 ## What's in it
 

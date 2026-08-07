@@ -34,6 +34,12 @@ family, the `.ics` `PRODID` and description, `index.html`'s title, the manifest
 name, `package.json`, the export filenames, and the `window.__nightcheck` debug
 hook.
 
+The README needs the same treatment and has not had it: it still opens on the old
+name in prose, still describes a browser app in the present tense, and still quotes
+figures measured against the web build. When the Swift app exists, rewrite it to
+describe **that** — and re-measure every number in it rather than carrying the ones
+here across. `tools/economy-sim.mjs` is what prints them.
+
 **One thing that makes the migration easy:** the export format carries no app name
 at all. `serializeState` writes the state plus an `exportedAt` stamp, and
 `parseImport` validates only that `template` is an object. So a NightCheck backup

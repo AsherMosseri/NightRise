@@ -72,8 +72,8 @@ const HEAD_R = 14 / 512;
 const HALO_R = 27 / 512;
 // Deep where the stroke lies on the gold, hot where it leaves onto the sky. The
 // taper is in value rather than opacity — see the note in assets/icon.svg.
-const METEOR_DIM = hex('#3f52b5');
-const METEOR_MID = hex('#6f8bf0');
+const METEOR_DIM = hex('#26326a');
+const METEOR_MID = hex('#33449b');
 const METEOR_LIT = hex('#f2f6ff');
 const METEOR_HALO = hex('#dfe8ff');
 const METEOR_HOT = hex('#f6f9ff');
@@ -92,7 +92,7 @@ const BOX_X = Math.min(...METEOR.map((p) => p[0]));
 const BOX_Y = Math.min(...METEOR.map((p) => p[1]));
 const BOX_W = Math.max(...METEOR.map((p) => p[0])) - BOX_X;
 const BOX_H = Math.max(...METEOR.map((p) => p[1])) - BOX_Y;
-const GRAD_STOP = 0.55;
+const GRAD_STOP = 0.78;
 
 function meteorPaint(x, y) {
   const g = Math.max(0, Math.min(1, ((x - BOX_X) / BOX_W + (BOX_Y + BOX_H - y) / BOX_H) / 2));

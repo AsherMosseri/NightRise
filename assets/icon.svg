@@ -41,14 +41,21 @@
       one field it could not be seen against. Measured: 1.74:1 median contrast
       along the stroke, 87% of it under 3:1.
 
-      Now the stroke runs deep blue where it lies on the gold (#3f52b5 on the
-      lune is 4.98:1) and near-white where it leaves the disc onto the sky
-      (7:1 and better). Same picture of a meteor; the gradient now agrees with
-      what is behind it instead of fighting it. Median goes to 3.29:1.
+      Now the stroke runs deep where it lies on the gold and near-white where it
+      leaves the disc onto the sky. Same picture of a meteor; the gradient agrees
+      with what is behind it instead of fighting it.
+
+      The middle stop is at 78% for a computed reason. The stroke crosses the
+      moon's limb at 80.7% along this gradient's axis, and an earlier version put
+      the stop at 55% — so the stroke was already turning pale over a quarter of
+      its length that was still on the gold, which measured 1.08:1 at its worst.
+      The stop belongs at the limb, not before it. If the path or the fill ever
+      changes, that crossing moves and this number moves with it; the test walks
+      the stroke and fails if any part of it goes light while still on the moon.
     -->
     <linearGradient id="meteor" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#3f52b5" stop-opacity="1" />
-      <stop offset="55%" stop-color="#6f8bf0" stop-opacity="1" />
+      <stop offset="0%" stop-color="#26326a" stop-opacity="1" />
+      <stop offset="78%" stop-color="#33449b" stop-opacity="1" />
       <stop offset="100%" stop-color="#f2f6ff" stop-opacity="1" />
     </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%">

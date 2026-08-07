@@ -821,6 +821,11 @@ undo by accident:
 - **The stroke survives 29px**, both in width and in contrast: the test checks that the
   dark end of the taper holds up against the gold and the hot end against the sky, which
   is the pairing the first version had exactly backwards.
+- **It never turns pale while it is still on the moon.** The stroke leaves the limb at
+  80.7% along the gradient's axis; a shipped build put the bright stop at 55%, so a
+  quarter of its length was going white against the gold and measured 1.08:1 at the worst
+  point. Checking the two end colours cannot see this — both ends were fine — so the test
+  interpolates the gradient at each point along the path and asks what is behind it.
 
 ## Layout
 

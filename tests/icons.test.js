@@ -48,6 +48,24 @@ function color(name) {
   return m[1];
 }
 
+/** The meteor's polyline, as [x, y] pairs in SVG user units. */
+function meteorPath() {
+  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
+  return [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
+}
+
+/** The meteor gradient's stops, offsets normalised to 0..1. */
+function gradientStops() {
+  const block = SVG.match(/<linearGradient id="meteor"[^>]*>([\s\S]*?)<\/linearGradient>/)[1];
+  return [...block.matchAll(/offset="(\d+)%" stop-color="(#[0-9a-f]{6})" stop-opacity="([\d.]+)"/g)]
+    .map((m) => ({ at: Number(m[1]) / 100, color: m[2], opacity: Number(m[3]) }));
+}
+
+// The two fields the stroke actually lands on. LUNE_DARK is the lit lune's own
+// gradient at its dark end — the worst case the stroke has to survive on gold.
+const LUNE_DARK = '#cbb98f';
+const SKY = '#0a1030';
+
 test('the moon is in the same place in both renderers', () => {
   const disc = circles().filter((c) => c.r === 126);
   assert.equal(disc.length, 2, 'expected a filled disc and a rim stroke');
@@ -245,16 +263,62 @@ test('each end of the meteor has contrast against the field it lands on', () => 
   // The first draft faded 50%-opacity blue to near-white, which put the dim end
   // on the navy and the hot end on the gold — each on the one field it could
   // not be seen against. If someone flips these stops back, this fails.
-  const stops = [...SVG.match(/<linearGradient id="meteor"[^>]*>([\s\S]*?)<\/linearGradient>/)[1]
-    .matchAll(/stop-color="(#[0-9a-f]{6})"/g)].map((m) => m[1]);
-  const [tail, , head] = stops;
-
-  const LUNE_DARK = '#cbb98f'; // the lune's own gradient at its dark end
-  const SKY = '#0a1030';
-
+  const [tail, , head] = gradientStops().map((s) => s.color);
   assert.ok(luminance(tail) < luminance(head), 'the tail must be the darker end');
-  assert.ok(contrast(tail, LUNE_DARK) >= 3, `tail on the gold is ${contrast(tail, LUNE_DARK).toFixed(2)}:1`);
+  assert.ok(contrast(tail, LUNE_DARK) >= 4.5, `tail on the gold is ${contrast(tail, LUNE_DARK).toFixed(2)}:1`);
   assert.ok(contrast(head, SKY) >= 4.5, `head on the sky is ${contrast(head, SKY).toFixed(2)}:1`);
+});
+
+test('the meteor never turns pale while it is still on the moon', () => {
+  // The failure this catches is subtle and was live in a shipped build: the
+  // gradient's bright stop sat at 55% while the stroke does not leave the moon's
+  // limb until 80.7% along the gradient axis, so a quarter of its length was
+  // going white against the gold — 1.08:1 at the worst point.
+  //
+  // Checking the two end colours is not enough to see it, because both ends were
+  // fine. It only shows up by interpolating the gradient at each point and
+  // asking what is behind that point, which is what this does.
+  const cx = units('MOON_X');
+  const cy = units('MOON_Y');
+  const r = units('MOON_R');
+  const stops = gradientStops();
+  const points = meteorPath();
+
+  // The gradient is an objectBoundingBox one from the box's bottom-left corner
+  // to its top-right — the same axis tools/make-icons.mjs reproduces.
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
+  const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
+  const axis = (x, y) => Math.max(0, Math.min(1, ((x - x0) / (x1 - x0) + (y1 - y) / (y1 - y0)) / 2));
+
+  const colorAt = (g) => {
+    let lo = stops[0];
+    let hi = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i += 1) {
+      if (g >= stops[i].at && g <= stops[i + 1].at) { lo = stops[i]; hi = stops[i + 1]; }
+    }
+    const t = hi.at === lo.at ? 0 : (g - lo.at) / (hi.at - lo.at);
+    const chan = (c, i) => parseInt(c.slice(1 + i * 2, 3 + i * 2), 16);
+    return `#${[0, 1, 2].map((i) => Math.round(chan(lo.color, i) + (chan(hi.color, i) - chan(lo.color, i)) * t)
+      .toString(16).padStart(2, '0')).join('')}`;
+  };
+
+  let worst = { ratio: Infinity };
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const [ax, ay] = points[i];
+    const [bx, by] = points[i + 1];
+    const steps = Math.ceil(Math.hypot(bx - ax, by - ay));
+    for (let s = 0; s <= steps; s += 1) {
+      const t = s / steps;
+      const x = ax + (bx - ax) * t;
+      const y = ay + (by - ay) * t;
+      if (Math.hypot(x - cx, y - cy) > r) continue; // off the disc; the sky is its own case
+      const ratio = contrast(colorAt(axis(x, y)), LUNE_DARK);
+      if (ratio < worst.ratio) worst = { ratio, x: Math.round(x), y: Math.round(y) };
+    }
+  }
+  assert.ok(worst.ratio >= 3, `weakest point on the gold is ${worst.ratio.toFixed(2)}:1 at ${worst.x},${worst.y}`);
 });
 
 test('the icon carries no baked corner radius', () => {

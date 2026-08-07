@@ -3,3 +3,20 @@ node_modules/
 *.log
 .vscode/
 .idea/
+
+# Xcode. Added before the project moved in, so the first commit of ios/ does not
+# drag half a gigabyte of DerivedData and per-user window state along with it.
+# xcuserdata is the one that catches people out: it changes every time anyone
+# opens the project, so it turns every commit into a diff about which file you
+# had selected.
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/**/DerivedData/
+ios/**/build/
+ios/**/.swiftpm/
+*.xcuserstate
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip

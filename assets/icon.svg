@@ -6,7 +6,7 @@
     category. It says progress without a bar chart and night without a tick.
 
     The lune is the same geometry sky.js uses — a right semicircle joined to a
-    terminator ellipse of x-radius r * |1 - 2 * fill| — drawn here at fill 0.68.
+    terminator ellipse of x-radius r * |1 - 2 * fill| — drawn here at fill 0.62.
     Gibbous rather than half on purpose: an exact semicircle reads as a shape
     with a straight edge, not as a moon.
 
@@ -27,10 +27,12 @@
       <stop offset="0%" stop-color="#f7f0dc" />
       <stop offset="100%" stop-color="#cbb98f" />
     </linearGradient>
-    <linearGradient id="meteor" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#7d9bff" stop-opacity="0" />
-      <stop offset="55%" stop-color="#a9bcff" stop-opacity=".8" />
-      <stop offset="100%" stop-color="#eaf0ff" stop-opacity="1" />
+    <!-- Bottom-left to top-right, which is the direction the meteor travels, so
+         the stroke is dimmest where it entered and solid where the head is. -->
+    <linearGradient id="meteor" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6d8cff" stop-opacity=".5" />
+      <stop offset="45%" stop-color="#7d9bff" stop-opacity="1" />
+      <stop offset="100%" stop-color="#b9caff" stop-opacity="1" />
     </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%">
       <stop offset="0%" stop-color="#7d9bff" stop-opacity=".34" />
@@ -53,20 +55,33 @@
   <path d="M262 122 A126 126 0 0 1 262 374 A30 126 0 0 1 262 122 Z" fill="url(#moon)" />
 
   <!--
-    A meteor, because js/main.js:161 fires shootingStar() on every check-off.
-    It is the app's own way of saying "done" — which is the job the checkmark
-    was doing, in this app's vocabulary rather than in the generic one. It also
-    does the two things the composition needed and the moon alone could not: a
-    second element, and the only straight line among all these circles.
+    A meteor flying the path of a checkmark, across the moon.
+
+    Both halves of that are load-bearing. It is a meteor because js/main.js:161
+    fires shootingStar() on every check-off, so this is the app's own way of
+    saying "done" rather than the generic one — and because a meteor can fade
+    out at the tail, which is what stops it reading as a stock tick lifted off
+    any other to-do app. It is a checkmark because that is the shape a person
+    recognises in the third of a second an icon gets.
+
+    It crosses the moon, and that is the whole point of the arrangement. An
+    earlier draft put the meteor up in the corner, clear of everything; it
+    disappeared into the composition and became a third tier of background,
+    sitting with the stars. Overlapping the main element is what forces the eye
+    to read something as a second subject rather than as scenery.
 
     Thick on purpose. A 3px stroke on a 512 canvas is a sixth of a pixel at the
-    29px this has to survive; 15 with a round cap is about one, which is the
-    floor for a thing that is meant to be seen at all.
+    29px this has to survive; 29 with a round cap is about 1.6, which is the
+    floor for a thing meant to be seen at all. The vertex sits below the moon's
+    centre so the long arm crosses the lit lune, where blue on cream carries the
+    contrast — the tail is the faint end and it lies over the unlit half, which
+    is the one place a low-contrast stroke costs nothing.
   -->
   <g>
-    <path d="M322 74 L436 164" stroke="url(#meteor)" stroke-width="15" stroke-linecap="round" fill="none" />
-    <circle cx="438" cy="166" r="15" fill="#eaf0ff" opacity=".28" />
-    <circle cx="438" cy="166" r="9" fill="#f6f9ff" />
+    <path d="M178 258 L246 326 L400 154" stroke="url(#meteor)" stroke-width="29"
+          stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    <circle cx="400" cy="154" r="27" fill="#dfe8ff" opacity=".2" />
+    <circle cx="400" cy="154" r="14" fill="#f6f9ff" />
   </g>
 
   <g fill="#eaf0ff">

@@ -51,8 +51,9 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
  *
  * Two renderers of one image is exactly the drift this project keeps getting
  * caught by, so it is worth saying what has to stay in step: the moon centre,
- * the radius, the fill fraction, and the fact that there is no checkmark. If
- * you change the SVG, change this, then run it and look at both.
+ * the radius, the fill fraction, and the meteor's path. tests/icons.test.js
+ * reads the numbers back out of both files and compares them, so a change here
+ * that is not also a change there fails. Run it and look at both anyway.
  */
 const MOON_X = 262 / 512;
 const MOON_Y = 248 / 512;
@@ -62,14 +63,43 @@ const FILL = 0.62;
 const TERMINATOR_RX = MOON_R * Math.abs(1 - 2 * FILL);
 const MOON_UNLIT = hex('#39457e');
 const MOON_RIM = hex('#5866a8');
-// The meteor, which is what shootingStar() draws when you tick something off.
-const METEOR = [[322 / 512, 74 / 512], [436 / 512, 164 / 512]];
-const METEOR_W = 7.5 / 512;
-const METEOR_HEAD = [438 / 512, 166 / 512];
-const HEAD_R = 9 / 512;
-const HALO_R = 15 / 512;
-const METEOR_TAIL = hex('#7d9bff');
+// The meteor — which is what shootingStar() draws when you tick something off —
+// flying the path of a checkmark across the moon. Two segments, round joined.
+const METEOR = [[178 / 512, 258 / 512], [246 / 512, 326 / 512], [400 / 512, 154 / 512]];
+const METEOR_W = 14.5 / 512; // half of the SVG's stroke-width
+const METEOR_HEAD = [400 / 512, 154 / 512];
+const HEAD_R = 14 / 512;
+const HALO_R = 27 / 512;
+const METEOR_DIM = hex('#6d8cff');
+const METEOR_MID = hex('#7d9bff');
+const METEOR_LIT = hex('#b9caff');
+const METEOR_HALO = hex('#dfe8ff');
 const METEOR_HOT = hex('#f6f9ff');
+// One pixel of feather at 512, on top of the supersampling.
+const FEATHER = 1.5 / 512;
+
+/**
+ * The SVG's stroke gradient, which is an objectBoundingBox one running from the
+ * box's bottom-left corner to its top-right. Reproduced rather than approximated
+ * with arc length along the path: the two differ, because the checkmark doubles
+ * back on itself and the vertex sits at a *lower* point on this axis than the
+ * tail does. Arc length would brighten the short arm; this does not, which is
+ * what makes the two arms read as one continuous streak.
+ */
+const BOX_X = Math.min(...METEOR.map((p) => p[0]));
+const BOX_Y = Math.min(...METEOR.map((p) => p[1]));
+const BOX_W = Math.max(...METEOR.map((p) => p[0])) - BOX_X;
+const BOX_H = Math.max(...METEOR.map((p) => p[1])) - BOX_Y;
+const GRAD_STOP = 0.45;
+
+function meteorPaint(x, y) {
+  const g = Math.max(0, Math.min(1, ((x - BOX_X) / BOX_W + (BOX_Y + BOX_H - y) / BOX_H) / 2));
+  if (g < GRAD_STOP) {
+    const t = g / GRAD_STOP;
+    return { color: mix(METEOR_DIM, METEOR_MID, t), alpha: 0.5 + 0.5 * t };
+  }
+  return { color: mix(METEOR_MID, METEOR_LIT, (g - GRAD_STOP) / (1 - GRAD_STOP)), alpha: 1 };
+}
 
 function sample(u, v, { maskable }) {
   const inset = maskable ? 0.1 : 0;
@@ -115,21 +145,28 @@ function sample(u, v, { maskable }) {
     }
   }
 
-  // The meteor last, so it reads over the moon's glow. Its brightness ramps
-  // along the segment the way the SVG's gradient does — dim at the tail, hot at
-  // the head — which is also how sky.js draws one.
-  const [[mx1, my1], [mx2, my2]] = METEOR;
-  const dMeteor = distanceToSegment(x, y, mx1, my1, mx2, my2);
-  if (dMeteor <= METEOR_W) {
-    const dx = mx2 - mx1;
-    const dy = my2 - my1;
-    const t = Math.max(0, Math.min(1, ((x - mx1) * dx + (y - my1) * dy) / (dx * dx + dy * dy)));
-    const edge = 1 - (dMeteor / METEOR_W) ** 2;
-    color = mix(color, mix(METEOR_TAIL, METEOR_HOT, t), Math.min(1, t * 1.15) * edge);
+  // The meteor last, so it crosses the moon rather than hiding behind it.
+  //
+  // Distance to the polyline is the minimum over its segments, which is exactly
+  // a union of round-capped capsules — so stroke-linecap and stroke-linejoin
+  // both come out round for free, matching the SVG without a special case at
+  // the vertex.
+  let dMeteor = Infinity;
+  for (let i = 0; i < METEOR.length - 1; i += 1) {
+    const [x1, y1] = METEOR[i];
+    const [x2, y2] = METEOR[i + 1];
+    dMeteor = Math.min(dMeteor, distanceToSegment(x, y, x1, y1, x2, y2));
+  }
+  const cover = Math.max(0, Math.min(1, (METEOR_W - dMeteor) / FEATHER));
+  if (cover > 0) {
+    const { color: paint, alpha } = meteorPaint(x, y);
+    color = mix(color, paint, alpha * cover);
   }
   const fromHead = Math.hypot(x - METEOR_HEAD[0], y - METEOR_HEAD[1]);
-  if (fromHead < HALO_R) color = mix(color, METEOR_HOT, 0.28 * (1 - fromHead / HALO_R));
-  if (fromHead <= HEAD_R) color = METEOR_HOT.slice();
+  if (fromHead < HALO_R) color = mix(color, METEOR_HALO, 0.2 * (1 - fromHead / HALO_R));
+  if (fromHead <= HEAD_R) {
+    color = mix(color, METEOR_HOT, Math.max(0, Math.min(1, (HEAD_R - fromHead) / FEATHER)));
+  }
 
   return color;
 }

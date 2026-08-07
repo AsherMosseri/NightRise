@@ -10,7 +10,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 
 const ROOT = new URL('../js/', import.meta.url);
 
@@ -121,4 +121,41 @@ test('nothing calls a name that exists in the project but was never brought in',
     }
   }
   assert.deepEqual([...new Set(problems)], []);
+});
+
+/* ------------------------------------------------- the service worker's list */
+
+test('every file the app loads is in the service worker precache', () => {
+  /* js/skins.js was missing from this list for its entire life, and the failure
+     mode is the worst kind: completely silent.
+
+     Precached files are served from the cache; anything else has to come from
+     the network. skins.js is imported by dom.js, shop.js, achievements.js,
+     main.js and envelope-open.js — so on a phone with sleeping wifi it was the
+     one module that could fail, and when it did it took dom.js with it. No
+     icon() meant no toolbar, no `+` on Add a task, no Lights out. The app came
+     up as a logo, an empty panel and one dashed button, and reported no error
+     at all: a failed module in an import graph does not reach `pageerror`.
+
+     A hand-maintained list against a directory that grows is the same shape as
+     the achievements CATALOG that drifted and handed out a free tier. That one
+     could be derived from the data; this one cannot, because a service worker
+     has no build step to generate it. So it gets a test instead. */
+  const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  const listed = new Set([...sw.matchAll(/'\.\/([^']+)'/g)].map((m) => m[1]));
+
+  const css = readdirSync(new URL('../css/', import.meta.url))
+    .filter((n) => n.endsWith('.css')).map((n) => `css/${n}`);
+  const shipped = [...FILES.map((f) => f.path), ...css];
+  assert.ok(shipped.length > 40, `only ${shipped.length} shipped files found — check the walk`);
+
+  const missing = shipped.filter((f) => !listed.has(f));
+  assert.deepEqual(missing, [],
+    'these are loaded by the app and would have to come from the network');
+
+  // And the other way: a listed asset that no longer exists makes install()
+  // reject, which means the new cache is never populated and the old worker
+  // stays live — an update that silently does nothing.
+  const orphaned = [...listed].filter((a) => a !== '' && !existsSync(new URL(`../${a}`, import.meta.url)));
+  assert.deepEqual(orphaned, [], 'listed in sw.js but not on disk — install() would reject');
 });

@@ -162,7 +162,8 @@ test('the stroke gradient matches in both renderers', () => {
 
   assert.deepEqual(stops.map((s) => s.color), [color('METEOR_DIM'), color('METEOR_MID'), color('METEOR_LIT')]);
   assert.equal(stops[1].at, Number(RASTER.match(/const GRAD_STOP = ([\d.]+);/)[1]));
-  assert.deepEqual(stops.map((s) => s.opacity), [0.5, 1, 1]);
+  // Fully opaque throughout. The taper is in value, not in alpha — see below.
+  assert.deepEqual(stops.map((s) => s.opacity), [1, 1, 1]);
 
   // It runs bottom-left to top-right, the direction of travel. If this axis
   // ever flips, the streak brightens at the tail instead of at the head and the
@@ -172,14 +173,88 @@ test('the stroke gradient matches in both renderers', () => {
   assert.deepEqual(axis, [0, 1, 1, 0]);
 });
 
-test('the tail fades but never to nothing', () => {
-  // A stroke that reaches zero opacity vanishes into the unlit half of the moon
-  // and the short arm of the check goes missing, which is what the first draft
-  // did. The floor is what keeps both arms readable at 29px.
-  const block = SVG.match(/<linearGradient id="meteor"[^>]*>([\s\S]*?)<\/linearGradient>/)[1];
-  const first = block.match(/offset="0%"[^/]*stop-opacity="([\d.]+)"/);
-  assert.ok(Number(first[1]) >= 0.4, 'the tail is too faint to survive the unlit half');
-  assert.ok(Number(first[1]) < 1, 'a meteor with no fade is just a checkmark');
+/* WCAG relative luminance, and the contrast ratio between two hex colours. */
+function luminance(hex) {
+  const chan = (i) => {
+    const s = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * chan(0) + 0.7152 * chan(1) + 0.0722 * chan(2);
+}
+const contrast = (a, b) => {
+  const [hi, lo] = luminance(a) > luminance(b) ? [a, b] : [b, a];
+  return (luminance(hi) + 0.05) / (luminance(lo) + 0.05);
+};
+
+test('no part of the meteor lies on the moon\'s unlit half', () => {
+  // This is the constraint the whole colour scheme hangs on, so it is asserted
+  // rather than trusted. There is no blue that reads on both fields at once:
+  //
+  //   #7d9bff  3.44:1 on the unlit navy   1.36:1 on the gold
+  //   #2c3a7a  1.17:1 on the unlit navy   7.71:1 on the gold
+  //
+  // A stroke crossing the terminator is therefore illegible along part of its
+  // length whatever colour it is given. The first version of this icon crossed
+  // it, spent 26% of its length on the navy, and measured 1.74:1 median with
+  // 87% of the stroke under 3:1. The fix was geometric, not chromatic.
+  const cx = units('MOON_X');
+  const cy = units('MOON_Y');
+  const r = units('MOON_R');
+  const fill = Number(RASTER.match(/const FILL = ([\d.]+);/)[1]);
+  const rx = r * Math.abs(1 - 2 * fill);
+  const half = Number(SVG.match(/stroke="url\(#meteor\)"\s+stroke-width="(\d+)"/)[1]) / 2;
+
+  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
+  const points = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
+
+  // Sample the stroke's full covered area, not just its centreline: an edge
+  // sliding over the terminator is the failure this guards, and a centreline
+  // walk would not see it. The round caps bulge half a stroke-width *past* each
+  // endpoint too, so those are swept as discs rather than assumed away.
+  const onUnlit = [];
+  const test = (x, y) => {
+    if (Math.hypot(x - cx, y - cy) > r) return; // over the sky, which is fine
+    const ex = (x - cx) / rx;
+    const ey = (y - cy) / r;
+    if (!(x >= cx || ex * ex + ey * ey <= 1)) onUnlit.push([Math.round(x), Math.round(y)]);
+  };
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[i + 1];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const nx = -(y2 - y1) / len;
+    const ny = (x2 - x1) / len;
+    for (let s = 0; s <= Math.ceil(len); s += 1) {
+      const t = s / Math.ceil(len);
+      for (const off of [-half, -half / 2, 0, half / 2, half]) {
+        test(x1 + (x2 - x1) * t + nx * off, y1 + (y2 - y1) * t + ny * off);
+      }
+    }
+  }
+  for (const [px, py] of points) {
+    for (let a = 0; a < 32; a += 1) {
+      const th = (a / 32) * Math.PI * 2;
+      test(px + Math.cos(th) * half, py + Math.sin(th) * half);
+    }
+  }
+  assert.deepEqual(onUnlit.slice(0, 5), [], `${onUnlit.length} samples of the stroke sit on the unlit half`);
+});
+
+test('each end of the meteor has contrast against the field it lands on', () => {
+  // The taper is in value, not opacity, and it has to run the right way round.
+  // The first draft faded 50%-opacity blue to near-white, which put the dim end
+  // on the navy and the hot end on the gold — each on the one field it could
+  // not be seen against. If someone flips these stops back, this fails.
+  const stops = [...SVG.match(/<linearGradient id="meteor"[^>]*>([\s\S]*?)<\/linearGradient>/)[1]
+    .matchAll(/stop-color="(#[0-9a-f]{6})"/g)].map((m) => m[1]);
+  const [tail, , head] = stops;
+
+  const LUNE_DARK = '#cbb98f'; // the lune's own gradient at its dark end
+  const SKY = '#0a1030';
+
+  assert.ok(luminance(tail) < luminance(head), 'the tail must be the darker end');
+  assert.ok(contrast(tail, LUNE_DARK) >= 3, `tail on the gold is ${contrast(tail, LUNE_DARK).toFixed(2)}:1`);
+  assert.ok(contrast(head, SKY) >= 4.5, `head on the sky is ${contrast(head, SKY).toFixed(2)}:1`);
 });
 
 test('the icon carries no baked corner radius', () => {

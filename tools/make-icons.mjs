@@ -58,21 +58,23 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
 const MOON_X = 262 / 512;
 const MOON_Y = 248 / 512;
 const MOON_R = 126 / 512;
-const FILL = 0.62;
+const FILL = 0.72;
 // The terminator's x-radius, straight out of sky.js drawMoon: r * |1 - 2f|.
 const TERMINATOR_RX = MOON_R * Math.abs(1 - 2 * FILL);
 const MOON_UNLIT = hex('#39457e');
 const MOON_RIM = hex('#5866a8');
 // The meteor — which is what shootingStar() draws when you tick something off —
 // flying the path of a checkmark across the moon. Two segments, round joined.
-const METEOR = [[178 / 512, 258 / 512], [246 / 512, 326 / 512], [400 / 512, 154 / 512]];
+const METEOR = [[232 / 512, 258 / 512], [282 / 512, 324 / 512], [404 / 512, 158 / 512]];
 const METEOR_W = 14.5 / 512; // half of the SVG's stroke-width
-const METEOR_HEAD = [400 / 512, 154 / 512];
+const METEOR_HEAD = [404 / 512, 158 / 512];
 const HEAD_R = 14 / 512;
 const HALO_R = 27 / 512;
-const METEOR_DIM = hex('#6d8cff');
-const METEOR_MID = hex('#7d9bff');
-const METEOR_LIT = hex('#b9caff');
+// Deep where the stroke lies on the gold, hot where it leaves onto the sky. The
+// taper is in value rather than opacity — see the note in assets/icon.svg.
+const METEOR_DIM = hex('#3f52b5');
+const METEOR_MID = hex('#6f8bf0');
+const METEOR_LIT = hex('#f2f6ff');
 const METEOR_HALO = hex('#dfe8ff');
 const METEOR_HOT = hex('#f6f9ff');
 // One pixel of feather at 512, on top of the supersampling.
@@ -90,15 +92,13 @@ const BOX_X = Math.min(...METEOR.map((p) => p[0]));
 const BOX_Y = Math.min(...METEOR.map((p) => p[1]));
 const BOX_W = Math.max(...METEOR.map((p) => p[0])) - BOX_X;
 const BOX_H = Math.max(...METEOR.map((p) => p[1])) - BOX_Y;
-const GRAD_STOP = 0.45;
+const GRAD_STOP = 0.55;
 
 function meteorPaint(x, y) {
   const g = Math.max(0, Math.min(1, ((x - BOX_X) / BOX_W + (BOX_Y + BOX_H - y) / BOX_H) / 2));
-  if (g < GRAD_STOP) {
-    const t = g / GRAD_STOP;
-    return { color: mix(METEOR_DIM, METEOR_MID, t), alpha: 0.5 + 0.5 * t };
-  }
-  return { color: mix(METEOR_MID, METEOR_LIT, (g - GRAD_STOP) / (1 - GRAD_STOP)), alpha: 1 };
+  return g < GRAD_STOP
+    ? mix(METEOR_DIM, METEOR_MID, g / GRAD_STOP)
+    : mix(METEOR_MID, METEOR_LIT, (g - GRAD_STOP) / (1 - GRAD_STOP));
 }
 
 function sample(u, v, { maskable }) {
@@ -158,10 +158,7 @@ function sample(u, v, { maskable }) {
     dMeteor = Math.min(dMeteor, distanceToSegment(x, y, x1, y1, x2, y2));
   }
   const cover = Math.max(0, Math.min(1, (METEOR_W - dMeteor) / FEATHER));
-  if (cover > 0) {
-    const { color: paint, alpha } = meteorPaint(x, y);
-    color = mix(color, paint, alpha * cover);
-  }
+  if (cover > 0) color = mix(color, meteorPaint(x, y), cover);
   const fromHead = Math.hypot(x - METEOR_HEAD[0], y - METEOR_HEAD[1]);
   if (fromHead < HALO_R) color = mix(color, METEOR_HALO, 0.2 * (1 - fromHead / HALO_R));
   if (fromHead <= HEAD_R) {

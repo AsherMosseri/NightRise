@@ -808,10 +808,19 @@ node tools/make-icons.mjs
 That is one picture drawn twice, which is the exact shape of thing this repo keeps getting
 caught by, so `tests/icons.test.js` reads the geometry back out of both files and compares
 it — the moon's centre and radius, the fill fraction, the meteor's path, its stroke width,
-the gradient stops and the four stars. It also holds the two decisions that are easy to
-undo by accident: the meteor has to cross the moon (clear of it, it reads as scenery
-rather than as a second subject), and the stroke has to stay wide enough to survive the
-29px an iPhone home screen actually renders.
+the gradient stops and the four stars. It also holds the three decisions that are easy to
+undo by accident:
+
+- **The meteor crosses the moon.** Clear of it, it reads as scenery rather than as a
+  second subject.
+- **None of it touches the moon's unlit half.** No blue reads on both fields — the accent
+  gets 3.44:1 on the unlit navy and 1.36:1 on the gold, and a blue deep enough for the gold
+  (7.71:1) collapses to 1.17:1 on the navy — so a stroke that straddles the terminator is
+  illegible along part of its length whatever colour it is given. The first version
+  straddled it and measured 1.74:1 median with 87% of its length under 3:1.
+- **The stroke survives 29px**, both in width and in contrast: the test checks that the
+  dark end of the taper holds up against the gold and the hot end against the sky, which
+  is the pairing the first version had exactly backwards.
 
 ## Layout
 

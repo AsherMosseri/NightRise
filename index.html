@@ -87,6 +87,28 @@
     <div id="toasts-modal" class="toasts toasts--in-modal" aria-live="polite"></div>
   </dialog>
 
+  <!--
+    The service worker is registered here, inline, and NOT from a module.
+
+    It used to be registered inside js/updates.js, which is only reachable
+    through js/main.js — so it sat inside the very import graph it exists to
+    repair. When js/skins.js turned out to be missing from the precache list,
+    main.js never executed, updates.js never ran, and the app could not install
+    its own fix. The only way out was clearing website data by hand.
+
+    A recovery path must not depend on the thing it recovers. This script has no
+    imports and cannot fail with the app: however badly the modules break, the
+    next launch still fetches sw.js, and a new worker still takes over.
+    js/updates.js keeps everything else — the prompt, the reload, the version
+    line in Settings — and simply reuses this registration.
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.__swReady = navigator.serviceWorker.register('./sw.js')
+        .then((reg) => { reg.update().catch(() => {}); return reg; })
+        .catch(() => null);
+    }
+  </script>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

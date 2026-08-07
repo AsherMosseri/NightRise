@@ -155,7 +155,12 @@ export function initUpdates({ onUpdateReady } = {}) {
     if (notify) notify();
   });
 
-  navigator.serviceWorker.register('./sw.js').then((reg) => {
+  // Reuses the registration made by the inline script in index.html rather than
+  // making its own. That one runs outside the module graph on purpose — see the
+  // comment beside it — so this is only ever adopting a promise that has already
+  // been kicked off. `register` is idempotent per scope, so the fallback is safe.
+  (window.__swReady || navigator.serviceWorker.register('./sw.js')).then((reg) => {
+    if (!reg) return;
     registration = reg;
     // A worker that finished installing while the app was closed can be sitting
     // here waiting, and nothing will hand over to it on its own.

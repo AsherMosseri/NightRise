@@ -220,6 +220,16 @@ Each of these shipped, was found by measurement, and has a test holding it down.
 - **Measuring the wrong thing and believing it.** A contrast probe that returned
   1.00 everywhere; a horizon probe that returned Δ≈0 because the re-render did not
   apply cosmetics. **Invariance across inputs that should differ is the tell.**
+- **Testing the code instead of the artifact.** `js/skins.js` was never in the
+  service worker's precache list, for the entire life of the project. Everything
+  in that list is served from cache; anything else needs the network. Five
+  modules import skins.js, including `dom.js`, so a sleeping wifi took out
+  `icon()` and the app came up as a logo, an empty panel and one dashed button —
+  no toolbar, no `+`, no Lights out, no way to reach Settings. It reported
+  **nothing**: a failed module inside an import graph never reaches `pageerror`.
+  Every browser check ever run against this app passed while that sat there,
+  because they all ran against a local server where every file resolves. The code
+  was never wrong. **The delivery was, and nothing was looking at the delivery.**
 - **A CSS shorthand silently resetting a fix.** `background-origin`/`repeat` were
   set on `.swatch` and put straight back by `background:` on each sky. The fix
   looked identical to no fix. Only re-measuring caught it.
@@ -242,6 +252,23 @@ Each of these shipped, was found by measurement, and has a test holding it down.
    It must never compute a reward, judge an excuse, set a bedtime, or decide whether
    a night counted. Those stay in tested Swift. And nothing in this app is ever
    allowed to tell you it thinks you are lying.
+6. **Verify the artifact, not the tree.** A green test suite and a clean run on
+   a dev server say the source is right. They say nothing about what actually
+   reaches the device. Swift removes the specific bug above — assets are bundled
+   — and keeps the shape of it. The native versions to watch:
+   - a file added to the project but not to the **target's membership**, so it
+     compiles locally and is absent from the archive;
+   - `UIImage(named:)` / `Image("…")` against an asset-catalog name that does not
+     exist — returns nil or a blank, never throws;
+   - `Info.plist` usage keys missing, so a permission prompt never appears and
+     the capability just quietly does nothing;
+   - a SwiftData migration that is only ever exercised on a fresh install;
+   - entitlements that work from Xcode on a device and fail on TestFlight,
+     which is already noted under Shipping.
+
+   The rule that follows: **run the release build on a real device, from
+   TestFlight, on a bad network, before believing anything.** And treat a
+   silent failure as more dangerous than a loud one — the loud ones get fixed.
 
 ---
 

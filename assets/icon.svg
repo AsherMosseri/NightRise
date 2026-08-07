@@ -1,18 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <!--
-    The moon, part filled. Which is the app: drawMoon() paints the disc in the
-    shadow tone and then fills a lit lune across it as tonight's list gets done,
-    so a partly lit moon is a picture of the mechanic rather than a label for the
-    category. It says progress without a bar chart and night without a tick.
+    A part-filled moon, and a checkmark on the open sky that reaches into it.
 
-    The lune is the same geometry sky.js uses — a right semicircle joined to a
-    terminator ellipse of x-radius r * |1 - 2 * fill| — drawn here at fill 0.72.
-    Gibbous rather than half on purpose: an exact semicircle reads as a shape
-    with a straight edge, not as a moon.
+    The moon is the app: drawMoon() paints the disc in the shadow tone and fills
+    a lit lune across it as tonight's list gets done, so a partly lit moon is a
+    picture of the mechanic rather than a label for the category. The lune is the
+    same geometry sky.js uses — a right semicircle joined to a terminator ellipse
+    of x-radius r * |1 - 2 * fill| — drawn here at fill 0.62. Gibbous rather than
+    half on purpose: an exact semicircle reads as a shape with a straight edge,
+    not as a moon.
 
-    0.72 rather than 0.62 for a measured reason, not a taste one: the meteor has
-    to fit entirely on the lit side (see below), and at 0.62 the lit field is too
-    narrow to hold a full-size one.
+    The checkmark sits mostly on the dark sky, and that is the whole reason the
+    composition is arranged this way. Measured, the accent blue against each
+    field it could lie on:
+
+      dark sky   #0a1030    7.09:1
+      unlit half #39457e    3.44:1
+      lit lune   #cbb98f    1.36:1
+
+    Blue on the gold is the worst pairing available, not the best — a draft that
+    ran the mark across the lit face measured 1.74:1 median with 87% of its
+    length under 3:1, and no choice of blue fixes it, because any blue deep
+    enough for the gold (7.71:1) collapses to 1.17:1 on the navy. So the mark
+    goes where the contrast already is. It runs across the sky at 7:1, and only
+    its tip enters the disc, landing in the shadow side rather than the lit one.
+    Median along the stroke is 7.09:1, matching the original logo exactly, and no
+    point of it — cap edges included — falls below 3.44:1.
+
+    Flat, not tapered. A gradient buys a meteor reading and costs contrast at
+    exactly the end where the stroke is thinnest to the eye; on a mark this size
+    the trade is not worth making twice.
 
     Square, with no baked corner radius. Every platform that shows this applies
     its own mask, and a pre-rounded asset gets rounded twice or picks up dark
@@ -31,33 +48,6 @@
       <stop offset="0%" stop-color="#f7f0dc" />
       <stop offset="100%" stop-color="#cbb98f" />
     </linearGradient>
-    <!--
-      Bottom-left to top-right, the direction the meteor travels: deep where it
-      entered, hot where the head is.
-
-      The taper is in *value*, not in opacity, and that is the whole point. The
-      first draft faded from 50% opacity to near-white, which put its dim end on
-      the moon's unlit half and its bright end on the lit lune — each end on the
-      one field it could not be seen against. Measured: 1.74:1 median contrast
-      along the stroke, 87% of it under 3:1.
-
-      Now the stroke runs deep where it lies on the gold and near-white where it
-      leaves the disc onto the sky. Same picture of a meteor; the gradient agrees
-      with what is behind it instead of fighting it.
-
-      The middle stop is at 78% for a computed reason. The stroke crosses the
-      moon's limb at 80.7% along this gradient's axis, and an earlier version put
-      the stop at 55% — so the stroke was already turning pale over a quarter of
-      its length that was still on the gold, which measured 1.08:1 at its worst.
-      The stop belongs at the limb, not before it. If the path or the fill ever
-      changes, that crossing moves and this number moves with it; the test walks
-      the stroke and fails if any part of it goes light while still on the moon.
-    -->
-    <linearGradient id="meteor" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#26326a" stop-opacity="1" />
-      <stop offset="78%" stop-color="#33449b" stop-opacity="1" />
-      <stop offset="100%" stop-color="#f2f6ff" stop-opacity="1" />
-    </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%">
       <stop offset="0%" stop-color="#7d9bff" stop-opacity=".34" />
       <stop offset="100%" stop-color="#7d9bff" stop-opacity="0" />
@@ -65,59 +55,38 @@
   </defs>
 
   <rect width="512" height="512" fill="url(#bg)" />
-  <circle cx="262" cy="248" r="190" fill="url(#glow)" />
+  <circle cx="322" cy="184" r="159" fill="url(#glow)" />
 
-  <!-- The unlit disc, and it has to be clearly visible. The first attempt drew
-       it at #232a52, which vanished into the glow and left the lit lune reading
-       as a lopsided blob — no circle for it to be a fraction of, so the whole
-       idea went missing. It is the part that is not done yet; it has to be
-       legible or the icon says nothing. -->
-  <circle cx="262" cy="248" r="126" fill="#39457e" />
-  <circle cx="262" cy="248" r="126" fill="none" stroke="#5866a8" stroke-width="3" opacity=".8" />
+  <!-- The unlit disc, and it has to be clearly visible. An early attempt drew it
+       at #232a52, which vanished into the glow and left the lit lune reading as
+       a lopsided blob — no circle for it to be a fraction of, so the whole idea
+       went missing. It is the part that is not done yet; it has to be legible or
+       the icon says nothing. -->
+  <circle cx="322" cy="184" r="106" fill="#39457e" />
+  <circle cx="322" cy="184" r="106" fill="none" stroke="#5866a8" stroke-width="3" opacity=".8" />
 
-  <!-- The lit lune at fill 0.72. rx = 126 * |1 - 2(0.72)| = 55. -->
-  <path d="M262 122 A126 126 0 0 1 262 374 A55 126 0 0 1 262 122 Z" fill="url(#moon)" />
+  <!-- The lit lune at fill 0.62. rx = 106 * |1 - 2(0.62)| = 25. -->
+  <path d="M322 78 A106 106 0 0 1 322 290 A25 106 0 0 1 322 78 Z" fill="url(#moon)" />
 
   <!--
-    A meteor flying the path of a checkmark, across the moon.
+    The checkmark. Thick on purpose: a 3px stroke on a 512 canvas is a sixth of a
+    pixel at the 29px this has to survive, and 34 with a round cap is about two.
 
-    Both halves of that are load-bearing. It is a meteor because js/main.js:161
-    fires shootingStar() on every check-off, so this is the app's own way of
-    saying "done" rather than the generic one — and because a meteor can fade
-    out at the tail, which is what stops it reading as a stock tick lifted off
-    any other to-do app. It is a checkmark because that is the shape a person
-    recognises in the third of a second an icon gets.
-
-    It crosses the moon, and that is the whole point of the arrangement. An
-    earlier draft put the meteor up in the corner, clear of everything; it
-    disappeared into the composition and became a third tier of background,
-    sitting with the stars. Overlapping the main element is what forces the eye
-    to read something as a second subject rather than as scenery.
-
-    Thick on purpose. A 3px stroke on a 512 canvas is a sixth of a pixel at the
-    29px this has to survive; 29 with a round cap is about 1.6, which is the
-    floor for a thing meant to be seen at all.
-
-    Every point of it lies on the lit lune or on the open sky, and none of it on
-    the moon's unlit half. That is a hard constraint, not a preference. There is
-    no blue that works on both fields: the accent gets 3.44:1 on the unlit navy
-    but 1.36:1 on the gold, and a blue deep enough for the gold (7.71:1) drops to
-    1.17:1 on the navy. A stroke that straddles the terminator therefore has to
-    be illegible along part of its length whatever colour it is picked in, so it
-    does not straddle it. It enters on the gold and leaves over the sky, and the
-    gradient above changes value to suit each.
+    The tip stops at 286,272. Not 296,270, which is where it sat first and looks
+    identical: at that point the stroke's round cap overhangs the terminator by a
+    few pixels onto the lit face, and those few pixels are at 1.36:1. Pulling the
+    tip back 10 units puts the entire cap in shadow and takes the weakest point
+    of the whole mark to 3.44:1 — the floor for blue on the unlit navy — at a
+    cost of about two percent of the overlap. The centreline was clear either
+    way; only sweeping the stroke's full covered area finds it.
   -->
-  <g>
-    <path d="M232 258 L282 324 L404 158" stroke="url(#meteor)" stroke-width="29"
-          stroke-linecap="round" stroke-linejoin="round" fill="none" />
-    <circle cx="404" cy="158" r="27" fill="#dfe8ff" opacity=".2" />
-    <circle cx="404" cy="158" r="14" fill="#f6f9ff" />
-  </g>
+  <path d="M118 316 L186 388 L286 272" fill="none" stroke="#7d9bff" stroke-width="34"
+        stroke-linecap="round" stroke-linejoin="round" />
 
   <g fill="#eaf0ff">
-    <circle cx="96" cy="106" r="11" opacity=".95" />
-    <circle cx="70" cy="196" r="6.5" opacity=".55" />
-    <circle cx="430" cy="418" r="8" opacity=".6" />
-    <circle cx="366" cy="462" r="6" opacity=".45" />
+    <circle cx="96" cy="106" r="10" opacity=".9" />
+    <circle cx="150" cy="66" r="6" opacity=".6" />
+    <circle cx="440" cy="404" r="7.5" opacity=".55" />
+    <circle cx="382" cy="460" r="5.5" opacity=".45" />
   </g>
 </svg>

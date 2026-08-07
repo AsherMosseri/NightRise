@@ -51,55 +51,27 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
  *
  * Two renderers of one image is exactly the drift this project keeps getting
  * caught by, so it is worth saying what has to stay in step: the moon centre,
- * the radius, the fill fraction, and the meteor's path. tests/icons.test.js
+ * the radius, the fill fraction, and the checkmark's path. tests/icons.test.js
  * reads the numbers back out of both files and compares them, so a change here
  * that is not also a change there fails. Run it and look at both anyway.
  */
-const MOON_X = 262 / 512;
-const MOON_Y = 248 / 512;
-const MOON_R = 126 / 512;
-const FILL = 0.72;
+const MOON_X = 322 / 512;
+const MOON_Y = 184 / 512;
+const MOON_R = 106 / 512;
+const GLOW_R = 159 / 512;
+const FILL = 0.62;
 // The terminator's x-radius, straight out of sky.js drawMoon: r * |1 - 2f|.
 const TERMINATOR_RX = MOON_R * Math.abs(1 - 2 * FILL);
 const MOON_UNLIT = hex('#39457e');
 const MOON_RIM = hex('#5866a8');
-// The meteor — which is what shootingStar() draws when you tick something off —
-// flying the path of a checkmark across the moon. Two segments, round joined.
-const METEOR = [[232 / 512, 258 / 512], [282 / 512, 324 / 512], [404 / 512, 158 / 512]];
-const METEOR_W = 14.5 / 512; // half of the SVG's stroke-width
-const METEOR_HEAD = [404 / 512, 158 / 512];
-const HEAD_R = 14 / 512;
-const HALO_R = 27 / 512;
-// Deep where the stroke lies on the gold, hot where it leaves onto the sky. The
-// taper is in value rather than opacity — see the note in assets/icon.svg.
-const METEOR_DIM = hex('#26326a');
-const METEOR_MID = hex('#33449b');
-const METEOR_LIT = hex('#f2f6ff');
-const METEOR_HALO = hex('#dfe8ff');
-const METEOR_HOT = hex('#f6f9ff');
+// The checkmark: two segments, round joined, flat accent blue. It lies mostly on
+// the open sky because that is where the contrast is — see assets/icon.svg for
+// the measurements behind that.
+const CHECK = [[118 / 512, 316 / 512], [186 / 512, 388 / 512], [286 / 512, 272 / 512]];
+const CHECK_W = 17 / 512; // half of the SVG's stroke-width
+const CHECK_COLOR = hex('#7d9bff');
 // One pixel of feather at 512, on top of the supersampling.
 const FEATHER = 1.5 / 512;
-
-/**
- * The SVG's stroke gradient, which is an objectBoundingBox one running from the
- * box's bottom-left corner to its top-right. Reproduced rather than approximated
- * with arc length along the path: the two differ, because the checkmark doubles
- * back on itself and the vertex sits at a *lower* point on this axis than the
- * tail does. Arc length would brighten the short arm; this does not, which is
- * what makes the two arms read as one continuous streak.
- */
-const BOX_X = Math.min(...METEOR.map((p) => p[0]));
-const BOX_Y = Math.min(...METEOR.map((p) => p[1]));
-const BOX_W = Math.max(...METEOR.map((p) => p[0])) - BOX_X;
-const BOX_H = Math.max(...METEOR.map((p) => p[1])) - BOX_Y;
-const GRAD_STOP = 0.78;
-
-function meteorPaint(x, y) {
-  const g = Math.max(0, Math.min(1, ((x - BOX_X) / BOX_W + (BOX_Y + BOX_H - y) / BOX_H) / 2));
-  return g < GRAD_STOP
-    ? mix(METEOR_DIM, METEOR_MID, g / GRAD_STOP)
-    : mix(METEOR_MID, METEOR_LIT, (g - GRAD_STOP) / (1 - GRAD_STOP));
-}
 
 function sample(u, v, { maskable }) {
   const inset = maskable ? 0.1 : 0;
@@ -115,8 +87,8 @@ function sample(u, v, { maskable }) {
 
   // Stars. Fat on purpose: the old ones were r=0.008 of the canvas, which is
   // under half a pixel at the 60x60 this is actually looked at.
-  const stars = [[0.1875, 0.207, 0.0215, 0.95], [0.137, 0.383, 0.0127, 0.55],
-    [0.840, 0.816, 0.0156, 0.6], [0.715, 0.902, 0.0117, 0.45]];
+  const stars = [[0.1875, 0.207, 0.0195, 0.9], [0.293, 0.129, 0.0117, 0.6],
+    [0.859, 0.789, 0.0146, 0.55], [0.746, 0.898, 0.0107, 0.45]];
   for (const [sx, sy, sr, alpha] of stars) {
     const d = Math.hypot(x - sx, y - sy);
     if (d < sr) color = mix(color, STAR, alpha);
@@ -126,8 +98,7 @@ function sample(u, v, { maskable }) {
   const fromMoon = Math.hypot(x - MOON_X, y - MOON_Y);
 
   // Moon glow.
-  const reach = 190 / 512;
-  if (fromMoon < reach) color = mix(color, ACCENT, 0.34 * (1 - fromMoon / reach));
+  if (fromMoon < GLOW_R) color = mix(color, ACCENT, 0.34 * (1 - fromMoon / GLOW_R));
 
   if (fromMoon <= MOON_R) {
     // The whole disc first — the part that is not done yet has to be visible,
@@ -145,25 +116,20 @@ function sample(u, v, { maskable }) {
     }
   }
 
-  // The meteor last, so it crosses the moon rather than hiding behind it.
+  // The checkmark last, so its tip reads over the moon rather than behind it.
   //
   // Distance to the polyline is the minimum over its segments, which is exactly
   // a union of round-capped capsules — so stroke-linecap and stroke-linejoin
   // both come out round for free, matching the SVG without a special case at
   // the vertex.
-  let dMeteor = Infinity;
-  for (let i = 0; i < METEOR.length - 1; i += 1) {
-    const [x1, y1] = METEOR[i];
-    const [x2, y2] = METEOR[i + 1];
-    dMeteor = Math.min(dMeteor, distanceToSegment(x, y, x1, y1, x2, y2));
+  let dCheck = Infinity;
+  for (let i = 0; i < CHECK.length - 1; i += 1) {
+    const [x1, y1] = CHECK[i];
+    const [x2, y2] = CHECK[i + 1];
+    dCheck = Math.min(dCheck, distanceToSegment(x, y, x1, y1, x2, y2));
   }
-  const cover = Math.max(0, Math.min(1, (METEOR_W - dMeteor) / FEATHER));
-  if (cover > 0) color = mix(color, meteorPaint(x, y), cover);
-  const fromHead = Math.hypot(x - METEOR_HEAD[0], y - METEOR_HEAD[1]);
-  if (fromHead < HALO_R) color = mix(color, METEOR_HALO, 0.2 * (1 - fromHead / HALO_R));
-  if (fromHead <= HEAD_R) {
-    color = mix(color, METEOR_HOT, Math.max(0, Math.min(1, (HEAD_R - fromHead) / FEATHER)));
-  }
+  const cover = Math.max(0, Math.min(1, (CHECK_W - dCheck) / FEATHER));
+  if (cover > 0) color = mix(color, CHECK_COLOR, cover);
 
   return color;
 }

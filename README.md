@@ -807,25 +807,22 @@ node tools/make-icons.mjs
 
 That is one picture drawn twice, which is the exact shape of thing this repo keeps getting
 caught by, so `tests/icons.test.js` reads the geometry back out of both files and compares
-it — the moon's centre and radius, the fill fraction, the meteor's path, its stroke width,
-the gradient stops and the four stars. It also holds the three decisions that are easy to
-undo by accident:
+it — the moon's centre, radius and glow, the fill fraction, the checkmark's path, its
+stroke width and colour, and the four stars. It also holds the decisions that took several
+attempts to get right and are easy to undo by accident:
 
-- **The meteor crosses the moon.** Clear of it, it reads as scenery rather than as a
-  second subject.
-- **None of it touches the moon's unlit half.** No blue reads on both fields — the accent
-  gets 3.44:1 on the unlit navy and 1.36:1 on the gold, and a blue deep enough for the gold
-  (7.71:1) collapses to 1.17:1 on the navy — so a stroke that straddles the terminator is
-  illegible along part of its length whatever colour it is given. The first version
-  straddled it and measured 1.74:1 median with 87% of its length under 3:1.
-- **The stroke survives 29px**, both in width and in contrast: the test checks that the
-  dark end of the taper holds up against the gold and the hot end against the sky, which
-  is the pairing the first version had exactly backwards.
-- **It never turns pale while it is still on the moon.** The stroke leaves the limb at
-  80.7% along the gradient's axis; a shipped build put the bright stop at 55%, so a
-  quarter of its length was going white against the gold and measured 1.08:1 at the worst
-  point. Checking the two end colours cannot see this — both ends were fine — so the test
-  interpolates the gradient at each point along the path and asks what is behind it.
+- **The mark lies mostly on the dark sky, and only its tip reaches into the moon.** Where
+  it lies is the whole ballgame, because the accent blue measures 7.09:1 on the sky,
+  3.44:1 on the moon's unlit half and 1.36:1 on its lit face. A draft that ran the mark
+  across the lit face measured 1.74:1 median with 87% of its length under 3:1, and no
+  choice of blue rescues that placement — one deep enough for the gold (7.71:1) collapses
+  to 1.17:1 on the navy. Clear of the moon altogether it reads as scenery instead of as a
+  second subject, so the test bounds the overlap from both sides.
+- **Every point of it clears 3:1**, cap edges included. The test sweeps the stroke's full
+  covered area rather than its centreline, which is the only way to catch a round cap
+  overhanging the terminator by a few pixels onto the lit face — a real bug that measured
+  a comfortable 2.30:1 down the middle while the cap sat at 1.36:1.
+- **The stroke stays wide enough to survive** the 29px an iPhone home screen renders.
 
 ## Layout
 

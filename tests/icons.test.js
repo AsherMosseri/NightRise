@@ -12,8 +12,9 @@ import { readFileSync } from 'node:fs';
  *
  * So: read the numbers back out of both files and compare them. This does not
  * check that the icon looks good — nothing here can. It checks that the picture
- * the source of truth describes is the picture the build emits, which is the
- * part that fails silently.
+ * the source of truth describes is the picture the build emits, and it pins the
+ * one property that took several attempts to get right: that the checkmark is
+ * legible against whatever is behind it.
  */
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -48,150 +49,26 @@ function color(name) {
   return m[1];
 }
 
-/** The meteor's polyline, as [x, y] pairs in SVG user units. */
-function meteorPath() {
-  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
-  return [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
+/** The checkmark's polyline and stroke, from the SVG. */
+function checkPath() {
+  const m = SVG.match(/<path d="((?:M|L)[^"]*)" fill="none" stroke="(#[0-9a-f]{6})" stroke-width="(\d+)"/);
+  assert.ok(m, 'the checkmark path is not the shape this test knows how to read');
+  return {
+    points: [...m[1].matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]),
+    stroke: m[2],
+    width: Number(m[3]),
+  };
 }
 
-/** The meteor gradient's stops, offsets normalised to 0..1. */
-function gradientStops() {
-  const block = SVG.match(/<linearGradient id="meteor"[^>]*>([\s\S]*?)<\/linearGradient>/)[1];
-  return [...block.matchAll(/offset="(\d+)%" stop-color="(#[0-9a-f]{6})" stop-opacity="([\d.]+)"/g)]
-    .map((m) => ({ at: Number(m[1]) / 100, color: m[2], opacity: Number(m[3]) }));
-}
-
-// The two fields the stroke actually lands on. LUNE_DARK is the lit lune's own
-// gradient at its dark end — the worst case the stroke has to survive on gold.
-const LUNE_DARK = '#cbb98f';
-const SKY = '#0a1030';
-
-test('the moon is in the same place in both renderers', () => {
-  const disc = circles().filter((c) => c.r === 126);
+/** The moon, as the SVG draws it. */
+function moon() {
+  const disc = circles().filter((c) => c.fill === '#39457e' || c.stroke === '#5866a8');
   assert.equal(disc.length, 2, 'expected a filled disc and a rim stroke');
-  for (const c of disc) {
-    assert.equal(c.cx, units('MOON_X'));
-    assert.equal(c.cy, units('MOON_Y'));
-    assert.equal(c.r, units('MOON_R'));
-  }
-  assert.equal(disc[0].fill, color('MOON_UNLIT'));
-  assert.equal(disc[1].stroke, color('MOON_RIM'));
-});
-
-test('the lit lune is at the fill fraction the rasteriser uses', () => {
-  // The lune is a right semicircle joined to a terminator ellipse whose
-  // x-radius is r * |1 - 2f| — the geometry sky.js drawMoon() uses. Recover f
-  // from the path's second arc and check it against FILL.
-  const m = SVG.match(/d="M262 122 A126 126 0 0 1 262 374 A(\d+) 126 0 0 1 262 122 Z"/);
-  assert.ok(m, 'the lune path is not the shape this test knows how to read');
   const fill = Number(RASTER.match(/const FILL = ([\d.]+);/)[1]);
-  assert.equal(Number(m[1]), Math.round(126 * Math.abs(1 - 2 * fill)));
-  assert.ok(fill > 0.5 && fill < 0.75, 'gibbous on purpose: a half moon reads as a shape, not a moon');
-});
+  return { cx: disc[0].cx, cy: disc[0].cy, r: disc[0].r, fill, rx: disc[0].r * Math.abs(1 - 2 * fill) };
+}
 
-test('the meteor follows the same path in both renderers', () => {
-  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
-  const points = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
-  const raster = RASTER.match(/const METEOR = (\[\[[\s\S]*?\]\]);/)[1];
-  const rasterPoints = [...raster.matchAll(/\[(-?[\d.]+) \/ 512, (-?[\d.]+) \/ 512\]/g)]
-    .map((p) => [Number(p[1]), Number(p[2])]);
-  assert.deepEqual(rasterPoints, points);
-
-  // It has to be a checkmark: down-right into a vertex, then up-right and past.
-  assert.equal(points.length, 3, 'a check is two segments');
-  const [start, vertex, tip] = points;
-  assert.ok(vertex[1] > start[1] && vertex[1] > tip[1], 'the vertex is the lowest point');
-  assert.ok(start[0] < vertex[0] && vertex[0] < tip[0], 'it travels left to right throughout');
-  assert.ok(tip[1] < start[1], 'the long arm ends above where the short arm began');
-});
-
-test('the meteor crosses the moon, which is what makes it a second subject', () => {
-  // The draft this replaced sat clear of the moon up in the corner and read as
-  // scenery — a third tier of background with the stars. Overlap is the whole
-  // mechanism, so it is the thing worth asserting.
-  const cx = units('MOON_X');
-  const cy = units('MOON_Y');
-  const r = units('MOON_R');
-  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
-  const points = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
-
-  // Walk the polyline and count how much of it lies inside the disc.
-  let inside = 0;
-  let total = 0;
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const [x1, y1] = points[i];
-    const [x2, y2] = points[i + 1];
-    const len = Math.hypot(x2 - x1, y2 - y1);
-    const steps = Math.ceil(len);
-    for (let s = 0; s < steps; s += 1) {
-      const t = (s + 0.5) / steps;
-      const x = x1 + (x2 - x1) * t;
-      const y = y1 + (y2 - y1) * t;
-      total += 1;
-      if (Math.hypot(x - cx, y - cy) <= r) inside += 1;
-    }
-  }
-  assert.ok(inside / total > 0.5, `only ${Math.round((inside / total) * 100)}% of the meteor is over the moon`);
-
-  // And it must break the outline somewhere, or it is contained decoration
-  // sitting on the moon rather than something crossing it. Only the head end is
-  // required to clear the disc: the tail starts inside on purpose and fades in,
-  // which is what a meteor does and what a checkmark drawn as a solid stroke
-  // cannot. Asserting both ends would be asserting a different picture.
-  const tip = points[points.length - 1];
-  assert.ok(Math.hypot(tip[0] - cx, tip[1] - cy) > r, 'the head has to clear the disc');
-});
-
-test('the meteor stroke survives being looked at small', () => {
-  const width = Number(SVG.match(/stroke="url\(#meteor\)"\s+stroke-width="(\d+)"/)[1]);
-  assert.equal(units('METEOR_W'), width / 2, 'the rasteriser stores the half-width');
-  // At the 29px an iPhone home screen actually renders, a stroke this wide is
-  // width/512*29 device pixels. Under one and it is a smudge.
-  assert.ok((width / 512) * 29 >= 1.5, `${((width / 512) * 29).toFixed(2)}px at 29px is too thin to read`);
-});
-
-test('the meteor head matches in both renderers', () => {
-  const head = circles().filter((c) => c.fill === '#f6f9ff');
-  assert.equal(head.length, 1);
-  const halo = circles().filter((c) => c.fill === '#dfe8ff');
-  assert.equal(halo.length, 1);
-
-  assert.equal(head[0].r, units('HEAD_R'));
-  assert.equal(halo[0].r, units('HALO_R'));
-  assert.equal(halo[0].cx, head[0].cx, 'the halo is concentric with the head');
-  assert.equal(halo[0].cy, head[0].cy);
-  assert.equal(head[0].fill, color('METEOR_HOT'));
-  assert.equal(halo[0].fill, color('METEOR_HALO'));
-
-  // The head sits on the tip of the stroke, so the round cap fills behind it.
-  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
-  const points = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
-  assert.deepEqual([head[0].cx, head[0].cy], points[points.length - 1]);
-
-  const raster = RASTER.match(/const METEOR_HEAD = \[(-?[\d.]+) \/ 512, (-?[\d.]+) \/ 512\];/);
-  assert.deepEqual([Number(raster[1]), Number(raster[2])], [head[0].cx, head[0].cy]);
-});
-
-test('the stroke gradient matches in both renderers', () => {
-  const block = SVG.match(/<linearGradient id="meteor"[^>]*>([\s\S]*?)<\/linearGradient>/)[1];
-  const stops = [...block.matchAll(/offset="(\d+)%" stop-color="(#[0-9a-f]{6})" stop-opacity="([\d.]+)"/g)]
-    .map((m) => ({ at: Number(m[1]) / 100, color: m[2], opacity: Number(m[3]) }));
-  assert.equal(stops.length, 3);
-
-  assert.deepEqual(stops.map((s) => s.color), [color('METEOR_DIM'), color('METEOR_MID'), color('METEOR_LIT')]);
-  assert.equal(stops[1].at, Number(RASTER.match(/const GRAD_STOP = ([\d.]+);/)[1]));
-  // Fully opaque throughout. The taper is in value, not in alpha — see below.
-  assert.deepEqual(stops.map((s) => s.opacity), [1, 1, 1]);
-
-  // It runs bottom-left to top-right, the direction of travel. If this axis
-  // ever flips, the streak brightens at the tail instead of at the head and the
-  // rasteriser's meteorPaint() — which reproduces this axis rather than using
-  // arc length along the path — silently disagrees with the SVG.
-  const axis = SVG.match(/<linearGradient id="meteor" x1="(\d)" y1="(\d)" x2="(\d)" y2="(\d)"/).slice(1).map(Number);
-  assert.deepEqual(axis, [0, 1, 1, 0]);
-});
-
-/* WCAG relative luminance, and the contrast ratio between two hex colours. */
+/* --- colour maths, so the contrast claims in the SVG's comments are checked --- */
 function luminance(hex) {
   const chan = (i) => {
     const s = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
@@ -204,121 +81,150 @@ const contrast = (a, b) => {
   return (luminance(hi) + 0.05) / (luminance(lo) + 0.05);
 };
 
-test('no part of the meteor lies on the moon\'s unlit half', () => {
-  // This is the constraint the whole colour scheme hangs on, so it is asserted
-  // rather than trusted. There is no blue that reads on both fields at once:
-  //
-  //   #7d9bff  3.44:1 on the unlit navy   1.36:1 on the gold
-  //   #2c3a7a  1.17:1 on the unlit navy   7.71:1 on the gold
-  //
-  // A stroke crossing the terminator is therefore illegible along part of its
-  // length whatever colour it is given. The first version of this icon crossed
-  // it, spent 26% of its length on the navy, and measured 1.74:1 median with
-  // 87% of the stroke under 3:1. The fix was geometric, not chromatic.
-  const cx = units('MOON_X');
-  const cy = units('MOON_Y');
-  const r = units('MOON_R');
-  const fill = Number(RASTER.match(/const FILL = ([\d.]+);/)[1]);
-  const rx = r * Math.abs(1 - 2 * fill);
-  const half = Number(SVG.match(/stroke="url\(#meteor\)"\s+stroke-width="(\d+)"/)[1]) / 2;
+// The three fields the mark can lie on, at their worst point for a blue stroke.
+const SKY = '#0a1030';
+const UNLIT = '#39457e';
+const GOLD = '#cbb98f';
 
-  const d = SVG.match(/<path d="((?:M|L)[^"]*)" stroke="url\(#meteor\)"/)[1];
-  const points = [...d.matchAll(/[ML](-?[\d.]+) (-?[\d.]+)/g)].map((p) => [Number(p[1]), Number(p[2])]);
+/** Which field is behind a point: 'sky', 'unlit' or 'gold'. */
+function fieldAt(x, y, m) {
+  if (Math.hypot(x - m.cx, y - m.cy) > m.r) return 'sky';
+  const ex = (x - m.cx) / m.rx;
+  const ey = (y - m.cy) / m.r;
+  return (x >= m.cx || ex * ex + ey * ey <= 1) ? 'gold' : 'unlit';
+}
 
-  // Sample the stroke's full covered area, not just its centreline: an edge
-  // sliding over the terminator is the failure this guards, and a centreline
-  // walk would not see it. The round caps bulge half a stroke-width *past* each
-  // endpoint too, so those are swept as discs rather than assumed away.
-  const onUnlit = [];
-  const test = (x, y) => {
-    if (Math.hypot(x - cx, y - cy) > r) return; // over the sky, which is fine
-    const ex = (x - cx) / rx;
-    const ey = (y - cy) / r;
-    if (!(x >= cx || ex * ex + ey * ey <= 1)) onUnlit.push([Math.round(x), Math.round(y)]);
-  };
+/** Walk the stroke's covered area, yielding [x, y, field] samples. */
+function* strokeSamples(step = 1) {
+  const { points, width } = checkPath();
+  const m = moon();
+  const half = width / 2;
   for (let i = 0; i < points.length - 1; i += 1) {
     const [x1, y1] = points[i];
     const [x2, y2] = points[i + 1];
     const len = Math.hypot(x2 - x1, y2 - y1);
     const nx = -(y2 - y1) / len;
     const ny = (x2 - x1) / len;
-    for (let s = 0; s <= Math.ceil(len); s += 1) {
-      const t = s / Math.ceil(len);
+    const steps = Math.ceil(len / step);
+    for (let s = 0; s <= steps; s += 1) {
+      const t = s / steps;
       for (const off of [-half, -half / 2, 0, half / 2, half]) {
-        test(x1 + (x2 - x1) * t + nx * off, y1 + (y2 - y1) * t + ny * off);
+        const x = x1 + (x2 - x1) * t + nx * off;
+        const y = y1 + (y2 - y1) * t + ny * off;
+        yield [x, y, fieldAt(x, y, m)];
       }
     }
   }
+  // The round caps bulge half a width past each endpoint.
   for (const [px, py] of points) {
-    for (let a = 0; a < 32; a += 1) {
-      const th = (a / 32) * Math.PI * 2;
-      test(px + Math.cos(th) * half, py + Math.sin(th) * half);
+    for (let a = 0; a < 48; a += 1) {
+      const th = (a / 48) * Math.PI * 2;
+      const x = px + Math.cos(th) * half;
+      const y = py + Math.sin(th) * half;
+      yield [x, y, fieldAt(x, y, m)];
     }
   }
-  assert.deepEqual(onUnlit.slice(0, 5), [], `${onUnlit.length} samples of the stroke sit on the unlit half`);
+}
+
+test('the moon is in the same place in both renderers', () => {
+  const m = moon();
+  assert.equal(m.cx, units('MOON_X'));
+  assert.equal(m.cy, units('MOON_Y'));
+  assert.equal(m.r, units('MOON_R'));
+
+  const disc = circles().filter((c) => c.fill === '#39457e' || c.stroke === '#5866a8');
+  assert.equal(disc[0].fill, color('MOON_UNLIT'));
+  assert.equal(disc[1].stroke, color('MOON_RIM'));
+
+  const glow = circles().find((c) => c.fill === 'url(#glow)');
+  assert.equal(glow.r, units('GLOW_R'), 'the glow radius drifted between renderers');
+  assert.deepEqual([glow.cx, glow.cy], [m.cx, m.cy], 'the glow is concentric with the moon');
 });
 
-test('each end of the meteor has contrast against the field it lands on', () => {
-  // The taper is in value, not opacity, and it has to run the right way round.
-  // The first draft faded 50%-opacity blue to near-white, which put the dim end
-  // on the navy and the hot end on the gold — each on the one field it could
-  // not be seen against. If someone flips these stops back, this fails.
-  const [tail, , head] = gradientStops().map((s) => s.color);
-  assert.ok(luminance(tail) < luminance(head), 'the tail must be the darker end');
-  assert.ok(contrast(tail, LUNE_DARK) >= 4.5, `tail on the gold is ${contrast(tail, LUNE_DARK).toFixed(2)}:1`);
-  assert.ok(contrast(head, SKY) >= 4.5, `head on the sky is ${contrast(head, SKY).toFixed(2)}:1`);
+test('the lit lune is at the fill fraction the rasteriser uses', () => {
+  // The lune is a right semicircle joined to a terminator ellipse whose
+  // x-radius is r * |1 - 2f| — the geometry sky.js drawMoon() uses. Recover it
+  // from the path and check it against FILL.
+  const m = moon();
+  const d = SVG.match(/<path d="M(\d+) (\d+) A(\d+) \3 0 0 1 \1 (\d+) A(\d+) \3 0 0 1 \1 \2 Z"/);
+  assert.ok(d, 'the lune path is not the shape this test knows how to read');
+  const [, cx, top, r, bottom, rx] = d.map(Number);
+  assert.equal(cx, m.cx);
+  assert.equal(r, m.r);
+  assert.equal(Number(top), m.cy - m.r);
+  assert.equal(Number(bottom), m.cy + m.r);
+  assert.equal(rx, Math.round(m.rx));
+  assert.ok(m.fill > 0.5 && m.fill < 0.75, 'gibbous on purpose: a half moon reads as a shape, not a moon');
 });
 
-test('the meteor never turns pale while it is still on the moon', () => {
-  // The failure this catches is subtle and was live in a shipped build: the
-  // gradient's bright stop sat at 55% while the stroke does not leave the moon's
-  // limb until 80.7% along the gradient axis, so a quarter of its length was
-  // going white against the gold — 1.08:1 at the worst point.
-  //
-  // Checking the two end colours is not enough to see it, because both ends were
-  // fine. It only shows up by interpolating the gradient at each point and
-  // asking what is behind that point, which is what this does.
-  const cx = units('MOON_X');
-  const cy = units('MOON_Y');
-  const r = units('MOON_R');
-  const stops = gradientStops();
-  const points = meteorPath();
+test('the checkmark follows the same path in both renderers', () => {
+  const { points, width, stroke } = checkPath();
+  const raster = RASTER.match(/const CHECK = (\[\[[\s\S]*?\]\]);/)[1];
+  const rasterPoints = [...raster.matchAll(/\[(-?[\d.]+) \/ 512, (-?[\d.]+) \/ 512\]/g)]
+    .map((p) => [Number(p[1]), Number(p[2])]);
+  assert.deepEqual(rasterPoints, points);
+  assert.equal(units('CHECK_W'), width / 2, 'the rasteriser stores the half-width');
+  assert.equal(stroke, color('CHECK_COLOR'));
+});
 
-  // The gradient is an objectBoundingBox one from the box's bottom-left corner
-  // to its top-right — the same axis tools/make-icons.mjs reproduces.
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
-  const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
-  const axis = (x, y) => Math.max(0, Math.min(1, ((x - x0) / (x1 - x0) + (y1 - y) / (y1 - y0)) / 2));
+test('it is a checkmark: down-right into a vertex, then up-right and past', () => {
+  const { points } = checkPath();
+  assert.equal(points.length, 3, 'a check is two segments');
+  const [start, vertex, tip] = points;
+  assert.ok(vertex[1] > start[1] && vertex[1] > tip[1], 'the vertex is the lowest point');
+  assert.ok(start[0] < vertex[0] && vertex[0] < tip[0], 'it travels left to right throughout');
+  assert.ok(tip[1] < start[1], 'the long arm ends above where the short arm began');
+});
 
-  const colorAt = (g) => {
-    let lo = stops[0];
-    let hi = stops[stops.length - 1];
-    for (let i = 0; i < stops.length - 1; i += 1) {
-      if (g >= stops[i].at && g <= stops[i + 1].at) { lo = stops[i]; hi = stops[i + 1]; }
-    }
-    const t = hi.at === lo.at ? 0 : (g - lo.at) / (hi.at - lo.at);
-    const chan = (c, i) => parseInt(c.slice(1 + i * 2, 3 + i * 2), 16);
-    return `#${[0, 1, 2].map((i) => Math.round(chan(lo.color, i) + (chan(hi.color, i) - chan(lo.color, i)) * t)
-      .toString(16).padStart(2, '0')).join('')}`;
-  };
+test('the checkmark reaches into the moon without being swallowed by it', () => {
+  // Two failure modes, opposite each other. Clear of the moon entirely, the mark
+  // reads as scenery rather than as a second subject — that is what an earlier
+  // draft did, with the meteor parked up in a corner. Laid across the lit face,
+  // it goes illegible, which is what the draft after that did. It has to touch
+  // and no more.
+  const counts = { sky: 0, unlit: 0, gold: 0 };
+  let total = 0;
+  for (const [, , field] of strokeSamples()) { counts[field] += 1; total += 1; }
 
-  let worst = { ratio: Infinity };
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const [ax, ay] = points[i];
-    const [bx, by] = points[i + 1];
-    const steps = Math.ceil(Math.hypot(bx - ax, by - ay));
-    for (let s = 0; s <= steps; s += 1) {
-      const t = s / steps;
-      const x = ax + (bx - ax) * t;
-      const y = ay + (by - ay) * t;
-      if (Math.hypot(x - cx, y - cy) > r) continue; // off the disc; the sky is its own case
-      const ratio = contrast(colorAt(axis(x, y)), LUNE_DARK);
-      if (ratio < worst.ratio) worst = { ratio, x: Math.round(x), y: Math.round(y) };
-    }
-  }
-  assert.ok(worst.ratio >= 3, `weakest point on the gold is ${worst.ratio.toFixed(2)}:1 at ${worst.x},${worst.y}`);
+  const onMoon = (counts.unlit + counts.gold) / total;
+  assert.ok(onMoon > 0.03, `the mark only touches the moon over ${(onMoon * 100).toFixed(1)}% of itself`);
+  assert.ok(onMoon < 0.35, `${(onMoon * 100).toFixed(0)}% of the mark is on the moon; it should mostly be on the sky`);
+  assert.ok(counts.sky / total > 0.6, 'most of the mark belongs on the dark sky, where the contrast is');
+});
+
+test('the checkmark is legible along its whole length', () => {
+  // This is the property several drafts got wrong, and it cannot be seen by
+  // reading the file. The accent blue measures 7.09:1 on the sky, 3.44:1 on the
+  // moon's unlit half and 1.36:1 on its lit face — so where the mark lies
+  // decides whether it can be seen, and no choice of blue rescues a bad
+  // placement: a blue deep enough for the gold (7.71:1) drops to 1.17:1 on the
+  // navy. One draft ran the mark across the lit face and measured 1.74:1 median
+  // with 87% of its length under 3:1.
+  const { stroke } = checkPath();
+  const behind = { sky: SKY, unlit: UNLIT, gold: GOLD };
+
+  const ratios = [];
+  for (const [, , field] of strokeSamples()) ratios.push(contrast(stroke, behind[field]));
+  ratios.sort((a, b) => a - b);
+
+  const median = ratios[Math.floor(ratios.length / 2)];
+  const weak = ratios.filter((r) => r < 3).length / ratios.length;
+
+  // 3.0 is the meaningful floor: blue on the unlit navy is 3.44:1, so anything
+  // below it means some of the stroke — usually a round cap overhanging the
+  // terminator by a few pixels — has crept onto the lit face. That exact bug was
+  // live and invisible until this swept the stroke's full width rather than its
+  // centreline, which measured a comfortable 2.30:1 while the cap sat at 1.36.
+  assert.ok(median >= 6, `median contrast along the mark is ${median.toFixed(2)}:1`);
+  assert.ok(ratios[0] >= 3, `weakest point on the mark is ${ratios[0].toFixed(2)}:1`);
+  assert.ok(weak === 0, `${(weak * 100).toFixed(1)}% of the mark is under 3:1`);
+});
+
+test('the checkmark survives being looked at small', () => {
+  const { width } = checkPath();
+  // At the 29px an iPhone home screen actually renders, a stroke this wide is
+  // width/512*29 device pixels. Under one and it is a smudge.
+  assert.ok((width / 512) * 29 >= 1.5, `${((width / 512) * 29).toFixed(2)}px at 29px is too thin to read`);
 });
 
 test('the icon carries no baked corner radius', () => {
@@ -329,7 +235,7 @@ test('the icon carries no baked corner radius', () => {
 });
 
 test('the stars match in both renderers', () => {
-  const stars = circles().filter((c) => c.r <= 11 && c.fill === null);
+  const stars = circles().filter((c) => c.fill === null && c.stroke === null);
   assert.equal(stars.length, 4, 'four stars, and they inherit fill from their group');
   const listed = [...RASTER.match(/const stars = \[([\s\S]*?)\];/)[1]
     .matchAll(/\[([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\]/g)]

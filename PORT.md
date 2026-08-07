@@ -6,7 +6,40 @@ and every mistake documented. Read this before writing Swift, and keep the web a
 running beside you: when the Swift economy disagrees with it, the web app is right
 until you have proved otherwise.
 
-The name changes at the port. The repo stays `NightCheck`; the app is **NightRise**.
+The name changes at the port. The repo, the project and the app are all
+**NightRise**; `NightCheck` is the old name and should not survive into Swift.
+
+---
+
+## Renaming NightCheck to NightRise
+
+There are **35 mentions across 14 files** in the app itself, and 13 more in the
+README. **Rename every one of them in the Swift port** — types, strings, comments,
+log messages, the lot. Nothing should ship carrying the old name.
+
+But this repo is not a find-and-replace target, because six of those strings are
+**data**, not prose. Changing them changes behaviour:
+
+| string | where | what changes if you rename it |
+|---|---|---|
+| `nightcheck.v1` | `model.js` `STORAGE_KEY` | **every existing save is orphaned.** The key itself does not cross over — Swift will use its own store — but the exported JSON must still be readable. |
+| `nightcheck-stars` | `sky.js:90` | the starfield seed. Rename it and every sky re-randomises. Either carry the literal across or accept a one-time reshuffle, but know which you are choosing. |
+| `nightcheck-v83` | `sw.js:7` | the cache name, and… |
+| `startsWith('nightcheck-')` | `sw.js:85` | …the filter that deletes old caches. **A coupled pair.** Rename one and old caches are never collected. Neither crosses to Swift. |
+| `nightcheck.updated-at` | `updates.js:23` | plus `updates.js:102`, which strips the `nightcheck-` prefix off the cache name. Coupled to `sw.js`. Does not cross over. |
+| `__nightcheck_probe__` | `storage.js:420` | the localStorage availability probe. Harmless, but it is a key, not a label. |
+
+Everything else is prose and renames freely: the `console.warn('NightCheck: …')`
+family, the `.ics` `PRODID` and description, `index.html`'s title, the manifest
+name, `package.json`, the export filenames, and the `window.__nightcheck` debug
+hook.
+
+**One thing that makes the migration easy:** the export format carries no app name
+at all. `serializeState` writes the state plus an `exportedAt` stamp, and
+`parseImport` validates only that `template` is an object. So a NightCheck backup
+imports into NightRise with no compatibility shim — which matters, because your
+on-time nights are the one thing that cannot be regenerated and the Far Shelf
+counts to 120.
 
 ---
 

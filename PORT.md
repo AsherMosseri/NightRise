@@ -279,8 +279,13 @@ Each of these shipped, was found by measurement, and has a test holding it down.
 2. **Port the tests.** `time`, `lastcall`, `leverage`, `economy`, `shop` first —
    those five are 145 of the 399 and hold every invariant above.
 3. **Port the rules** until the tests pass. No UI yet.
-4. **Import the existing save.** The web app exports JSON; on-time nights are the
-   one thing that cannot be regenerated, and the Far Shelf counts to 120.
+4. **Build the importer anyway**, even though there is now nothing to import.
+   The original save was lost to the precache bug above, so the port starts from
+   night zero — which is cleaner than it sounds, since the Far Shelf's first rung
+   is three nights out and the whole ladder is live from the first night.
+   The importer still has to exist: `parseImport` accepts any object with a
+   `template`, so the format is already stable, and it is what makes the next
+   save recoverable. Write it before there is something to lose, not after.
 5. **Then the UI**, list before sky.
 6. **HealthKit last** — it changes `onTime` from a claim to a measurement, and it
    should land on an economy already known to be correct.

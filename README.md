@@ -850,6 +850,7 @@ js/render/sheet.js          the phone bottom sheet
 js/render/confirm.js        the app's own confirm and chooser dialogs
 js/render/add-task.js       the three-tap add flow and the number pad
 
+PORT.md                  the handoff to Swift: what ports, and what must not come back
 tests/                   20 suites, node --test, no dependencies
 tools/make-icons.mjs     PWA icon generator
 tools/economy-sim.mjs    every stardust figure quoted above, measured
